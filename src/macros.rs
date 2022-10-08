@@ -1,4 +1,4 @@
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! min {
     ($x: expr) => { $x };
     ($x: expr, $($xs: expr),+) => {{
@@ -7,7 +7,7 @@ macro_rules! min {
     }}
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! max {
     ($x: expr) => { $x };
     ($x: expr, $($xs: expr),+) => {{
@@ -16,7 +16,7 @@ macro_rules! max {
     }}
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! chmin {
     ($x: expr, $($xs: expr),+) => {{
         let y = min!($($xs),+);
@@ -24,7 +24,7 @@ macro_rules! chmin {
     }}
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! chmax {
     ($x: expr, $($xs: expr),+) => {{
         let y = max!($($xs),+);
@@ -32,13 +32,13 @@ macro_rules! chmax {
     }}
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! multi_vec {
     ($element: expr; ($len: expr, $($lens: expr),*)) => ( vec![macros::multi_vec![$element; ($($lens),*)]; $len] );
     ($element: expr; ($len: expr)) => ( vec![$element; $len] );
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! multi_box_array {
     ($element: expr; ($len: expr, $($lens: expr),*)) => ( vec![macros::multi_box_array![$element; ($($lens),*)]; $len].into_boxed_slice() );
     ($element: expr; ($len: expr)) => ( vec![$element; $len].into_boxed_slice() );
