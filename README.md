@@ -1,5 +1,7 @@
 # Algorithm and data structures in Rust
 
+[Document](https://sakikuroe.github.io/algorithms-and-data-structures-rs/algorithms_and_data_structures_rs/index.html)
+
 This is a library of algorithms and data structures for competitive programming players.
 
 ```
