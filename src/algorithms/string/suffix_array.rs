@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+/// verified by
+/// - Library Checker | [Suffix Array](https://judge.yosupo.jp/problem/suffixarray) ([submittion](https://judge.yosupo.jp/submission/107819))
 pub fn suffix_array(s: &Vec<char>) -> Vec<usize> {
     let mut sa = (0..s.len() + 1).collect::<Vec<_>>();
     let mut rank = vec![0; s.len() + 1];
