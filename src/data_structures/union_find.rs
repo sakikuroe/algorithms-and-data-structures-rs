@@ -1,8 +1,9 @@
+//! verified by
+//! - AtCoder | [AtCoder Beginner Contest 120 D - Decayed Bridges](https://atcoder.jp/contests/abc120/tasks/abc120_d), ([submittion](https://atcoder.jp/contests/abc120/submissions/34307175))
+//! - AtCoder | [AtCoder Typical Contest 001 B - Union Find](https://atcoder.jp/contests/atc001/tasks/unionfind_a), ([submittion](https://atcoder.jp/contests/atc001/submissions/34307248))
+
 use std::cmp::Ordering;
 
-/// verified by
-/// - AtCoder | [AtCoder Beginner Contest 120 D - Decayed Bridges](https://atcoder.jp/contests/abc120/tasks/abc120_d), ([submittion](https://atcoder.jp/contests/abc120/submissions/34307175))
-/// - AtCoder | [AtCoder Typical Contest 001 B - Union Find](https://atcoder.jp/contests/atc001/tasks/unionfind_a), ([submittion](https://atcoder.jp/contests/atc001/submissions/34307248))
 #[derive(Clone)]
 pub struct UnionFind {
     parent: Vec<usize>,
@@ -38,18 +39,18 @@ impl UnionFind {
 
         if root_x != root_y {
             match self.rank[root_x].cmp(&self.rank[root_y]) {
-                Ordering::Greater => {
-                    self.parent[root_y] = root_x;
-                    self.size[root_x] += self.size[root_y];
+                Ordering::Less => {
+                    self.parent[root_x] = root_y;
+                    self.size[root_y] += self.size[root_x];
                 }
                 Ordering::Equal => {
                     self.parent[root_y] = root_x;
                     self.size[root_x] += self.size[root_y];
                     self.rank[root_x] += 1;
                 }
-                Ordering::Less => {
-                    self.parent[root_x] = root_y;
-                    self.size[root_y] += self.size[root_x];
+                Ordering::Greater => {
+                    self.parent[root_y] = root_x;
+                    self.size[root_x] += self.size[root_y];
                 }
             }
         }
