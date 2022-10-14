@@ -40,7 +40,7 @@ impl Matrix {
         let mut res = eye(self.value.len());
         let mut x = self.clone();
         while n > 0 {
-            if n & 1 == 1 {
+            if n % 2 == 1 {
                 res *= x.clone();
             }
             x *= x.clone();
