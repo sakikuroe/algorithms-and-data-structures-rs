@@ -150,6 +150,7 @@ impl ops::Sub for Matrix {
 impl ops::Mul for Matrix {
     type Output = Matrix;
     fn mul(self, other: Self) -> Self {
+        assert_eq!(self.shape.1, other.shape.0);
         let a = &self.value;
         let b = &other.value;
         let l = a.len();
@@ -169,6 +170,18 @@ impl ops::Mul for Matrix {
             value: c,
             shape: (l, n),
         }
+    }
+}
+
+impl ops::AddAssign for Matrix {
+    fn add_assign(&mut self, other: Self) {
+        *self = self.clone() + other;
+    }
+}
+
+impl ops::SubAssign for Matrix {
+    fn sub_assign(&mut self, other: Self) {
+        *self = self.clone() - other;
     }
 }
 
