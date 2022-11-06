@@ -8,12 +8,12 @@ where
     T: Ord,
 {
     fn next_permutation(&mut self) {
-        if self.len() == 0 {
+        if self.len() <= 1 {
             return;
         }
 
-        if let Some(i) = (0..self.len() - 1).rev().find(|&i| self[i] < self[i + 1]) {
-            let j = (0..self.len()).rev().find(|&j| self[i] < self[j]).unwrap();
+        if let Some(i) = self.windows(2).rposition(|s| s[0] < s[1]) {
+            let j = self.iter().rposition(|x| self[i] < *x).unwrap();
             self.swap(i, j);
             self[i + 1..].reverse();
         } else {
@@ -22,12 +22,12 @@ where
     }
 
     fn prev_permutation(&mut self) {
-        if self.len() == 0 {
+        if self.len() <= 1 {
             return;
         }
 
-        if let Some(i) = (0..self.len() - 1).rev().find(|&i| self[i] > self[i + 1]) {
-            let j = (0..self.len()).rev().find(|&j| self[i] > self[j]).unwrap();
+        if let Some(i) = self.windows(2).rposition(|s| s[0] > s[1]) {
+            let j = self.iter().rposition(|x| self[i] > *x).unwrap();
             self.swap(i, j);
             self[i + 1..].reverse();
         } else {
