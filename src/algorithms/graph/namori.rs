@@ -40,7 +40,7 @@ impl Graph<usize> {
     }
 
     /// verified by
-    /// - AtCoder | [AtCoder Beginner Contest 266  F - Well-defined Path Queries on a Namori](https://atcoder.jp/contests/abc266/tasks/abc266_f) ([submittion](https://atcoder.jp/contests/abc266/submissions/34414332))
+    /// - AtCoder | [AtCoder Beginner Contest 266  F - Well-defined Path Queries on a Namori](https://atcoder.jp/contests/abc266/tasks/abc266_f) ([submittion](https://atcoder.jp/contests/abc266/submissions/36470220))
     pub fn namori(&self) -> Vec<Vec<usize>> {
         let face = self.cycle();
         let mut tentacles = vec![];
