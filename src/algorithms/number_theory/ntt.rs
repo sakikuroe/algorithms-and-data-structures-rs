@@ -1,5 +1,5 @@
 //! verified by
-//! - Library Checker | [Convolution](https://judge.yosupo.jp/problem/convolution_mod) ([submittion](https://judge.yosupo.jp/submission/103577))
+//! - Library Checker | [Convolution](https://judge.yosupo.jp/problem/convolution_mod) ([submittion](https://judge.yosupo.jp/submission/113077))
 
 use std::ops;
 
@@ -108,18 +108,9 @@ pub fn ntt(a: &Vec<ModInt>, root: &Vec<ModInt>) -> Vec<ModInt> {
     let mut a = {
         let mut idx = vec![0_usize];
         for i in 0..d {
-            let mut add = vec![];
-            for x in idx.iter() {
-                add.push(x + n / (1 << (i + 1)));
-            }
-            idx.append(&mut add);
+            idx.append(&mut (idx.iter().map(|x| *x + n / (1 << (i + 1)))).collect::<Vec<_>>());
         }
-        let mut res = vec![ModInt::new(0); n];
-        for i in 0..n {
-            res[i] = a[idx[i]];
-        }
-
-        res
+        idx.into_iter().map(|x| a[x]).collect::<Vec<_>>()
     };
 
     for i in 0..d {
@@ -138,7 +129,7 @@ pub fn ntt(a: &Vec<ModInt>, root: &Vec<ModInt>) -> Vec<ModInt> {
     a
 }
 
-pub fn conv(a: &Vec<usize>, b: &Vec<usize>) -> Vec<ModInt> {
+pub fn conv(a: &Vec<ModInt>, b: &Vec<ModInt>) -> Vec<ModInt> {
     let s = a.len() + b.len() - 1;
     let t = s.next_power_of_two();
 
@@ -157,19 +148,15 @@ pub fn conv(a: &Vec<usize>, b: &Vec<usize>) -> Vec<ModInt> {
         root_inv
     };
 
-    let mut a = a.iter().copied().map(ModInt::new).collect::<Vec<_>>();
+    let mut a = a.clone();
     a.resize(t, ModInt::new(0));
     let a_inv = ntt(&a, &root);
 
-    let mut b = b.iter().copied().map(ModInt::new).collect::<Vec<_>>();
+    let mut b = b.clone();
     b.resize(t, ModInt::new(0));
     let b_inv = ntt(&b, &root);
 
-    let c_inv = a_inv
-        .iter()
-        .zip(b_inv.iter())
-        .map(|(a, b)| *a * *b)
-        .collect();
+    let c_inv = (0..t).map(|i| a_inv[i] * b_inv[i]).collect::<Vec<_>>();
     let c = ntt(&c_inv, &root_inv);
 
     c.into_iter().take(s).map(|x| x / ModInt::new(t)).collect()
