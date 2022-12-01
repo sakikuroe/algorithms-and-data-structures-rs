@@ -8,5 +8,6 @@ pub mod modint_free;
 pub mod persistent_stack;
 pub mod segment_tree;
 pub mod segment_tree2d;
+pub mod sliding_window_aggregation;
 pub mod splay_bst;
 pub mod union_find;
