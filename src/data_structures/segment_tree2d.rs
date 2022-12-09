@@ -1,5 +1,5 @@
 //! verified by
-//! - AtCoder | [トヨタシステムズプログラミングコンテスト2021(AtCoder Beginner Contest 228)](https://atcoder.jp/contests/abc228) ([submittion](https://atcoder.jp/contests/abc228/submissions/35240127))
+//! - AtCoder | [トヨタシステムズプログラミングコンテスト2021(AtCoder Beginner Contest 228)  F - Stamp Game](https://atcoder.jp/contests/abc228/tasks/abc228_f) ([submittion](https://atcoder.jp/contests/abc228/submissions/37104093))
 
 use crate::algebraic_structures::monoid::Monoid;
 
@@ -90,21 +90,22 @@ where
         let idx = |i: usize, j: usize| 2 * i * self_w + j;
 
         let sub = |h: usize, mut w1: usize, mut w2: usize| {
-            let mut sum_l = M::id();
-            let mut sum_r = M::id();
+            let mut sum = M::id();
+
             while w1 < w2 {
                 if w1 % 2 == 1 {
-                    sum_l = M::op(&sum_l, &self.data[idx(h, w1)]);
+                    sum = M::op(&sum, &self.data[idx(h, w1)]);
                     w1 += 1;
                 }
                 if w2 % 2 == 1 {
                     w2 -= 1;
-                    sum_r = M::op(&self.data[idx(h, w2)], &sum_r);
+                    sum = M::op(&self.data[idx(h, w2)], &sum);
                 }
                 w1 /= 2;
                 w2 /= 2;
             }
-            return M::op(&sum_l, &sum_r);
+            
+            sum
         };
 
         i1 += self.h;
@@ -112,22 +113,21 @@ where
         i2 += self.h;
         j2 += self.w;
 
-        let mut sum_l = M::id();
-        let mut sum_r = M::id();
+        let mut sum = M::id();
 
         while i1 < i2 {
             if i1 % 2 == 1 {
-                sum_l = M::op(&sum_l, &sub(i1, j1, j2));
+                sum = M::op(&sum, &sub(i1, j1, j2));
                 i1 += 1;
             }
             if i2 % 2 == 1 {
                 i2 -= 1;
-                sum_r = M::op(&sub(i2, j1, j2), &sum_r);
+                sum = M::op(&sub(i2, j1, j2), &sum);
             }
             i1 /= 2;
             i2 /= 2;
         }
 
-        M::op(&sum_l, &sum_r)
+        sum
     }
 }
