@@ -11,3 +11,4 @@ pub mod segment_tree2d;
 pub mod sliding_window_aggregation;
 pub mod splay_bst;
 pub mod union_find;
+pub mod union_find_potential;
