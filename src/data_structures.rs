@@ -10,5 +10,7 @@ pub mod segment_tree;
 pub mod segment_tree2d;
 pub mod sliding_window_aggregation;
 pub mod splay_bst;
+pub mod succinct_bit_vector;
 pub mod union_find;
 pub mod union_find_potential;
+pub mod wavelet_matrix;
