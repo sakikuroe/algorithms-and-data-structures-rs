@@ -3,6 +3,7 @@ use crate::algebraic_structures::commutative_group::CommutativeGroup;
 
 /// verified by
 /// - AtCoder | [AtCoder Beginner Contest 087 D - People on a Line](https://atcoder.jp/contests/abc087/tasks/arc090_b), ([submittion](https://atcoder.jp/contests/abc087/submissions/37278562))
+/// - AtCoder | [デンソークリエイトプログラミングコンテスト2022 Winter(AtCoder Beginner Contest 280) F - Pay or Receive](https://atcoder.jp/contests/abc280/tasks/abc280_f), ([submittion](https://atcoder.jp/contests/abc280/submissions/37302557))
 #[derive(Clone)]
 pub struct UnionFindPotential<G>
 where
