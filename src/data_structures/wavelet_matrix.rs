@@ -2,13 +2,14 @@
 /// - AtCoder | [AtCoder Beginner Contest 281 E - Least Elements](https://atcoder.jp/contests/abc281/tasks/abc281_e), ([submittion](https://atcoder.jp/contests/abc281/submissions/37286128))
 /// - AtCoder | [Chokudai SpeedRun 001 J - 転倒数](https://atcoder.jp/contests/chokudai_S001/tasks/chokudai_S001_j), ([submittion](https://atcoder.jp/contests/chokudai_S001/submissions/37286099))
 /// - AtCoder | [AtCoder Beginner Contest 174 F - Range Set Query](https://atcoder.jp/contests/abc174/tasks/abc174_f), ([submittion](https://atcoder.jp/contests/abc174/submissions/37286021))
+/// - AtCoder | [AtCoder Beginner Contest 241（Sponsored by Panasonic） D - Sequence Query](https://atcoder.jp/contests/abc241/tasks/abc241_d), ([submittion](https://atcoder.jp/contests/abc241/submissions/37308280))
 /// - Library Checker | [Range Kth Smallest](https://judge.yosupo.jp/problem/range_kth_smallest), ([submittion](https://judge.yosupo.jp/submission/116350))
 /// - Aizu Online Judge | [Hard Beans](https://judge.u-aizu.ac.jp/onlinejudge/description.jsp?id=1549), ([submittion](https://judge.u-aizu.ac.jp/onlinejudge/review.jsp?rid=7183138#1))
 
 // ceil(log2(cardinality(X)))
 // ex) when v : &[u32] -> 32,
 //     when v : &[u64] -> 64
-const WAVELET_MATRIX_HEIGHT: usize = 32;
+const WAVELET_MATRIX_HEIGHT: usize = 64;
 
 #[derive(Clone)]
 pub struct WaveletMatrix {
@@ -117,6 +118,19 @@ impl WaveletMatrix {
     /// Returns:
     ///     {
     ///         use itertools::Itertools;
+    ///         v[l..r].into_iter().sorted().rev().nth(k)
+    ///     }
+    pub fn get_kth_largest(&self, l: usize, r: usize, k: usize) -> Option<usize> {
+        if !(r >= l + 1 + k) {
+            None
+        } else {
+            self.get_kth_smallest(l, r, r - l - 1 - k)
+        }
+    }
+
+    /// Returns:
+    ///     {
+    ///         use itertools::Itertools;
     ///         v[l..r].into_iter().sorted().take(k).sum::<usize>()
     ///     }
     pub fn get_lower_sum(&self, mut l: usize, mut r: usize, mut k: usize) -> usize {
@@ -171,24 +185,39 @@ impl WaveletMatrix {
     }
 
     /// Returns:
-    ///     v[l..r].into_iter().filter(|y| lower <= **y).min()
-    pub fn get_next_value(&self, l: usize, r: usize, lower: usize) -> Option<usize> {
+    ///     {
+    ///         use itertools::Itertools;
+    ///         v[l..r].into_iter().filter(|y| lower <= **y).sorted().nth(k)
+    ///     }
+    pub fn get_above_kth_smallest(
+        &self,
+        l: usize,
+        r: usize,
+        lower: usize,
+        k: usize,
+    ) -> Option<usize> {
         let cnt = self.count(l, r, 0, lower);
-        if cnt == r - l {
+        if cnt + k >= r - l {
             None
         } else {
-            Some(self.get_kth_smallest(l, r, cnt).unwrap())
+            Some(self.get_kth_smallest(l, r, cnt + k).unwrap())
         }
     }
 
     /// Returns:
-    ///     v[l..r].into_iter().filter(|y| **y < upper).max()
-    pub fn get_prev_value(&self, l: usize, r: usize, upper: usize) -> Option<usize> {
+    ///     v[l..r].into_iter().filter(|y| **y < upper).sorted().rev().nth(k)
+    pub fn get_below_kth_largest(
+        &self,
+        l: usize,
+        r: usize,
+        upper: usize,
+        k: usize,
+    ) -> Option<usize> {
         let cnt = self.count(l, r, 0, upper);
-        if cnt == 0 {
+        if cnt <= k {
             None
         } else {
-            Some(self.get_kth_smallest(l, r, cnt - 1).unwrap())
+            Some(self.get_kth_smallest(l, r, cnt - 1 - k).unwrap())
         }
     }
 }
