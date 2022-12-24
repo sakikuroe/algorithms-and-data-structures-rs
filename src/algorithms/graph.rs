@@ -1,5 +1,6 @@
 pub mod bellman_ford;
 pub mod bfs;
+pub mod bipartite;
 pub mod cow_game;
 pub mod dijkstra;
 pub mod floyd_warshall;
