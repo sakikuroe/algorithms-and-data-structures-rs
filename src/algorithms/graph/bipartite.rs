@@ -1,3 +1,6 @@
+use crate::data_structures::graph::Graph;
+use std::collections::VecDeque;
+
 /// verified by
 /// - AtCoder | [HHKBプログラミングコンテスト2022 Winter(AtCoder Beginner Contest 282) D. Make Bipartite 2](https://atcoder.jp/contests/abc282/tasks/abc282_d), ([submittion](https://atcoder.jp/contests/abc282/submissions/37468042))
 
