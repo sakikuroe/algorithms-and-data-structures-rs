@@ -3,6 +3,7 @@
 /// - AtCoder | [Chokudai SpeedRun 001 J - 転倒数](https://atcoder.jp/contests/chokudai_S001/tasks/chokudai_S001_j), ([submittion](https://atcoder.jp/contests/chokudai_S001/submissions/37286099))
 /// - AtCoder | [AtCoder Beginner Contest 174 F - Range Set Query](https://atcoder.jp/contests/abc174/tasks/abc174_f), ([submittion](https://atcoder.jp/contests/abc174/submissions/37286021))
 /// - AtCoder | [AtCoder Beginner Contest 241（Sponsored by Panasonic） D - Sequence Query](https://atcoder.jp/contests/abc241/tasks/abc241_d), ([submittion](https://atcoder.jp/contests/abc241/submissions/37308280))
+/// - AtCoder | [AtCoder Beginner Contest 234 D - Prefix K-th Max](https://atcoder.jp/contests/abc234/tasks/abc234_d), ([submittion](https://atcoder.jp/contests/abc234/submissions/37313950))
 /// - Library Checker | [Range Kth Smallest](https://judge.yosupo.jp/problem/range_kth_smallest), ([submittion](https://judge.yosupo.jp/submission/116350))
 /// - Aizu Online Judge | [Hard Beans](https://judge.u-aizu.ac.jp/onlinejudge/description.jsp?id=1549), ([submittion](https://judge.u-aizu.ac.jp/onlinejudge/review.jsp?rid=7183138#1))
 
