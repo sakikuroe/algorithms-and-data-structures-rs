@@ -1,3 +1,5 @@
+/// verified by
+/// - Library Checker | [Jump on Tree](https://judge.yosupo.jp/problem/jump_on_tree), ([submittion](https://judge.yosupo.jp/submission/117545))
 use crate::data_structures::graph::Graph;
 use std::{collections::VecDeque, mem};
 const INF: usize = std::usize::MAX;
