@@ -124,16 +124,26 @@ impl LCA {
         self.get_dist(u, v) == self.get_dist(u, a) + self.get_dist(a, v)
     }
 
-    pub fn climb(&self, mut u: usize, k: usize) -> Option<usize> {
-        if k > self.depth[u] {
-            None
-        } else {
-            for i in 0..self.height {
-                if k >> i & 1 == 1 {
-                    u = self.parent[i][u].unwrap();
-                }
+    /// Returns:
+    ///     Vertex k proceeded from u towards v
+    pub fn jump(&self, u: usize, v: usize, k: usize) -> Option<usize> {
+        let d = self.get_dist(u, v);
+        if d < k {
+            return None;
+        }
+
+        let climb = |mut u: usize, k: usize| -> usize {
+            for i in (0..self.height).filter(|&i| k >> i & 1 == 1) {
+                u = self.parent[i][u].unwrap();
             }
-            Some(u)
+            u
+        };
+
+        let e = self.get_dist(u, self.get_lca(u, v));
+        if k <= e {
+            Some(climb(u, k))
+        } else {
+            Some(climb(v, d - k))
         }
     }
 
