@@ -41,6 +41,16 @@ where
     z
 }
 
+pub fn string_search(s: &Vec<char>, t: &Vec<char>) -> Vec<usize> {
+    let mut v = t.clone();
+    v.append(&mut s.clone());
+    let z = z_algorithm(&v)[t.len()..].to_vec();
+
+    (0..s.len())
+        .filter(|i| z[*i] >= t.len())
+        .collect::<Vec<_>>()
+}
+
 pub fn string_search_cyclic<T>(s: &Vec<T>, t: &Vec<T>) -> Vec<usize>
 where
     T: Ord + Clone,
