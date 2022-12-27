@@ -44,10 +44,10 @@ where
 pub fn string_search(s: &Vec<char>, t: &Vec<char>) -> Vec<usize> {
     let mut v = t.clone();
     v.append(&mut s.clone());
-    let z = z_algorithm(&v)[t.len()..].to_vec();
+    let z = z_algorithm(&v);
 
     (0..s.len())
-        .filter(|i| z[*i] >= t.len())
+        .filter(|i| z[*i + t.len()] >= t.len())
         .collect::<Vec<_>>()
 }
 
