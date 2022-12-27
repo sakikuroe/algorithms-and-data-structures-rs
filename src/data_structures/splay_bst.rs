@@ -1,7 +1,7 @@
 #[derive(Clone, PartialEq, Eq)]
 pub struct SplayNode<T>
 where
-    T: Ord + Copy,
+    T: Ord + Clone,
 {
     key: T,
     left: *mut Self,
@@ -12,7 +12,7 @@ where
 
 impl<T> SplayNode<T>
 where
-    T: Ord + Copy,
+    T: Ord + Clone,
 {
     pub fn new(key: T) -> Self {
         SplayNode {
@@ -174,7 +174,7 @@ where
 
     pub fn insert(&mut self, node: *mut SplayNode<T>) -> *mut SplayNode<T> {
         let root = self as *mut SplayNode<T>;
-        let idx = unsafe { (*root).lower_bound((*node).key) };
+        let idx = unsafe { (*root).lower_bound((*node).key.clone()) };
         let (l_root, r_root) = unsafe { (*root).split(idx) };
         merge(merge(l_root, node), r_root)
     }
@@ -202,7 +202,7 @@ where
 
 fn merge<T>(mut l_root: *mut SplayNode<T>, mut r_root: *mut SplayNode<T>) -> *mut SplayNode<T>
 where
-    T: Ord + Copy,
+    T: Ord + Clone,
 {
     unsafe {
         if l_root.is_null() {
@@ -221,14 +221,14 @@ where
 
 pub struct SplayBST<T>
 where
-    T: Ord + Copy,
+    T: Ord + Clone,
 {
     pub root: *mut SplayNode<T>,
 }
 
 impl<T> SplayBST<T>
 where
-    T: Ord + Copy,
+    T: Ord + Clone,
 {
     pub fn new() -> Self {
         SplayBST {
@@ -259,7 +259,7 @@ where
             if self.root.is_null() {
                 None
             } else {
-                Some((*self.root).key)
+                Some((*self.root).key.clone())
             }
         }
     }
