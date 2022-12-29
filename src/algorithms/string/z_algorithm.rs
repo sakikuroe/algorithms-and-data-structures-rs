@@ -2,6 +2,7 @@
 //! - Library Checker | [Z Algorithm](https://judge.yosupo.jp/problem/zalgorithm), ([submittion](https://judge.yosupo.jp/submission/100387))
 //! - Aizu Online Judge | [ALDS1_14_B](https://onlinejudge.u-aizu.ac.jp/problems/ALDS1_14_B), ([submittion](https://onlinejudge.u-aizu.ac.jp/solutions/problem/ALDS1_14_B/review/6897161/Kurosaki96/Rust))
 //! - AtCoder | [AtCoder Beginner Contest 141 E - Who Says a Pun?](https://atcoder.jp/contests/abc141/tasks/abc141_e), ([submittion](https://atcoder.jp/contests/abc141/submissions/34112357))
+//! - AtCoder | [AtCoder Beginner Contest 135 F - Strings of Eternity](https://atcoder.jp/contests/abc135/tasks/abc135_f), ([submittion](https://atcoder.jp/contests/abc135/submissions/37611480))
 
 /// Obtain a vector consisting of the lengths of the longest common prefix array of S and S[i..].
 ///
@@ -41,7 +42,10 @@ where
     z
 }
 
-pub fn string_search(s: &Vec<char>, t: &Vec<char>) -> Vec<usize> {
+pub fn string_search<T>(s: &Vec<T>, t: &Vec<T>) -> Vec<usize>
+where
+    T: Ord + Clone,
+{
     let mut v = t.clone();
     v.append(&mut s.clone());
     let z = z_algorithm(&v);
@@ -55,7 +59,7 @@ pub fn string_search_cyclic<T>(s: &Vec<T>, t: &Vec<T>) -> Vec<usize>
 where
     T: Ord + Clone,
 {
-    let mut ss = {
+    let ss = {
         let mut res = vec![];
         res.append(&mut s.clone());
         res.append(&mut s.clone());
@@ -66,7 +70,7 @@ where
     };
 
     let mut v = t.clone();
-    v.append(&mut ss);
+    v.append(&mut ss.clone());
     let z = z_algorithm(&v);
 
     (0..s.len())
