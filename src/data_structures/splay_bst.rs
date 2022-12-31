@@ -316,7 +316,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_lower_bound() {
+    fn lower_bound_test() {
         let mut set = SplayBST::new();
         for x in vec![1, 1, 2, 3, 3, 4, 5, 5, 6, 9] {
             set.insert(x);
