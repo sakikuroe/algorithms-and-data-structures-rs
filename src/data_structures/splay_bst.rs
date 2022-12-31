@@ -305,4 +305,33 @@ where
             unsafe { (*self.root).size }
         }
     }
+
+    pub fn lower_bound(&mut self, x: &T) -> usize {
+        unsafe { (*(*self).root).lower_bound(x.clone()) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lower_bound() {
+        let mut set = SplayBST::new();
+        for x in vec![1, 1, 2, 3, 3, 4, 5, 5, 6, 9] {
+            set.insert(x);
+        }
+        assert_eq!(set.lower_bound(&0), 0);
+        assert_eq!(set.lower_bound(&0), 0);
+        assert_eq!(set.lower_bound(&1), 0);
+        assert_eq!(set.lower_bound(&2), 2);
+        assert_eq!(set.lower_bound(&3), 3);
+        assert_eq!(set.lower_bound(&4), 5);
+        assert_eq!(set.lower_bound(&5), 6);
+        assert_eq!(set.lower_bound(&6), 8);
+        assert_eq!(set.lower_bound(&7), 9);
+        assert_eq!(set.lower_bound(&8), 9);
+        assert_eq!(set.lower_bound(&9), 9);
+        assert_eq!(set.lower_bound(&10), 10);
+    }
 }
