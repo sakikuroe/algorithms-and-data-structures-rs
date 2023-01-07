@@ -8,6 +8,7 @@ pub struct UnionFind {
     parent: Vec<usize>,
     rank: Vec<usize>,
     size: Vec<usize>,
+    group_next: Vec<usize>,
 }
 
 impl UnionFind {
@@ -16,6 +17,7 @@ impl UnionFind {
             parent: (0..n).collect::<Vec<_>>(),
             rank: vec![0; n],
             size: vec![1; n],
+            group_next: (0..n).collect::<Vec<_>>(),
         }
     }
 
@@ -37,6 +39,7 @@ impl UnionFind {
         let (root_x, root_y) = (self.find(x), self.find(y));
 
         if root_x != root_y {
+            self.group_next.swap(root_x, root_y);
             match self.rank[root_x].cmp(&self.rank[root_y]) {
                 Ordering::Less => {
                     self.parent[root_x] = root_y;
@@ -66,6 +69,19 @@ impl UnionFind {
             let root = self.find(x);
             self.size[root]
         }
+    }
+
+    /// Returns:
+    ///     (0..self.parent.len()).filter(|&y| self.is_same(x, y)).collect::<Vec<_>>()
+    pub fn get_group(&mut self, x: usize) -> Vec<usize> {
+        let mut res = vec![x];
+        let mut v = x;
+        while self.group_next[v] != x {
+            res.push(self.group_next[v]);
+            v = self.group_next[v];
+        }
+        res.sort();
+        res
     }
 }
 
