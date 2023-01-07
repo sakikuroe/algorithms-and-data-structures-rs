@@ -1,11 +1,13 @@
 //! verified by
-//! - Library Checker | [Convolution](https://judge.yosupo.jp/problem/convolution_mod) ([submittion](https://judge.yosupo.jp/submission/113077))
+//! - Library Checker | [Convolution](https://judge.yosupo.jp/problem/convolution_mod) ([submittion](https://judge.yosupo.jp/submission/119138))
 
-use std::ops;
+use std::{fmt, ops};
 
 const MOD: usize = 998244353; // 119 * (1 << 23) + 1
+const RANK: usize = 23;
+const PRIMITIVE_ROOT: usize = 3;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ModInt {
     value: usize,
 }
@@ -40,9 +42,9 @@ impl ModInt {
         let mut x = *self;
         while n > 0 {
             if n % 2 == 1 {
-                res *= x;
+                res = res * x;
             }
-            x *= x;
+            x = x * x;
             n /= 2;
         }
 
@@ -102,62 +104,101 @@ impl ops::DivAssign for ModInt {
     }
 }
 
-pub fn ntt(a: &Vec<ModInt>, root: &Vec<ModInt>) -> Vec<ModInt> {
-    let n = a.len();
-    let d = n.trailing_zeros();
-    let mut a = {
-        let mut idx = vec![0_usize];
-        for i in 0..d {
-            idx.append(&mut (idx.iter().map(|x| *x + n / (1 << (i + 1)))).collect::<Vec<_>>());
-        }
-        idx.into_iter().map(|x| a[x]).collect::<Vec<_>>()
-    };
-
-    for i in 0..d {
-        let b = 1 << i;
-        for j in (0..n).step_by(2 * b) {
-            for k in 0..b {
-                let w = root[k * (root.len() / (2 * b))];
-                let x = a[j + k];
-                let y = a[j + k + b] * w;
-                a[j + k] = x + y;
-                a[j + k + b] = x - y;
-            }
-        }
+impl fmt::Display for ModInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value())
     }
-
-    a
 }
 
-pub fn conv(a: &Vec<ModInt>, b: &Vec<ModInt>) -> Vec<ModInt> {
+pub struct FftCache {
+    rate: Vec<ModInt>,
+    irate: Vec<ModInt>,
+}
+
+impl FftCache {
+    pub fn new() -> Self {
+        let mut root = vec![ModInt::new(0); RANK + 1];
+        let mut iroot = vec![ModInt::new(0); RANK + 1];
+        let mut rate = vec![ModInt::new(0); RANK - 1];
+        let mut irate = vec![ModInt::new(0); RANK - 1];
+
+        root[RANK] = ModInt::new(PRIMITIVE_ROOT).pow((MOD - 1) >> RANK);
+        iroot[RANK] = root[RANK].inverse();
+        for i in (0..RANK).rev() {
+            root[i] = root[i + 1] * root[i + 1];
+            iroot[i] = iroot[i + 1] * iroot[i + 1];
+        }
+
+        {
+            let mut prod = ModInt::new(1);
+            let mut iprod = ModInt::new(1);
+            for i in 0..RANK - 1 {
+                rate[i] = root[i + 2] * prod;
+                irate[i] = iroot[i + 2] * iprod;
+                prod *= iroot[i + 2];
+                iprod *= root[i + 2];
+            }
+        }
+
+        FftCache { rate, irate }
+    }
+}
+
+pub fn conv(a: &Vec<ModInt>, b: &Vec<ModInt>, cache: &FftCache) -> Vec<ModInt> {
+    let ntt = |a: &mut Vec<ModInt>| {
+        let n = a.len();
+        let h = n.trailing_zeros();
+
+        for len in 0..h {
+            let p = 1 << (h - len - 1);
+            let mut rot = ModInt::new(1);
+            for (s, offset) in (0..1 << len).map(|s| s << (h - len)).enumerate() {
+                for i in 0..p {
+                    let l = a[i + offset];
+                    let r = a[i + offset + p] * rot;
+                    a[i + offset] = l + r;
+                    a[i + offset + p] = l - r;
+                }
+                rot *= cache.rate[(!s).trailing_zeros() as usize];
+            }
+        }
+    };
+
+    let intt = |a: &mut Vec<ModInt>| {
+        let n = a.len();
+        let h = n.trailing_zeros();
+
+        for len in (1..=h).rev() {
+            let p = 1 << (h - len);
+            let mut irot = ModInt::new(1);
+            for (s, offset) in (0..1 << (len - 1)).map(|s| s << (h - len + 1)).enumerate() {
+                for i in 0..p {
+                    let l = a[i + offset];
+                    let r = a[i + offset + p];
+                    a[i + offset] = l + r;
+                    a[i + offset + p] = (l - r) * irot;
+                }
+                irot *= cache.irate[(!s).trailing_zeros() as usize];
+            }
+        }
+    };
+
     let s = a.len() + b.len() - 1;
     let t = s.next_power_of_two();
 
-    let root = {
-        let mut root = vec![ModInt::new(1); t];
-        let z_t_n = ModInt::new(3).pow(119).pow((1 << 23) / t);
-        for i in 0..t - 1 {
-            root[i + 1] = root[i] * z_t_n;
-        }
-        root
-    };
-
-    let root_inv = {
-        let mut root_inv = root.clone();
-        root_inv[1..].reverse();
-        root_inv
-    };
-
     let mut a = a.clone();
     a.resize(t, ModInt::new(0));
-    let a_inv = ntt(&a, &root);
+    ntt(&mut a);
 
     let mut b = b.clone();
     b.resize(t, ModInt::new(0));
-    let b_inv = ntt(&b, &root);
+    ntt(&mut b);
 
-    let c_inv = (0..t).map(|i| a_inv[i] * b_inv[i]).collect::<Vec<_>>();
-    let c = ntt(&c_inv, &root_inv);
+    a.iter_mut().zip(b.iter()).for_each(|(x, y)| *x = *x * *y);
+    intt(&mut a);
+    a.resize(s, ModInt::new(0));
+    let t_inv = ModInt::new(t).inverse();
+    a.iter_mut().for_each(|x| *x = *x * t_inv);
 
-    c.into_iter().take(s).map(|x| x / ModInt::new(t)).collect()
+    a
 }

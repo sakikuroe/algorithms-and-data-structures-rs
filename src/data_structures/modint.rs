@@ -3,7 +3,7 @@ use std::{fmt, ops};
 const MOD: usize = 1000000007;
 // const MOD: usize = 998244353; // 119 * (1 << 23) + 1
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ModInt {
     value: usize,
 }
