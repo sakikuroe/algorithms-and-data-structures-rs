@@ -1,4 +1,4 @@
-use crate::algorithms::number_theory::gcd_lcm::{gcd, lcm};
+use crate::{algorithms::number_theory::gcd_lcm::{gcd, lcm}, data_structures::modint::ModInt};
 
 pub trait Monoid {
     type S;
@@ -111,5 +111,29 @@ impl Monoid for OrMonoid {
     }
     fn id() -> Self::S {
         0
+    }
+}
+
+#[derive(Clone)]
+pub struct LinearFunction {
+    a: ModInt,
+    b: ModInt,
+}
+
+pub struct LinearFunctionMonoid;
+
+impl Monoid for LinearFunctionMonoid {
+    type S = LinearFunction;
+    fn id() -> Self::S {
+        LinearFunction {
+            a: ModInt::new(1),
+            b: ModInt::new(0),
+        }
+    }
+    fn op(f2: &Self::S, f1: &Self::S) -> Self::S {
+        LinearFunction {
+        a: f1.a * f2.a,
+            b: f2.a * f1.b + f2.b,
+        }
     }
 }
