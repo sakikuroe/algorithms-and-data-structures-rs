@@ -1,4 +1,4 @@
-use std::ops;
+use std::{fmt, ops};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModIntArbitrary {
@@ -103,7 +103,9 @@ impl ops::DivAssign for ModIntArbitrary {
 
 // n!
 pub fn factorial(n: usize, m: usize) -> ModIntArbitrary {
-    (1..=n).fold(ModIntArbitrary::new(1, m), |x, y| x * ModIntArbitrary::new(y, m))
+    (1..=n).fold(ModIntArbitrary::new(1, m), |x, y| {
+        x * ModIntArbitrary::new(y, m)
+    })
 }
 
 // nPr
@@ -111,7 +113,9 @@ pub fn permutation(n: usize, r: usize, m: usize) -> ModIntArbitrary {
     if n < r {
         ModIntArbitrary::new(0, m)
     } else {
-        (n - r + 1..=n).fold(ModIntArbitrary::new(1, m), |x, y| x * ModIntArbitrary::new(y, m))
+        (n - r + 1..=n).fold(ModIntArbitrary::new(1, m), |x, y| {
+            x * ModIntArbitrary::new(y, m)
+        })
     }
 }
 
@@ -127,4 +131,10 @@ pub fn combination(n: usize, r: usize, m: usize) -> ModIntArbitrary {
 // nHr
 pub fn homogeneous(n: usize, r: usize, m: usize) -> ModIntArbitrary {
     combination(n + r - 1, r, m)
+}
+
+impl fmt::Display for ModIntArbitrary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value())
+    }
 }

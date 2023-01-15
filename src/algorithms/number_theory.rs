@@ -1,5 +1,6 @@
 pub mod baby_step_giant_step;
 pub mod binomical_coefficient;
+pub mod binomical_coefficient_arbitrary;
 pub mod discrete_logarithm;
 pub mod floor_sum;
 pub mod gcd_lcm;
