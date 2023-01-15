@@ -139,6 +139,20 @@ impl fmt::Display for ModInt {
     }
 }
 
+pub fn calc_inv_table(v: &Vec<ModInt>) -> Vec<ModInt> {
+    let mut a = vec![ModInt::new(1)];
+    let mut b = vec![ModInt::new(1)];
+    for i in 0..v.len() - 1 {
+        a.push(a[i] * v[i]);
+        b.push(b[i] * v[v.len() - 1 - i]);
+    }
+    b.reverse();
+
+    let p = v.iter().fold(ModInt::new(1), |x, y| x * *y).inverse();
+
+    (0..v.len()).map(|i| p * a[i] * b[i]).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
