@@ -4,6 +4,13 @@
 [Document page](https://sakikuroe.github.io/algorithms-and-data-structures-rs/algorithms_and_data_structures_rs/index.html)
 
 This is a library of algorithms and data structures for competitive programming players.
+Rust 言語で書かれた競技プログラミングのためのアルゴリズムとデータ構造のライブラリです。
+
+This library is available under the CC0 license.
+このライブラリはCC0ライセンスで提供されています。
+
+You can view the CC0 license at https://creativecommons.org/publicdomain/zero/1.0 .
+CC0ライセンスの内容は https://creativecommons.org/publicdomain/zero/1.0/deed.ja で確認できます。
 
 ```
 $ tree src
