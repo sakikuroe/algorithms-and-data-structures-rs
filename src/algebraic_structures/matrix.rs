@@ -105,6 +105,39 @@ pub fn zero(shape: (usize, usize)) -> Matrix {
     Matrix { value: res, shape }
 }
 
+pub fn inv(mut a: Matrix) -> Option<Matrix> {
+    assert_eq!(a.shape.0, a.shape.1);
+    let n = a.shape.0;
+    let mut b = eye(n);
+
+    for i in 0..n {
+        for i1 in i.. {
+            if i1 == n {
+                return None;
+            }
+            if a.value[i1][i] != ModInt::new(0) {
+                a.value.swap(i, i1);
+                b.value.swap(i, i1);
+                break;
+            }
+        }
+        let temp = a.value[i][i];
+        for j in 0..n {
+            a.value[i][j] /= temp;
+            b.value[i][j] /= temp;
+        }
+        for i1 in (0..n).filter(|i1| *i1 != i) {
+            let temp = a.value[i1][i];
+            for j in 0..n {
+                a.value[i1][j] = a.value[i1][j] - temp * a.value[i][j];
+                b.value[i1][j] = b.value[i1][j] - temp * b.value[i][j];
+            }
+        }
+    }
+
+    Some(b)
+}
+
 impl ops::Add for Matrix {
     type Output = Matrix;
     fn add(self, other: Self) -> Self {
