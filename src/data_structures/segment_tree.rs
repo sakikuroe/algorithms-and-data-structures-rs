@@ -1,5 +1,6 @@
 /// verified by
 /// - AtCoder | [AtCoder Beginner Contest 134 C - Exception Handling](https://atcoder.jp/contests/abc134/tasks/abc134_c), ([submittion](https://atcoder.jp/contests/abc134/submissions/34363132))
+/// - Library Checker | [Point Add Range Sum](https://judge.yosupo.jp/problem/point_add_range_sum), ([submittion](https://judge.yosupo.jp/submission/121100))
 
 use crate::algebraic_structures::monoid::Monoid;
 
