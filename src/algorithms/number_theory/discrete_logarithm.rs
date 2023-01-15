@@ -5,7 +5,7 @@ use super::{
     baby_step_giant_step::baby_step_giant_step, gcd_lcm::gcd,
     integer_factorization::integer_factorization,
 };
-use crate::data_structures::modint_free::ModInt;
+use crate::data_structures::modint_arbitrary::ModIntArbitrary;
 
 /// return k s.t. x^{k} = y mod m
 pub fn discrete_logarithm_mod(x: usize, y: usize, m: usize) -> Option<usize> {
@@ -25,9 +25,15 @@ pub fn discrete_logarithm_mod(x: usize, y: usize, m: usize) -> Option<usize> {
 
     if gcd(x, m) == 1 {
         let bs = sqrt(m);
-        let fff = |t: ModInt| t * ModInt::new(x, m).pow(bs);
-        let f_inv = |t: ModInt| t * ModInt::new(x, m).inverse();
-        baby_step_giant_step(ModInt::new(1, m), ModInt::new(y, m), bs, fff, f_inv)
+        let fff = |t: ModIntArbitrary| t * ModIntArbitrary::new(x, m).pow(bs);
+        let f_inv = |t: ModIntArbitrary| t * ModIntArbitrary::new(x, m).inverse();
+        baby_step_giant_step(
+            ModIntArbitrary::new(1, m),
+            ModIntArbitrary::new(y, m),
+            bs,
+            fff,
+            f_inv,
+        )
     } else {
         let mut q = 1;
         for (p, e) in integer_factorization(m) {
@@ -52,12 +58,12 @@ pub fn discrete_logarithm_mod(x: usize, y: usize, m: usize) -> Option<usize> {
             None
         } else {
             let bs = sqrt(m / q);
-            let fff = |t: ModInt| t * ModInt::new(x, m / q).pow(bs);
-            let f_inv = |t: ModInt| t * ModInt::new(x, m / q).inverse();
+            let fff = |t: ModIntArbitrary| t * ModIntArbitrary::new(x, m / q).pow(bs);
+            let f_inv = |t: ModIntArbitrary| t * ModIntArbitrary::new(x, m / q).inverse();
 
             match baby_step_giant_step(
-                ModInt::new(x_c / q, m / q),
-                ModInt::new(y / q, m / q),
+                ModIntArbitrary::new(x_c / q, m / q),
+                ModIntArbitrary::new(y / q, m / q),
                 bs,
                 fff,
                 f_inv,
