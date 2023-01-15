@@ -1,5 +1,6 @@
 pub mod convex_hull_trick;
 pub mod counter;
+pub mod double_ended_priority_queue;
 pub mod fenwick_tree;
 pub mod formal_power_series;
 pub mod graph;
