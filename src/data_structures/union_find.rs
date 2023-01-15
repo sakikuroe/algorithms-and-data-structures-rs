@@ -86,16 +86,23 @@ impl UnionFind {
 }
 
 /// verified by
-/// - AtCoder | [大和証券プログラミングコンテスト2022 Autumn (AtCoder Beginner Contest 277) C - Ladder Takahashi](https://atcoder.jp/contests/abc277/tasks/abc277_c), ([submittion](https://atcoder.jp/contests/abc277/submissions/36467109))
-/// - AtCoder | [大和証券プログラミングコンテスト2022 Autumn (AtCoder Beginner Contest 277) D - Takahashi's Solitaire](https://atcoder.jp/contests/abc277/tasks/abc277_d), ([submittion](https://atcoder.jp/contests/abc277/submissions/36466943))
+/// - AtCoder | [AtCoder Beginner Contest 285 D - Change Usernames](https://atcoder.jp/contests/abc285/tasks/abc285_d), ([submittion](https://atcoder.jp/contests/abc285/submissions/38070281))
+/// - AtCoder | [大和証券プログラミングコンテスト2022 Autumn (AtCoder Beginner Contest 277) C - Ladder Takahashi](https://atcoder.jp/contests/abc277/tasks/abc277_c), ([submittion](https://atcoder.jp/contests/abc277/submissions/38077025))
+/// - AtCoder | [大和証券プログラミングコンテスト2022 Autumn (AtCoder Beginner Contest 277) D - Takahashi's Solitaire](https://atcoder.jp/contests/abc277/tasks/abc277_d), ([submittion](https://atcoder.jp/contests/abc277/submissions/38077028))
 #[derive(Clone)]
-pub struct UnionFindSparse {
-    parent: BTreeMap<usize, usize>,
-    rank: BTreeMap<usize, usize>,
-    size: BTreeMap<usize, usize>,
+pub struct UnionFindSparse<T>
+where
+    T: Ord + Clone,
+{
+    parent: BTreeMap<T, T>,
+    rank: BTreeMap<T, usize>,
+    size: BTreeMap<T, usize>,
 }
 
-impl UnionFindSparse {
+impl<T> UnionFindSparse<T>
+where
+    T: Ord + Clone,
+{
     pub fn new() -> Self {
         UnionFindSparse {
             parent: BTreeMap::new(),
@@ -104,47 +111,47 @@ impl UnionFindSparse {
         }
     }
 
-    pub fn is_root(&mut self, x: usize) -> bool {
+    pub fn is_root(&mut self, x: T) -> bool {
         self.parent.get(&x).unwrap_or(&x) == &x
     }
 
-    pub fn find(&mut self, x: usize) -> usize {
-        if self.is_root(x) {
+    pub fn find(&mut self, x: T) -> T {
+        if self.is_root(x.clone()) {
             x
         } else {
-            let root = self.find(*self.parent.get(&x).unwrap_or(&x));
-            self.parent.insert(x, root);
+            let root = self.find(self.parent.get(&x).unwrap_or(&x).clone());
+            self.parent.insert(x, root.clone());
             root
         }
     }
 
-    pub fn union(&mut self, x: usize, y: usize) {
+    pub fn union(&mut self, x: T, y: T) {
         let (root_x, root_y) = (self.find(x), self.find(y));
         if root_x != root_y {
             match (*self.rank.get(&root_x).unwrap_or(&0)).cmp(self.rank.get(&root_y).unwrap_or(&0))
             {
                 Ordering::Less => {
-                    self.parent.insert(root_x, root_y);
+                    self.parent.insert(root_x.clone(), root_y.clone());
                     self.size.insert(
-                        root_y,
+                        root_y.clone(),
                         *self.size.get(&root_y).unwrap_or(&1)
                             + self.size.get(&root_x).unwrap_or(&1),
                     );
                 }
                 Ordering::Equal => {
-                    self.parent.insert(root_y, root_x);
+                    self.parent.insert(root_y.clone(), root_x.clone());
                     self.size.insert(
-                        root_x,
+                        root_x.clone(),
                         *self.size.get(&root_x).unwrap_or(&1)
                             + self.size.get(&root_y).unwrap_or(&1),
                     );
                     self.rank
-                        .insert(root_x, *self.rank.get(&root_x).unwrap_or(&0) + 1);
+                        .insert(root_x.clone(), *self.rank.get(&root_x).unwrap_or(&0) + 1);
                 }
                 Ordering::Greater => {
-                    self.parent.insert(root_y, root_x);
+                    self.parent.insert(root_y.clone(), root_x.clone());
                     self.size.insert(
-                        root_x,
+                        root_x.clone(),
                         *self.size.get(&root_x).unwrap_or(&1)
                             + self.size.get(&root_y).unwrap_or(&1),
                     );
@@ -153,12 +160,12 @@ impl UnionFindSparse {
         }
     }
 
-    pub fn is_same(&mut self, x: usize, y: usize) -> bool {
+    pub fn is_same(&mut self, x: T, y: T) -> bool {
         self.find(x) == self.find(y)
     }
 
-    pub fn get_size(&mut self, x: usize) -> usize {
-        if self.is_root(x) {
+    pub fn get_size(&mut self, x: T) -> usize {
+        if self.is_root(x.clone()) {
             *self.size.get(&x).unwrap_or(&1)
         } else {
             let root = self.find(x);
