@@ -1,6 +1,7 @@
 /// verified by
-/// - AtCoder | [パナソニックグループプログラミングコンテスト2022（AtCoder Beginner Contest 273） E - Notebook](https://atcoder.jp/contests/abc273/tasks/abc273_e), ([submittion](https://atcoder.jp/contests/abc273/submissions/35754512))
-
+/// - AtCoder | パナソニックグループプログラミングコンテスト2022（AtCoder Beginner Contest 273） E - Notebook
+///     - [problem link](https://atcoder.jp/contests/abc273/tasks/abc273_e)
+///     - [submittion](https://atcoder.jp/contests/abc273/submissions/35754512)
 use std::rc::Rc;
 
 #[derive(Clone)]
