@@ -1,7 +1,7 @@
 /// verified by
 /// - AtCoder | [AtCoder Beginner Contest 134 C - Exception Handling](https://atcoder.jp/contests/abc134/tasks/abc134_c), ([submittion](https://atcoder.jp/contests/abc134/submissions/34363132))
+/// - AtCoder | [AtCoder Beginner Contest 285 F - Substring of Sorted String](https://atcoder.jp/contests/abc185/tasks/abc185_f), ([submittion](https://atcoder.jp/contests/abc285/submissions/38095590))
 /// - Library Checker | [Point Add Range Sum](https://judge.yosupo.jp/problem/point_add_range_sum), ([submittion](https://judge.yosupo.jp/submission/121100))
-
 use crate::algebraic_structures::monoid::Monoid;
 
 #[cfg_attr(doc, katexit::katexit)]
@@ -47,6 +47,12 @@ where
         }
     }
 
+    /// Returns $a_{idx}$.
+    pub fn get(&self, mut idx: usize) -> M::S {
+        idx += self.size - 1;
+        self.data[idx].clone()
+    }
+
     /// Updates $a_{idx}$ to x.
     pub fn update(&mut self, mut idx: usize, x: M::S) {
         idx += self.size - 1;
@@ -57,10 +63,10 @@ where
         }
     }
 
-    /// Returns $a_{idx}$.
-    pub fn get(&self, mut idx: usize) -> M::S {
-        idx += self.size - 1;
-        self.data[idx].clone()
+    /// Updates $a_{idx}$ to op(a_{idx}, x).
+    pub fn update_mul(&mut self, idx: usize, x: M::S) {
+        let temp = self.get(idx);
+        self.update(idx, M::op(&temp, &x));
     }
 
     /// Returns the result (fold op $\left[a_{l}, ... ,a_{r}\right)).$
