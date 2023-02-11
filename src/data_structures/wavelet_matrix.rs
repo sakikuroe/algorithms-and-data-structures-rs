@@ -13,6 +13,33 @@
 const WAVELET_MATRIX_HEIGHT: usize = 64;
 
 #[derive(Clone)]
+pub struct WaveletMatrixRow {
+    accum: Vec<usize>,
+}
+
+impl WaveletMatrixRow {
+    pub fn new(bit: Vec<usize>) -> Self {
+        let mut accum = vec![0; bit.len() + 1];
+        for i in 0..bit.len() {
+            accum[i + 1] = accum[i] + bit[i];
+        }
+        WaveletMatrixRow { accum }
+    }
+
+    pub fn len(&self) -> usize {
+        self.accum.len() - 1
+    }
+
+    pub fn access(&self, i: usize) -> usize {
+        self.accum[i + 1] - self.accum[i]
+    }
+
+    pub fn rank(&self, i: usize) -> usize {
+        self.accum[i]
+    }
+}
+
+#[derive(Clone)]
 pub struct WaveletMatrix {
     bit_table: Vec<WaveletMatrixRow>,
     accum: Vec<WaveletMatrixRow>,
@@ -163,6 +190,16 @@ impl WaveletMatrix {
     }
 
     /// Returns:
+    ///     {
+    ///         use itertools::Itertools;
+    ///         v[l..r].into_iter().filter(|x| a <= *x && *x < b).sum::<usize>()
+    ///     }
+    pub fn get_sum(&self, l: usize, r: usize, a: usize, b: usize) -> usize {
+        self.get_lower_sum(l, r, self.count(l, r, 0, b))
+            - self.get_lower_sum(l, r, self.count(l, r, 0, a))
+    }
+
+    /// Returns:
     ///     v[l..r].into_iter().filter(|y| lower <= **y && **y < upper).count()
     pub fn count(&self, l: usize, r: usize, lower: usize, upper: usize) -> usize {
         let range_freq_sub = |mut l: usize, mut r: usize, upper: usize| -> usize {
@@ -221,31 +258,12 @@ impl WaveletMatrix {
             Some(self.get_kth_smallest(l, r, cnt - 1 - k).unwrap())
         }
     }
-}
 
-#[derive(Clone)]
-pub struct WaveletMatrixRow {
-    accum: Vec<usize>,
-}
-
-impl WaveletMatrixRow {
-    pub fn new(bit: Vec<usize>) -> Self {
-        let mut accum = vec![0; bit.len() + 1];
-        for i in 0..bit.len() {
-            accum[i + 1] = accum[i] + bit[i];
-        }
-        WaveletMatrixRow { accum }
-    }
-
-    pub fn len(&self) -> usize {
-        self.accum.len() - 1
-    }
-
-    pub fn access(&self, i: usize) -> usize {
-        self.accum[i + 1] - self.accum[i]
-    }
-
-    pub fn rank(&self, i: usize) -> usize {
-        self.accum[i]
+    /// Returns:
+    ///     v[l..r].map(|y| y.abs_diff(x)).sum::<usize>()
+    pub fn get_sum_abs_diff(&self, l: usize, r: usize, x: usize) -> usize {
+        x * self.count(l, r, 0, x) - self.get_sum(l, r, 0, x)
+            + self.get_sum(l, r, x, std::usize::MAX)
+            - x * self.count(l, r, x, std::usize::MAX)
     }
 }
