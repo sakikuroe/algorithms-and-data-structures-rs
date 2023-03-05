@@ -49,6 +49,9 @@ impl SieveOfEratosthenes {
     }
 
     pub fn gen_divisors(&self, n: usize) -> BTreeSet<usize> {
+        if n == 1 {
+            return vec![1].into_iter().collect();
+        }
         let factorization = self.integer_factorization(n);
         let mut res = vec![];
 
