@@ -1,4 +1,6 @@
-pub mod number_theory;
+pub mod math {
+    pub mod number_theory;
+}
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
