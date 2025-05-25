@@ -25,6 +25,17 @@
 ///
 /// Space: O(1)
 /// 空間計算量: O(1)
+///
+/// # Examples
+///
+/// ```
+/// use anmitsu::math::number_theory;
+///
+/// assert_eq!(6, number_theory::gcd(12, 18));
+/// assert_eq!(12, number_theory::gcd(12, 12));
+/// assert_eq!(5, number_theory::gcd(0, 5));
+/// assert_eq!(0, number_theory::gcd(0, 0));
+/// ```
 pub fn gcd(mut a: u128, mut b: u128) -> u128 {
     while b != 0 {
         (a, b) = (b, a % b);
