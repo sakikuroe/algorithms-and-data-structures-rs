@@ -59,9 +59,7 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
 /// 2 つの非負整数の最小公倍数（LCM）を計算する。
 ///
 /// This function calculates the LCM using the formula: LCM(a, b) = |a * b| / GCD(a, b).
-/// It returns `None` if the multiplication `a * b` would overflow `u128`.
 /// この関数は、LCM(a, b) = |a * b| / GCD(a, b) の公式を使用して LCM を計算する。
-/// `a * b` の乗算が `u128` の範囲を超過する場合、`None` を返す。
 ///
 /// # Args
 ///
@@ -72,9 +70,14 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
 ///
 /// # Returns
 ///
-/// The least common multiple of `a` and `b` wrapped in an `Option`, or `None` if
-/// the calculation overflows.
-/// `a` と `b` の最小公倍数を `Option` でラップして返す。計算がオーバーフローした場合は `None`。
+/// Returns the least common multiple (LCM) of `a` and `b` (the smallest non-negative common multiple of `a` and `b`) as an `Option<u128>`.
+/// Specifically:
+/// - Returns `None` if the LCM of `a` and `b` overflows the `u128` range.
+/// - Otherwise, returns `Some(lcm_value)`, where `lcm_value` is the calculated LCM.
+/// `a` と `b` の最小公倍数 (`a` と `b` の非負な公倍数のうち、最小のもの) を `Option<u128>` で返す。
+/// 具体的には:
+/// - `a` と b の最小公倍数が `u128` の範囲を超過する場合、`None` を返す。
+/// - それ以外の場合、最小公倍数である `lcm_value` を `Some(lcm_value)` で返す。
 ///
 /// # Complexity
 ///
