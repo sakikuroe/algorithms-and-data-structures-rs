@@ -71,6 +71,19 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
 ///
 /// Space: O(1)
 /// 空間計算量: O(1)
+///
+/// # Examples
+///
+/// ```
+/// use anmitsu::math::number_theory;
+///
+/// assert_eq!(Some(36), number_theory::lcm(12, 18));
+/// assert_eq!(Some(12), number_theory::lcm(12, 12));
+/// assert_eq!(Some(0), number_theory::lcm(0, 5));
+/// assert_eq!(Some(0), number_theory::lcm(0, 0));
+/// assert_eq!(Some(72), number_theory::lcm(8, 9));
+/// assert_eq!(Some(100), number_theory::lcm(20, 25));
+/// ```
 pub fn lcm(a: u128, b: u128) -> Option<u128> {
     if a == 0 && b == 0 {
         return Some(0);
