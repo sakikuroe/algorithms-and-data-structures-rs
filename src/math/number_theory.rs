@@ -1,13 +1,6 @@
 /// Calculates the greatest common divisor (GCD) of two non-negative integers.
 /// 2 つの非負整数の最大公約数（GCD）を計算する。
 ///
-/// This function implements the Euclidean algorithm to find the largest positive
-/// integer that divides both `a` and `b` without a remainder.
-/// The GCD of 0 and any non-zero number `x` is `x`. The GCD of 0 and 0 is defined as 0.
-/// この関数はユークリッドの互除法を実装し、`a` と `b` の両方を余りなく割り切る
-/// 最大の正の整数を見つける。
-/// 0 と任意の正の数 `x` の GCD は `x` である。また、0 と 0 の GCD は 0 と定義される。
-///
 /// # Args
 ///
 /// a: The first non-negative integer.
@@ -57,9 +50,6 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
 
 /// Calculates the least common multiple (LCM) of two non-negative integers.
 /// 2 つの非負整数の最小公倍数（LCM）を計算する。
-///
-/// This function calculates the LCM using the formula: LCM(a, b) = |a * b| / GCD(a, b).
-/// この関数は、LCM(a, b) = |a * b| / GCD(a, b) の公式を使用して LCM を計算する。
 ///
 /// # Args
 ///
