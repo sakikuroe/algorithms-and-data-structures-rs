@@ -2,6 +2,10 @@ pub mod math {
     pub mod number_theory;
 }
 
+pub mod ds {
+    pub mod bit_vector;
+}
+
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
