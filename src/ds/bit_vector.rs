@@ -182,7 +182,7 @@ impl BitVector {
     /// ```
     /// use anmitsu::ds::bit_vector;
     ///
-    /// let bv = bit_vector::BitVector::new(&[1,0,1]);
+    /// let bv = bit_vector::BitVector::new(&[1, 0, 1]);
     /// assert_eq!(bv.len(), 3);
     /// ```
     pub fn len(&self) -> usize {
@@ -213,7 +213,7 @@ impl BitVector {
     /// let bv_empty = bit_vector::BitVector::new(&[]);
     /// assert!(bv_empty.is_empty());
     ///
-    /// let bv_not_empty = bit_vector::BitVector::new(&[0,1]);
+    /// let bv_not_empty = bit_vector::BitVector::new(&[0, 1]);
     /// assert!(!bv_not_empty.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
