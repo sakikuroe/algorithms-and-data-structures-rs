@@ -1,6 +1,5 @@
 const MASKS: [u64; 64] = {
     let mut masks = [0_u64; 64];
-    masks[0] = u64::MAX;
     let mut k = 1_usize;
     while k < 64 {
         masks[k] = (1_u64 << k) - 1;
@@ -73,7 +72,7 @@ impl BitVector {
         let len = v.len();
         assert!(len < (1 << 32), "Length of v must be less than 2^{{32}}");
 
-        let num_blocks = len.div_ceil(64);
+        let num_blocks = len / 64 + 1;
         let mut bits = vec![0_u64; num_blocks];
         let mut cumulative_sums = vec![0_u32; num_blocks];
         let mut current_sum: u32 = 0;
@@ -151,8 +150,8 @@ impl BitVector {
             );
         }
 
-        // Index of the block containing the (r-1)-th bit
-        let block_index = (r - 1) / 64;
+        // Index of the block containing the r-th bit
+        let block_index = r / 64;
 
         let mut res = 0;
         if block_index > 0 {
