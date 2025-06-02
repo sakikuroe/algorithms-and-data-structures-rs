@@ -75,7 +75,7 @@ impl BitVector {
         let num_blocks = len / 64 + 1;
         let mut bits = vec![0_u64; num_blocks];
         let mut cumulative_sums = vec![0_u32; num_blocks];
-        let mut current_sum: u32 = 0;
+        let mut current_sum = 0_u32;
 
         for (i, &bit_val) in v.iter().enumerate() {
             if bit_val != 0 && bit_val != 1 {
