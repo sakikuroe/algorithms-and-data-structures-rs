@@ -5,4 +5,5 @@ pub mod number_theory {
 
 pub mod ds {
     pub mod bit_vector;
+    pub mod wavelet_matrix;
 }

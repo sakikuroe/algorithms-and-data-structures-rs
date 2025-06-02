@@ -4,6 +4,7 @@ pub mod math {
 
 pub mod ds {
     pub mod bit_vector;
+    pub mod wavelet_matrix;
 }
 
 pub fn add(left: u64, right: u64) -> u64 {
