@@ -58,12 +58,34 @@ where
     }
 }
 
+/// A trait for run-length decoding a sequence.
+/// Run-length decode を行うための trait。
 pub trait RunLengthDecode<T>
 where
     T: Eq + Clone,
 {
+    /// Decodes a run-length encoded sequence.
+    /// Run-length encode された列を decode する。
+    ///
+    /// # Args
+    /// - `self`: A reference to the run-length encoded sequence.
+    ///           Run-length encode された列への参照。
+    ///
+    /// # Returns
+    ///
+    /// `Vec<T>`: Returns the decoded sequence as a vector of elements.
+    ///           Decode された列を要素の vector として返す。
+    ///
+    /// # Complexity
+    ///
+    /// - Time complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
+    ///                    O(N_decoded)、ここで N_decoded は decode 後の列の総要素数である。
+    /// - Space complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
+    ///                     O(N_decoded)、ここで N_decoded は decode 後の列の総要素数である。
+    ///
+    /// # Examples
     /// ```
-    /// use anmitsu::string::runlength::RunLengthDecode;
+    /// use anmitsu::string::run_length::RunLengthDecode;
     /// let encoded_data = vec![('a', 2), ('b', 3), ('a', 1)];
     /// let decoded = encoded_data.run_length_decode();
     /// assert_eq!(decoded, vec!['a', 'a', 'b', 'b', 'b', 'a']);
@@ -79,7 +101,11 @@ where
         let mut res: Vec<T> = Vec::new();
 
         for (x, cnt) in self.iter() {
-            res.append(&mut vec![x.clone(); *cnt]);
+            // For each element and its count in the encoded sequence,
+            // create a vector with 'cnt' copies of the element.
+            for _ in 0..*cnt {
+                res.push(x.clone());
+            }
         }
 
         res
