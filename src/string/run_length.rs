@@ -57,3 +57,31 @@ where
         res
     }
 }
+
+pub trait RunLengthDecode<T>
+where
+    T: Eq + Clone,
+{
+    /// ```
+    /// use anmitsu::string::runlength::RunLengthDecode;
+    /// let encoded_data = vec![('a', 2), ('b', 3), ('a', 1)];
+    /// let decoded = encoded_data.run_length_decode();
+    /// assert_eq!(decoded, vec!['a', 'a', 'b', 'b', 'b', 'a']);
+    /// ```
+    fn run_length_decode(&self) -> Vec<T>;
+}
+
+impl<T> RunLengthDecode<T> for Vec<(T, usize)>
+where
+    T: Eq + Clone,
+{
+    fn run_length_decode(&self) -> Vec<T> {
+        let mut res: Vec<T> = Vec::new();
+
+        for (x, cnt) in self.iter() {
+            res.append(&mut vec![x.clone(); *cnt]);
+        }
+
+        res
+    }
+}
