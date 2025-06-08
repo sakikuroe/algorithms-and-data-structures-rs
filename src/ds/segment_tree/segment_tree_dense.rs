@@ -215,6 +215,19 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    ///
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    ///
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(5);
+    /// seg.set(0, 00001);
+    /// seg.set(1, 00010);
+    /// seg.set(2, 00100);
+    /// seg.set(3, 01000);
+    /// seg.set(4, 10000);
+    /// seg.build();
+    /// assert_eq!(110, seg.fold(1, 3));
+    /// ```
     pub fn fold(&self, mut l: usize, mut r: usize) -> M::S {
         if l >= r {
             return M::id();
