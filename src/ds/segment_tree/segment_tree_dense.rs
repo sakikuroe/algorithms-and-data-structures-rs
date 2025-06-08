@@ -30,6 +30,10 @@ where
     /// `SegmentTreeDense<M>`: Returns a newly created segment tree instance.
     ///                        新しい `segment tree` のインスタンスを返す.
     ///
+    /// # Constraints
+    /// No specific constraints on `n`.
+    /// `n` に関する制約はない.
+    ///
     /// # Complexity
     /// - Time complexity: O(n), where `n` is the size of the segment tree.
     ///                          ここで `n` は `segment tree` のサイズである.
@@ -37,6 +41,10 @@ where
     ///                           ここで `n` は `segment tree` のサイズである.
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(5);
+    /// ```
     pub fn new(n: usize) -> Self {
         let len = n;
         // The size of the internal data vector is 2*len - 1 for a complete binary tree.
@@ -63,6 +71,11 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(10);
+    /// assert_eq!(seg.len(), 10);
+    /// ```
     pub fn len(&self) -> usize {
         self.len
     }
@@ -87,6 +100,16 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(3);
+    /// seg.set(0, 1);
+    /// seg.set(1, 2);
+    /// seg.set(2, 3);
+    /// // `set` is lazy. Use `build` to apply changes.
+    /// seg.build();
+    /// assert_eq!(seg.fold(0, 3), 6);
+    /// ```
     pub fn set(&mut self, mut idx: usize, x: M::S) {
         assert!(
             idx < self.len(),
@@ -112,6 +135,15 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(3);
+    /// seg.set(0, 5);
+    /// seg.set(1, 10);
+    /// seg.set(2, 15);
+    /// seg.build();
+    /// assert_eq!(seg.fold(0, 3), 30);
+    /// ```
     pub fn build(&mut self) {
         // Iterate from the last parent node down to the root.
         for idx in (0..self.len - 1).rev() {
@@ -139,6 +171,17 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(3);
+    /// seg.set(0, 1);
+    /// seg.set(1, 2);
+    /// seg.set(2, 3);
+    /// seg.build();
+    /// assert_eq!(seg.fold(0, 3), 6);
+    /// seg.update(1, 10);
+    /// assert_eq!(seg.fold(0, 3), 14);
+    /// ```
     pub fn update(&mut self, mut idx: usize, x: M::S) {
         assert!(
             idx < self.len(),
@@ -176,6 +219,13 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(3);
+    /// seg.set(0, 10);
+    /// seg.build();
+    /// assert_eq!(seg.get(0), 10);
+    /// ```
     pub fn get(&self, mut idx: usize) -> M::S {
         assert!(
             idx < self.len(),
@@ -220,13 +270,13 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
     ///
     /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(5);
-    /// seg.set(0, 00001);
-    /// seg.set(1, 00010);
-    /// seg.set(2, 00100);
-    /// seg.set(3, 01000);
+    /// seg.set(0, 1);
+    /// seg.set(1, 10);
+    /// seg.set(2, 100);
+    /// seg.set(3, 1000);
     /// seg.set(4, 10000);
     /// seg.build();
-    /// assert_eq!(110, seg.fold(1, 3));
+    /// assert_eq!(seg.fold(1, 3), 110);
     /// ```
     pub fn fold(&self, mut l: usize, mut r: usize) -> M::S {
         if l >= r {
@@ -297,6 +347,19 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(5);
+    /// for i in 0..5 {
+    ///     seg.set(i, i as i64 + 1);
+    /// }
+    /// seg.build();
+    /// // Find `r` from `l=1` where sum of `[1, r)` is less than 10.
+    /// // [1, 4) -> 2 + 3 + 4 = 9 (< 10)
+    /// // [1, 5) -> 2 + 3 + 4 + 5 = 14 (>= 10)
+    /// let r = seg.max_right(1, |&sum| sum < 10);
+    /// assert_eq!(r, 4);
+    /// ```
     pub fn max_right<F>(&self, mut l: usize, f: F) -> usize
     where
         F: Fn(&M::S) -> bool,
@@ -371,6 +434,19 @@ where
     /// - Space complexity: O(1).
     ///
     /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(5);
+    /// for i in 0..5 {
+    ///     seg.set(i, i as i64 + 1);
+    /// }
+    /// seg.build();
+    /// // Find `l` from `r=4` where sum of `[l, 4)` is less than 10.
+    /// // [1, 4) -> 2 + 3 + 4 = 9 (< 10)
+    /// // [0, 4) -> 1 + 2 + 3 + 4 = 10 (>= 10)
+    /// let l = seg.min_left(4, |&sum| sum < 10);
+    /// assert_eq!(l, 1);
+    /// ```
     pub fn min_left<L>(&mut self, mut r: usize, f: L) -> usize
     where
         L: Fn(&M::S) -> bool,
