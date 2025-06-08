@@ -32,25 +32,27 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///                          ここで `n` は `segment tree` のサイズ.
+    ///                          ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(n), where `n` is the size of the segment tree.
-    ///                           ここで `n` は `segment tree` のサイズ.
+    ///                           ここで `n` は `segment tree` のサイズである.
     ///
     /// # Examples
     pub fn new(n: usize) -> Self {
         let len = n;
+        // The size of the internal data vector is 2*len - 1 for a complete binary tree.
+        // Handle the case where len is 0 to avoid underflow.
         SegmentTreeDense::<M> {
             len,
             data: vec![M::id(); if len == 0 { 0 } else { 2 * len - 1 }],
         }
     }
 
-    /// Returns the size of this segment tree.
-    /// この `segment tree` のサイズを返す.
+    /// Returns the size (number of leaves) of this segment tree.
+    /// この `segment tree` のサイズ (葉の数) を返す.
     ///
     /// # Returns
-    /// `usize`: The size of the segment tree.
-    ///          `segment tree` のサイズ.
+    /// `usize`: The size (number of leaves) of the segment tree.
+    ///          `segment tree` のサイズ (葉の数).
     ///
     /// # Panics
     /// This function does not panic.
@@ -76,21 +78,23 @@ where
     /// - `x`: The new value.
     ///        新しい値.
     ///
-    /// # Returns
-    /// This function does not return anything.
-    /// この関数は何も返さない.
-    ///
     /// # Panics
     /// Panics if `idx` >= `self.len()`.
     /// `idx` が `self.len()` 以上の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズ.
+    /// - Time complexity: O(1).
     /// - Space complexity: O(1).
     ///
     /// # Examples
     pub fn set(&mut self, mut idx: usize, x: M::S) {
+        assert!(
+            idx < self.len(),
+            "index out of bounds: the len is {} but the index is {}",
+            self.len(),
+            idx
+        );
+        // Calculate the position in the data vector corresponding to the leaf node.
         idx += self.len - 1;
         self.data[idx] = x;
     }
@@ -98,26 +102,20 @@ where
     /// Builds the segment tree by propagating the leaves' values up to their parent nodes.
     /// 葉に設定された値を親ノードへ伝播させて, `segment tree` を構築する.
     ///
-    /// # Args
-    /// None.
-    /// 引数はない.
-    ///
-    /// # Returns
-    /// This function does not return anything.
-    /// この関数は何も返さない.
-    ///
     /// # Panics
     /// This function does not panic.
     /// この関数はパニックしない.
     ///
     /// # Complexity
     /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///                          ここで `n` は `segment tree` のサイズ.
+    ///                          ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
     pub fn build(&mut self) {
+        // Iterate from the last parent node down to the root.
         for idx in (0..self.len - 1).rev() {
+            // Update parent node with the result of the monoid operation on its children.
             self.data[idx] = M::op(&self.data[2 * idx + 1], &self.data[2 * idx + 2]);
         }
     }
@@ -131,21 +129,24 @@ where
     /// - `x`: The new value.
     ///        新しい値.
     ///
-    /// # Returns
-    /// This function does not return anything.
-    /// この関数は何も返さない.
-    ///
     /// # Panics
     /// Panics if `idx` >= `self.len()`.
     /// `idx` が `self.len()` 以上の場合にパニックする.
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズ.
+    ///                               ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
     pub fn update(&mut self, mut idx: usize, x: M::S) {
+        assert!(
+            idx < self.len(),
+            "index out of bounds: the len is {} but the index is {}",
+            self.len(),
+            idx
+        );
+        // Calculate leaf position and update its value.
         idx += self.len - 1;
         self.data[idx] = x;
         // Climb up the tree updating parent nodes.
@@ -176,12 +177,23 @@ where
     ///
     /// # Examples
     pub fn get(&self, mut idx: usize) -> M::S {
+        assert!(
+            idx < self.len(),
+            "index out of bounds: the len is {} but the index is {}",
+            self.len(),
+            idx
+        );
+        // Calculate leaf position and return its value.
         idx += self.len - 1;
         self.data[idx].clone()
     }
 
     /// Performs a range fold (query) on the interval `[l, r)`.
-    /// 区間 `[l, r)` 上の値を `fold` (畳み込み) する `query` を実行する.
+    /// This operation aggregates the elements in the specified range using the monoid's binary operation `op`.
+    /// For example, if the operation is addition, this calculates `data[l] + data[l + 1] + ... + data[r - 1]`.
+    /// 区間 `[l, r)` 上の値に対して `fold` (畳み込み) を行う `query` を実行する.
+    /// この操作は, 指定された範囲の要素をモノイドの二項演算 `op` を用いて集約する.
+    /// 例えば, 演算が加算の場合, `data[l] + data[l+1] + ... + data[r-1]` を計算する.
     ///
     /// # Args
     /// - `l`: The start index of the range (inclusive).
@@ -190,21 +202,32 @@ where
     ///        `query` 区間の終了インデックス (含まない).
     ///
     /// # Returns
-    /// `M::S`: The folded result of the interval `[l, r)`.
-    ///         区間 `[l, r)` の畳み込み結果.
+    /// `M::S`: The folded result of the interval `[l, r)`. It is the identity element `M::id()` if the range is empty.
+    ///         区間 `[l, r)` の畳み込み結果. 区間が空の場合, 単位元 `M::id()` となる.
     ///
     /// # Panics
-    /// Panics if `l > r` or `r > self.len()`.
-    /// `l > r` または `r > self.len()` の場合にパニックする.
+    /// Panics if `r > self.len()`.
+    /// `r > self.len()` の場合にパニックする.
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズ.
+    ///                               ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
-    pub fn fold(&self, mut l: usize, r: usize) -> M::S {
-        let mut r = r.min(self.len());
+    pub fn fold(&self, mut l: usize, mut r: usize) -> M::S {
+        if l >= r {
+            return M::id();
+        }
+
+        assert!(
+            r <= self.len(),
+            "index out of bounds: r must be less than or equal to the len (r: {}, len: {})",
+            r,
+            self.len()
+        );
+
+        // Map logical indices to internal data array indices.
         l += self.len - 1;
         r += self.len - 1;
 
