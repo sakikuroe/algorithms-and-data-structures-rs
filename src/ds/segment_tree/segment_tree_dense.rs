@@ -226,6 +226,16 @@ where
         M::op(&sum_l, &sum_r)
     }
 
+    // Check if k is outside of leaf index or satisfies a particular condition
+    fn is_good_node(k: usize, len: usize) -> bool {
+        if k >= len {
+            true
+        } else {
+            let d = k.leading_zeros() - len.leading_zeros();
+            len >> d != k || len >> d << d == len
+        }
+    }
+
     /// Finds the maximum `r` in `[l, self.len()]` such that `f` applied to the fold result
     /// from `[l, r)` is `true`. Returns `self.len()` if no further extension is possible.
     /// 区間 `[l, self.len()]` 内で, `[l, r)` の `fold` 結果に対して述語 `f` が `true` を返すような
@@ -247,7 +257,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズ.
+    ///                               ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -255,42 +265,46 @@ where
     where
         F: Fn(&M::S) -> bool,
     {
-        fn is_good_node(k: usize, len: usize) -> bool {
-            // Check if k is outside of leaf index or satisfies a particular condition
-            if k >= len {
-                true
-            } else {
-                let d = k.leading_zeros() - len.leading_zeros();
-                len >> d != k || len >> d << d == len
-            }
-        }
+        assert!(
+            f(&M::id()),
+            "predicate must be true for the identity element"
+        );
+        assert!(
+            l <= self.len(),
+            "index out of bounds: l must be less than or equal to the len (l: {}, len: {})",
+            l,
+            self.len()
+        );
 
-        assert!(f(&M::id()));
-        assert!(l <= self.len());
-
-        // If `[l, self.len()]` satisfies f, return self.len().
+        // If the full range `[l, self.len())` satisfies f, return self.len().
         if l == self.len() || f(&self.fold(l, self.len())) {
             return self.len();
         }
 
+        // Map to internal index and initialize sum.
         l += self.len();
         let mut sum = M::id();
         // Iteratively push the boundary to the right until we find the maximum r.
         loop {
-            while l & 1 == 0 && is_good_node(l >> 1, self.len()) {
+            // Move up to the parent if l is the right child.
+            while l & 1 == 0 && Self::is_good_node(l >> 1, self.len()) {
                 l >>= 1;
             }
+            // If the predicate fails with the next node, we've found the boundary.
             if !f(&M::op(&sum, &self.data[l - 1])) {
                 while l < self.len() {
                     l <<= 1;
                     let t = M::op(&sum, &self.data[l - 1]);
+                    // If adding the left child's value is still valid, move right.
                     if f(&t) {
                         sum = t;
                         l += 1;
                     }
                 }
+                // Convert internal index back to logical index.
                 return l - self.len();
             }
+            // Otherwise, include the current node and move to the next.
             sum = M::op(&sum, &self.data[l - 1]);
             l += 1;
         }
@@ -317,7 +331,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズ.
+    ///                               ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -325,47 +339,51 @@ where
     where
         L: Fn(&M::S) -> bool,
     {
-        fn is_good_node(k: usize, len: usize) -> bool {
-            // Similar check to ensure traversal correctness
-            if k >= len {
-                true
-            } else {
-                let d = k.leading_zeros() - len.leading_zeros();
-                len >> d != k || len >> d << d == len
-            }
-        }
+        assert!(
+            f(&M::id()),
+            "predicate must be true for the identity element"
+        );
+        assert!(
+            r <= self.len(),
+            "index out of bounds: r must be less than or equal to the len (r: {}, len: {})",
+            r,
+            self.len()
+        );
 
-        assert!(f(&M::id()));
-        assert!(r <= self.len());
-
-        // If `[0, r)` satisfies f, return 0.
+        // If the full range `[0, r)` satisfies f, return 0.
         if r == 0 || f(&self.fold(0, r)) {
             return 0;
         }
 
+        // Map to internal index and initialize sum.
         let mut sum = M::id();
         r += self.len;
         // Iteratively shrink the boundary from the right.
         loop {
             r -= 1;
-            while !is_good_node(r, self.len()) {
+            // Move up to parent if r is the left child.
+            while !Self::is_good_node(r, self.len()) {
                 r = r * 2 + 1;
             }
-            while r & 1 != 0 && is_good_node(r >> 1, self.len()) {
+            while r & 1 != 0 && Self::is_good_node(r >> 1, self.len()) {
                 r >>= 1;
             }
+            // If the predicate fails with the next node, we've found the boundary.
             if !f(&M::op(&sum, &self.data[r - 1])) {
                 while r < self.len {
                     r = r * 2 + 1;
-                    let t = M::op(&sum, &self.data[r - 1]);
+                    let t = M::op(&self.data[r - 1], &sum);
+                    // If including the right child is still valid, move left.
                     if f(&t) {
                         sum = t;
                         r -= 1;
                     }
                 }
+                // Convert internal index back to logical index.
                 return r + 1 - self.len;
             }
-            sum = M::op(&sum, &self.data[r - 1]);
+            // Otherwise, include the current node and move to the next.
+            sum = M::op(&self.data[r - 1], &sum);
         }
     }
 }
