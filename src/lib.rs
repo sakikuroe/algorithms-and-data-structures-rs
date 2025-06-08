@@ -1,3 +1,14 @@
+pub mod algebra {
+    pub mod monoid;
+    pub mod semi_group;
+}
+
+pub mod ds {
+    pub mod segment_tree {
+        pub mod segment_tree_dense;
+    }
+}
+
 pub mod math {
     pub mod number_theory;
 }
