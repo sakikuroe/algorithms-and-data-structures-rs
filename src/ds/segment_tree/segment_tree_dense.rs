@@ -481,7 +481,7 @@ where
                 r >>= 1;
             }
             // If the predicate fails with the next node, we've found the boundary.
-            if !f(&M::op(&sum, &self.data[r - 1])) {
+            if !f(&M::op(&self.data[r - 1], &sum)) {
                 while r < self.len {
                     r = r * 2 + 1;
                     let t = M::op(&self.data[r - 1], &sum);
