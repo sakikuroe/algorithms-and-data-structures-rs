@@ -9,12 +9,12 @@ const MASKS: [u64; 64] = {
 };
 
 /// A data structure to efficiently store and query a sequence of bits (0s and 1s).
-/// 0 と 1 からなるビット列を効率的に格納し、クエリを実行するためのデータ構造。
+/// 0 と 1 からなるビット列を効率的に格納し, クエリを実行するためのデータ構造である.
 ///
 /// The `BitVector` precomputes cumulative sums of 1s in blocks of 64 bits
 /// to allow for fast `sum` queries.
-/// `BitVector` は 64 ビットのブロックごとに 1 の累積和を事前計算することで、
-/// 高速な `sum` クエリを可能にする。
+/// `BitVector` は 64 ビットのブロックごとに 1 の累積和を事前計算することで,
+/// 高速な `sum` クエリを可能にする.
 #[derive(Clone)]
 pub struct BitVector {
     bits: Vec<u64>,
@@ -28,41 +28,41 @@ pub struct BitVector {
 
 impl BitVector {
     /// Creates a new `BitVector`.
-    /// 新しい `BitVector` を作成する。
+    /// 新しい `BitVector` を作成する.
     ///
     /// # Args
     ///
     /// * `v`: A slice of `u8` where each element is either `0` or `1`.
     ///        The length of `v` must be less than 2^{32} (=4294967296)
-    ///   `v`: 各要素が `0` または `1` である `u8` のスライス。
-    ///        `v` の長さは 2^{32} (=4294967296) 未満でなければならない。
+    ///   `v`: 各要素が `0` または `1` である `u8` のスライスである.
+    ///        `v` の長さは 2^{32} (=4294967296) 未満でなければならない.
     ///
     /// # Returns
     ///
     /// A new `BitVector` instance.
-    /// 新しい `BitVector` インスタンス。
+    /// 新しい `BitVector` インスタンスを返す.
     ///
     /// # Panics
     ///
     /// Panics if any element in `v` is not `0` or `1`.
     /// Panics if the length of `v` is greater than or equal to 2^{32}.
-    /// `v` のいずれかの要素が `0` または `1` でない場合にパニックする。
-    /// `v` の長さが 2^{32} 以上の場合にパニックする。
+    /// `v` のいずれかの要素が `0` または `1` でない場合にパニックする.
+    /// `v` の長さが 2^{32} 以上の場合にパニックする.
     ///
     /// # Complexity
     ///
     /// Time: O(N), where N is the length of `v`.
-    /// 時間計算量: O(N)。N は `v` の長さ。
+    /// 時間計算量: O(N). ここで N は `v` の長さである.
     ///
     /// Space: O(N), where N is the length of `v`.
-    /// 空間計算量: O(N)。N は `v` の長さ。
+    /// 空間計算量: O(N). ここで N は `v` の長さである.
     ///
     /// # Examples
     ///
     /// ```
-    /// use anmitsu::ds::bit_vector::BitVector;
+    /// use anmitsu::ds::bit_vector;
     ///
-    /// let bv = BitVector::new(&[1, 0, 1, 1, 0, 1]);
+    /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1]);
     /// assert_eq!(6, bv.len());
     /// assert_eq!(3, bv.rank(4)); // sum([1, 0, 1, 1])
     /// assert_eq!(4, bv.rank(6)); // sum([1, 0, 1, 1, 0, 1])
@@ -101,37 +101,37 @@ impl BitVector {
     }
 
     /// Returns the number of 1s in the range `v[0..r) (sum of v[0..r) )`.
-    /// 範囲 `v[0..r)` における 1 の数 (v[0..r) の和) を返す。
+    /// 範囲 `v[0..r)` における 1 の数 (v[0..r) の和) を返す.
     ///
     /// # Args
     ///
     /// * `r`: The upper bound of the range. `r` must be less than or equal to `len()`.
-    ///   `r`: 範囲の上限。`r` は `len()` 以下でなければならない。
+    ///   `r`: 範囲の上限である. `r` は `len()` 以下でなければならない.
     ///
     /// # Returns
     ///
     /// The sum of 1s in `v[0..r)`. Returns `0` if `r` is `0`.
-    /// `v[0..r)` における 1 の合計。`r` が `0` の場合は `0` を返す。
+    /// `v[0..r)` における 1 の合計を返す. `r` が `0` の場合は `0` を返す.
     ///
     /// # Panics
     ///
     /// Panics if `r > len()`.
-    /// `r > len()` の場合にパニックする。
+    /// `r > len()` の場合にパニックする.
     ///
     /// # Complexity
     ///
     /// Time: O(1) due to precomputation.
-    /// 時間計算量: 事前計算により O(1)。
+    /// 時間計算量: 事前計算により O(1).
     ///
     /// Space: O(1) for the query itself.
-    /// 空間計算量: クエリ自体は O(1)。
+    /// 空間計算量: クエリ自体は O(1).
     ///
     /// # Examples
     ///
     /// ```
-    /// use anmitsu::ds::bit_vector::BitVector;
+    /// use anmitsu::ds::bit_vector;
     ///
-    /// let bv = BitVector::new(&[1, 0, 1, 1, 0, 1, 0, 0]);
+    /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1, 0, 0]);
     /// assert_eq!(bv.rank(0), 0);
     /// assert_eq!(bv.rank(1), 1); // v[0] = 1
     /// assert_eq!(bv.rank(3), 2); // v[0..3] = [1, 0, 1], sum = 2
@@ -162,20 +162,20 @@ impl BitVector {
     }
 
     /// Returns the length of the BitVector.
-    /// BitVector の長さを返す。
+    /// BitVector の長さを返す.
     ///
     /// # Returns
     ///
     /// The length of the original bit sequence.
-    /// 元のビット列の長さ。
+    /// 元のビット列の長さを返す.
     ///
     /// # Complexity
     ///
     /// Time: O(1)
-    /// 時間計算量: O(1)
+    /// 時間計算量: O(1).
     ///
     /// Space: O(1)
-    /// 空間計算量: O(1)
+    /// 空間計算量: O(1).
     ///
     /// # Examples
     ///
@@ -190,20 +190,20 @@ impl BitVector {
     }
 
     /// Checks if the BitVector is empty.
-    /// BitVectorが空かどうかを確認する。
+    /// BitVector が空かどうかを確認する.
     ///
     /// # Returns
     ///
     /// `true` if the bit vector is empty, `false` otherwise.
-    /// BitVectorが空の場合は `true`、そうでない場合は `false`。
+    /// BitVector が空の場合は `true`, そうでない場合は `false` を返す.
     ///
     /// # Complexity
     ///
     /// Time: O(1)
-    /// 時間計算量: O(1)
+    /// 時間計算量: O(1).
     ///
     /// Space: O(1)
-    /// 空間計算量: O(1)
+    /// 空間計算量: O(1).
     ///
     /// # Examples
     ///
