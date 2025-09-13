@@ -448,15 +448,15 @@ fn test_randomized_comparison_matrix() {
     let initial_data: Vec<Matrix2x2> = (0..N).map(|_| rand_matrix()).collect();
     let (mut naive, mut dense) = setup_trees::<MatrixMulMonoid>(&initial_data);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..Q {
-        let op_type = rng.gen_range(0..4);
+        let op_type = rng.random_range(0..4);
 
         match op_type {
             0 => {
                 // Test update
-                let idx = rng.gen_range(0..N);
+                let idx = rng.random_range(0..N);
                 let val = rand_matrix();
                 dense.update(idx, val);
                 naive.update(idx, val);
@@ -464,8 +464,8 @@ fn test_randomized_comparison_matrix() {
             }
             1 => {
                 // Test fold
-                let mut l = rng.gen_range(0..=N);
-                let mut r = rng.gen_range(0..=N);
+                let mut l = rng.random_range(0..=N);
+                let mut r = rng.random_range(0..=N);
                 if l > r {
                     std::mem::swap(&mut l, &mut r);
                 }
@@ -473,7 +473,7 @@ fn test_randomized_comparison_matrix() {
             }
             2 => {
                 // Test max_right
-                let l = rng.gen_range(0..=N);
+                let l = rng.random_range(0..=N);
                 // A simple predicate for testing: check if the top-left element is below a threshold.
                 let threshold = 1_000_000;
                 let f = |m: &Matrix2x2| m.mat[0][0] < threshold;
@@ -481,7 +481,7 @@ fn test_randomized_comparison_matrix() {
             }
             3 => {
                 // Test min_left
-                let r = rng.gen_range(0..=N);
+                let r = rng.random_range(0..=N);
                 let threshold = 1_000_000;
                 let f = |m: &Matrix2x2| m.mat[0][0] < threshold;
                 assert_eq!(naive.min_left(r, f), dense.min_left(r, f));
