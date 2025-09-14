@@ -193,9 +193,10 @@ impl From<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let val: u32 = 1_000_000_007;
     /// let m: ModInt998244353 = val.into();
-    /// assert_eq!(m.val, 1755654); // 1_000_000_007 % 998244353
+    /// assert_eq!(1755654, m.val()); // 1_000_000_007 % 998244353
     /// ```
     fn from(num: u32) -> Self {
         ModInt998244353::new(num as u64)
@@ -226,11 +227,12 @@ impl From<i32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let m_pos: ModInt998244353 = 10i32.into();
-    /// assert_eq!(m_pos.val, 10);
+    /// assert_eq!(10, m_pos.val());
     ///
     /// let m_neg: ModInt998244353 = (-10i32).into();
-    /// assert_eq!(m_neg.val, 998244353 - 10);
+    /// assert_eq!(998244353 - 10, m_neg.val());
     /// ```
     fn from(num: i32) -> Self {
         // Ensure non-negative value for modular arithmetic.
@@ -271,9 +273,10 @@ impl Add for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(998244350);
     /// let b = ModInt998244353::new(10);
-    /// assert_eq!(a + b, ModInt998244353::new(7));
+    /// assert_eq!(ModInt998244353::new(7), a + b);
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
         ModInt998244353::new_raw((self.val + rhs.val) % MOD)
@@ -308,9 +311,10 @@ impl Add<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(998244350);
     /// let b: u32 = 10;
-    /// assert_eq!(a + b, ModInt998244353::new(7));
+    /// assert_eq!(ModInt998244353::new(7), a + b);
     /// ```
     fn add(self, rhs: u32) -> Self::Output {
         ModInt998244353::new((self.val as u64 + rhs as u64) % MOD as u64)
@@ -339,13 +343,14 @@ impl AddAssign for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(998244350);
     /// let b = ModInt998244353::new(10);
     /// a += b;
-    /// assert_eq!(a, ModInt998244353::new(7));
+    /// assert_eq!(ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: Self) {
-        self.val = (self.val + rhs.val) % MOD;
+        *self = *self + rhs;
     }
 }
 
@@ -371,12 +376,13 @@ impl AddAssign<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(998244350);
     /// a += 10u32;
-    /// assert_eq!(a, ModInt998244353::new(7));
+    /// assert_eq!(ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: u32) {
-        self.val = (self.val as u64 + rhs as u64 % MOD as u64) as u32 % MOD;
+        *self = *self + rhs;
     }
 }
 
@@ -408,9 +414,10 @@ impl Sub for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(10);
     /// let b = ModInt998244353::new(20);
-    /// assert_eq!(a - b, ModInt998244353::new(998244343));
+    /// assert_eq!(ModInt998244353::new(998244343), a - b);
     /// ```
     fn sub(self, rhs: Self) -> Self::Output {
         // Ensure the result is non-negative.
@@ -446,9 +453,10 @@ impl Sub<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(10);
     /// let b: u32 = 20;
-    /// assert_eq!(a - b, ModInt998244353::new(998244343));
+    /// assert_eq!(ModInt998244353::new(998244343), a - b);
     /// ```
     fn sub(self, rhs: u32) -> Self::Output {
         // Ensure the result is non-negative.
@@ -478,13 +486,14 @@ impl SubAssign for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(10);
     /// let b = ModInt998244353::new(20);
     /// a -= b;
-    /// assert_eq!(a, ModInt998244353::new(998244343));
+    /// assert_eq!(ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: Self) {
-        self.val = (self.val + MOD - rhs.val) % MOD;
+        *self = *self - rhs;
     }
 }
 
@@ -510,12 +519,13 @@ impl SubAssign<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(10);
     /// a -= 20u32;
-    /// assert_eq!(a, ModInt998244353::new(998244343));
+    /// assert_eq!(ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: u32) {
-        self.val = (self.val + MOD - (rhs % MOD)) % MOD;
+        *self = *self - rhs;
     }
 }
 
@@ -547,9 +557,10 @@ impl Mul for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(100_000);
     /// let b = ModInt998244353::new(100_000);
-    /// assert_eq!(a * b, ModInt998244353::new(17556470));
+    /// assert_eq!(ModInt998244353::new(17556470), a * b);
     /// ```
     fn mul(self, rhs: Self) -> Self::Output {
         ModInt998244353::new((self.val as u64) * (rhs.val as u64))
@@ -584,9 +595,10 @@ impl Mul<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(100_000);
     /// let b: u32 = 100_000;
-    /// assert_eq!(a * b, ModInt998244353::new(17556470));
+    /// assert_eq!(ModInt998244353::new(17556470), a * b);
     /// ```
     fn mul(self, rhs: u32) -> Self::Output {
         ModInt998244353::new((self.val as u64) * (rhs as u64))
@@ -615,13 +627,14 @@ impl MulAssign for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(100_000);
     /// let b = ModInt998244353::new(100_000);
     /// a *= b;
-    /// assert_eq!(a, ModInt998244353::new(17556470));
+    /// assert_eq!(ModInt998244353::new(17556470), a);
     /// ```
     fn mul_assign(&mut self, rhs: Self) {
-        self.val = (self.val as u64 * rhs.val as u64 % MOD as u64) as u32;
+        *self = *self * rhs;
     }
 }
 
@@ -647,12 +660,13 @@ impl MulAssign<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(100_000);
     /// a *= 100_000u32;
-    /// assert_eq!(a, ModInt998244353::new(17556470));
+    /// assert_eq!(ModInt998244353::new(17556470), a);
     /// ```
     fn mul_assign(&mut self, rhs: u32) {
-        self.val = (self.val as u64 * rhs as u64 % MOD as u64) as u32;
+        *self = *self * rhs;
     }
 }
 
@@ -689,9 +703,10 @@ impl Div for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(20);
     /// let b = ModInt998244353::new(4);
-    /// assert_eq!(a / b, ModInt998244353::new(5));
+    /// assert_eq!(ModInt998244353::new(5), a / b);
     /// ```
     fn div(self, rhs: Self) -> Self::Output {
         // Calculate modular inverse for division.
@@ -735,9 +750,10 @@ impl Div<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(20);
     /// let b: u32 = 4;
-    /// assert_eq!(a / b, ModInt998244353::new(5));
+    /// assert_eq!(ModInt998244353::new(5), a / b);
     /// ```
     fn div(self, rhs: u32) -> Self::Output {
         let rhs_mod = ModInt998244353::new(rhs as u64);
@@ -775,17 +791,14 @@ impl DivAssign for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(20);
     /// let b = ModInt998244353::new(4);
     /// a /= b;
-    /// assert_eq!(a, ModInt998244353::new(5));
+    /// assert_eq!(ModInt998244353::new(5), a);
     /// ```
     fn div_assign(&mut self, rhs: Self) {
-        // Calculate modular inverse for division.
-        let inv_rhs = rhs
-            .inv()
-            .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
-        *self *= inv_rhs;
+        *self = *self / rhs;
     }
 }
 
@@ -816,16 +829,13 @@ impl DivAssign<u32> for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let mut a = ModInt998244353::new(20);
     /// a /= 4u32;
-    /// assert_eq!(a, ModInt998244353::new(5));
+    /// assert_eq!(ModInt998244353::new(5), a);
     /// ```
     fn div_assign(&mut self, rhs: u32) {
-        let rhs_mod = ModInt998244353::new(rhs as u64);
-        let inv_rhs = rhs_mod
-            .inv()
-            .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
-        *self *= inv_rhs;
+        *self = *self / rhs;
     }
 }
 
@@ -855,11 +865,12 @@ impl Neg for ModInt998244353 {
     ///
     /// # Examples
     /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let a = ModInt998244353::new(10);
-    /// assert_eq!(-a, ModInt998244353::new(998244343));
+    /// assert_eq!(ModInt998244353::new(998244343), -a);
     ///
     /// let zero = ModInt998244353::new(0);
-    /// assert_eq!(-zero, zero);
+    /// assert_eq!(zero, -zero);
     /// ```
     fn neg(self) -> Self::Output {
         if self.val == 0 {
