@@ -82,10 +82,17 @@ impl BitVector {
         let mut cumulative_sums = vec![0_u32; num_blocks];
         let mut current_sum = 0_u32;
 
+        // Iterate through the input vector to populate the bit vector
+        // and validate that elements are either 0 or 1.
         for (i, &bit_val) in v.iter().enumerate() {
+            // Ensure each element is a valid bit value (0 or 1).
+            // This is a critical constraint for the `BitVector`'s integrity,
+            // as subsequent operations assume binary values.
             if bit_val != 0 && bit_val != 1 {
                 panic!("Input slice `v` must only contain 0 or 1.");
             }
+            // If the bit is 1, set the corresponding bit in the `bits` vector.
+            // This operation efficiently packs individual bits into u64 blocks.
             if bit_val == 1 {
                 let block_index = i / u64::BITS as usize;
                 let bit_in_block = i % u64::BITS as usize;
@@ -93,6 +100,9 @@ impl BitVector {
             }
         }
 
+        // Calculate cumulative sums of set bits for rank operations.
+        // This pre-computation allows for O(1) rank queries later,
+        // by storing the total count of set bits up to the end of each block.
         for i in 0..num_blocks {
             current_sum += bits[i].count_ones();
             cumulative_sums[i] = current_sum;
