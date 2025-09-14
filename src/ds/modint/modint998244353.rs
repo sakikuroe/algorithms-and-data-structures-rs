@@ -172,6 +172,31 @@ impl ModInt998244353 {
 /// Allows conversion from `u32` to `ModInt998244353`.
 /// `u32` から `ModInt998244353` への変換を可能にする.
 impl From<u32> for ModInt998244353 {
+    /// Creates a `ModInt998244353` instance from a `u32` value.
+    /// `u32` の値から `ModInt998244353` インスタンスを生成する.
+    ///
+    /// # Args
+    /// - `num`: The `u32` value to convert.
+    ///          変換する `u32` の値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance equivalent to `num` modulo `998244353`.
+    /// `num` を `998244353` で割った余りと等価な, 新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input value.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let val: u32 = 1_000_000_007;
+    /// let m: ModInt998244353 = val.into();
+    /// assert_eq!(m.val, 1755654); // 1_000_000_007 % 998244353
+    /// ```
     fn from(num: u32) -> Self {
         ModInt998244353::new(num as u64)
     }
@@ -180,6 +205,33 @@ impl From<u32> for ModInt998244353 {
 /// Allows conversion from `i32` to `ModInt998244353`.
 /// `i32` から `ModInt998244353` への変換を可能にする.
 impl From<i32> for ModInt998244353 {
+    /// Creates a `ModInt998244353` instance from an `i32` value, handling negative numbers correctly.
+    /// `i32` の値から `ModInt998244353` インスタンスを生成する. 負数も正しく扱う.
+    ///
+    /// # Args
+    /// - `num`: The `i32` value to convert.
+    ///          変換する `i32` の値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance. Negative inputs are converted to a positive equivalent in modular arithmetic.
+    /// 新しい `ModInt998244353` インスタンス. 負の入力は, 法演算における正の等価値に変換される.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input value.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let m_pos: ModInt998244353 = 10i32.into();
+    /// assert_eq!(m_pos.val, 10);
+    ///
+    /// let m_neg: ModInt998244353 = (-10i32).into();
+    /// assert_eq!(m_neg.val, 998244353 - 10);
+    /// ```
     fn from(num: i32) -> Self {
         // Ensure non-negative value for modular arithmetic.
         let val = if num >= 0 {
@@ -196,6 +248,33 @@ impl From<i32> for ModInt998244353 {
 impl Add for ModInt998244353 {
     type Output = Self;
 
+    /// Adds two `ModInt998244353` instances.
+    /// 2つの `ModInt998244353` インスタンスを加算する.
+    ///
+    /// # Args
+    /// - `self`: The left-hand side operand.
+    ///           左辺のオペランド.
+    /// - `rhs`: The right-hand side operand.
+    ///          右辺のオペランド.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the sum.
+    /// 和を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(998244350);
+    /// let b = ModInt998244353::new(10);
+    /// assert_eq!(a + b, ModInt998244353::new(7));
+    /// ```
     fn add(self, rhs: Self) -> Self::Output {
         ModInt998244353::new_raw((self.val + rhs.val) % MOD)
     }
@@ -206,6 +285,33 @@ impl Add for ModInt998244353 {
 impl Add<u32> for ModInt998244353 {
     type Output = Self;
 
+    /// Adds a `u32` value to a `ModInt998244353` instance.
+    /// `ModInt998244353` インスタンスに `u32` の値を加算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance.
+    ///           `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to add.
+    ///          加算する `u32` の値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the sum.
+    /// 和を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(998244350);
+    /// let b: u32 = 10;
+    /// assert_eq!(a + b, ModInt998244353::new(7));
+    /// ```
     fn add(self, rhs: u32) -> Self::Output {
         ModInt998244353::new((self.val as u64 + rhs as u64) % MOD as u64)
     }
@@ -214,6 +320,30 @@ impl Add<u32> for ModInt998244353 {
 /// Implements the addition assignment operation (`+=`) for `ModInt998244353`.
 /// `ModInt998244353` に対する加算代入演算 (`+=`) を実装する.
 impl AddAssign for ModInt998244353 {
+    /// Adds another `ModInt998244353` instance to `self`.
+    /// 別の `ModInt998244353` インスタンスを `self` に加算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The right-hand side operand.
+    ///          右辺のオペランド.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(998244350);
+    /// let b = ModInt998244353::new(10);
+    /// a += b;
+    /// assert_eq!(a, ModInt998244353::new(7));
+    /// ```
     fn add_assign(&mut self, rhs: Self) {
         self.val = (self.val + rhs.val) % MOD;
     }
@@ -222,6 +352,29 @@ impl AddAssign for ModInt998244353 {
 /// Implements the addition assignment operation (`+=`) for `ModInt998244353` and `u32`.
 /// `ModInt998244353` と `u32` に対する加算代入演算 (`+=`) を実装する.
 impl AddAssign<u32> for ModInt998244353 {
+    /// Adds a `u32` value to `self`.
+    /// `u32` の値を `self` に加算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to add.
+    ///          加算する `u32` の値.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(998244350);
+    /// a += 10u32;
+    /// assert_eq!(a, ModInt998244353::new(7));
+    /// ```
     fn add_assign(&mut self, rhs: u32) {
         self.val = (self.val as u64 + rhs as u64 % MOD as u64) as u32 % MOD;
     }
@@ -232,6 +385,33 @@ impl AddAssign<u32> for ModInt998244353 {
 impl Sub for ModInt998244353 {
     type Output = Self;
 
+    /// Subtracts one `ModInt998244353` instance from another.
+    /// ある `ModInt998244353` インスタンスから別のインスタンスを減算する.
+    ///
+    /// # Args
+    /// - `self`: The left-hand side operand (minuend).
+    ///           左辺のオペランド (被減数).
+    /// - `rhs`: The right-hand side operand (subtrahend).
+    ///          右辺のオペランド (減数).
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the difference.
+    /// 差を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(10);
+    /// let b = ModInt998244353::new(20);
+    /// assert_eq!(a - b, ModInt998244353::new(998244343));
+    /// ```
     fn sub(self, rhs: Self) -> Self::Output {
         // Ensure the result is non-negative.
         ModInt998244353::new_raw((self.val + MOD - rhs.val) % MOD)
@@ -243,6 +423,33 @@ impl Sub for ModInt998244353 {
 impl Sub<u32> for ModInt998244353 {
     type Output = Self;
 
+    /// Subtracts a `u32` value from a `ModInt998244353` instance.
+    /// `ModInt998244353` インスタンスから `u32` の値を減算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance.
+    ///           `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to subtract.
+    ///          減算する `u32` の値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the difference.
+    /// 差を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(10);
+    /// let b: u32 = 20;
+    /// assert_eq!(a - b, ModInt998244353::new(998244343));
+    /// ```
     fn sub(self, rhs: u32) -> Self::Output {
         // Ensure the result is non-negative.
         ModInt998244353::new_raw((self.val + MOD - (rhs % MOD)) % MOD)
@@ -252,6 +459,30 @@ impl Sub<u32> for ModInt998244353 {
 /// Implements the subtraction assignment operation (`-=`) for `ModInt998244353`.
 /// `ModInt998244353` に対する減算代入演算 (`-=`) を実装する.
 impl SubAssign for ModInt998244353 {
+    /// Subtracts another `ModInt998244353` instance from `self`.
+    /// 別の `ModInt998244353` インスタンスを `self` から減算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The right-hand side operand.
+    ///          右辺のオペランド.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(10);
+    /// let b = ModInt998244353::new(20);
+    /// a -= b;
+    /// assert_eq!(a, ModInt998244353::new(998244343));
+    /// ```
     fn sub_assign(&mut self, rhs: Self) {
         self.val = (self.val + MOD - rhs.val) % MOD;
     }
@@ -260,6 +491,29 @@ impl SubAssign for ModInt998244353 {
 /// Implements the subtraction assignment operation (`-=`) for `ModInt998244353` and `u32`.
 /// `ModInt998244353` と `u32` に対する減算代入演算 (`-=`) を実装する.
 impl SubAssign<u32> for ModInt998244353 {
+    /// Subtracts a `u32` value from `self`.
+    /// `u32` の値を `self` から減算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to subtract.
+    ///          減算する `u32` の値.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(10);
+    /// a -= 20u32;
+    /// assert_eq!(a, ModInt998244353::new(998244343));
+    /// ```
     fn sub_assign(&mut self, rhs: u32) {
         self.val = (self.val + MOD - (rhs % MOD)) % MOD;
     }
@@ -270,6 +524,33 @@ impl SubAssign<u32> for ModInt998244353 {
 impl Mul for ModInt998244353 {
     type Output = Self;
 
+    /// Multiplies two `ModInt998244353` instances.
+    /// 2つの `ModInt998244353` インスタンスを乗算する.
+    ///
+    /// # Args
+    /// - `self`: The left-hand side operand.
+    ///           左辺のオペランド.
+    /// - `rhs`: The right-hand side operand.
+    ///          右辺のオペランド.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the product.
+    /// 積を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(100_000);
+    /// let b = ModInt998244353::new(100_000);
+    /// assert_eq!(a * b, ModInt998244353::new(17556470));
+    /// ```
     fn mul(self, rhs: Self) -> Self::Output {
         ModInt998244353::new((self.val as u64) * (rhs.val as u64))
     }
@@ -280,6 +561,33 @@ impl Mul for ModInt998244353 {
 impl Mul<u32> for ModInt998244353 {
     type Output = Self;
 
+    /// Multiplies a `ModInt998244353` instance by a `u32` value.
+    /// `ModInt998244353` インスタンスに `u32` の値を乗算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance.
+    ///           `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to multiply by.
+    ///          乗算する `u32` の値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the product.
+    /// 積を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(100_000);
+    /// let b: u32 = 100_000;
+    /// assert_eq!(a * b, ModInt998244353::new(17556470));
+    /// ```
     fn mul(self, rhs: u32) -> Self::Output {
         ModInt998244353::new((self.val as u64) * (rhs as u64))
     }
@@ -288,6 +596,30 @@ impl Mul<u32> for ModInt998244353 {
 /// Implements the multiplication assignment operation (`*=`) for `ModInt998244353`.
 /// `ModInt998244353` に対する乗算代入演算 (`*=`) を実装する.
 impl MulAssign for ModInt998244353 {
+    /// Multiplies `self` by another `ModInt998244353` instance.
+    /// `self` に別の `ModInt998244353` インスタンスを乗算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The right-hand side operand.
+    ///          右辺のオペランド.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(100_000);
+    /// let b = ModInt998244353::new(100_000);
+    /// a *= b;
+    /// assert_eq!(a, ModInt998244353::new(17556470));
+    /// ```
     fn mul_assign(&mut self, rhs: Self) {
         self.val = (self.val as u64 * rhs.val as u64 % MOD as u64) as u32;
     }
@@ -296,6 +628,29 @@ impl MulAssign for ModInt998244353 {
 /// Implements the multiplication assignment operation (`*=`) for `ModInt998244353` and `u32`.
 /// `ModInt998244353` と `u32` に対する乗算代入演算 (`*=`) を実装する.
 impl MulAssign<u32> for ModInt998244353 {
+    /// Multiplies `self` by a `u32` value.
+    /// `self` に `u32` の値を乗算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` value to multiply by.
+    ///          乗算する `u32` の値.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(100_000);
+    /// a *= 100_000u32;
+    /// assert_eq!(a, ModInt998244353::new(17556470));
+    /// ```
     fn mul_assign(&mut self, rhs: u32) {
         self.val = (self.val as u64 * rhs as u64 % MOD as u64) as u32;
     }
@@ -306,9 +661,38 @@ impl MulAssign<u32> for ModInt998244353 {
 impl Div for ModInt998244353 {
     type Output = Self;
 
+    /// Divides `self` by another `ModInt998244353` instance using modular inverse.
+    /// モジュラ逆数を用いて, `self` を別の `ModInt998244353` インスタンスで除算する.
+    ///
+    /// # Args
+    /// - `self`: The dividend.
+    ///           被除数.
+    /// - `rhs`: The divisor.
+    ///          除数.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the quotient.
+    /// 商を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input values, but the divisor must not be zero.
+    /// 入力値に関する制約はないが, 除数がゼロであってはならない.
+    ///
     /// # Panics
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(log M), where M is the modulus.
+    ///                          ここで M は法である.
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(20);
+    /// let b = ModInt998244353::new(4);
+    /// assert_eq!(a / b, ModInt998244353::new(5));
+    /// ```
     fn div(self, rhs: Self) -> Self::Output {
         // Calculate modular inverse for division.
         let inv_rhs = rhs
@@ -323,9 +707,38 @@ impl Div for ModInt998244353 {
 impl Div<u32> for ModInt998244353 {
     type Output = Self;
 
+    /// Divides a `ModInt998244353` instance by a `u32` value using modular inverse.
+    /// モジュラ逆数を用いて, `ModInt998244353` インスタンスを `u32` の値で除算する.
+    ///
+    /// # Args
+    /// - `self`: The dividend.
+    ///           被除数.
+    /// - `rhs`: The `u32` divisor.
+    ///          `u32` の除数.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the quotient.
+    /// 商を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// The divisor must not be zero.
+    /// 除数がゼロであってはならない.
+    ///
     /// # Panics
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(log M), where M is the modulus.
+    ///                          ここで M は法である.
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(20);
+    /// let b: u32 = 4;
+    /// assert_eq!(a / b, ModInt998244353::new(5));
+    /// ```
     fn div(self, rhs: u32) -> Self::Output {
         let rhs_mod = ModInt998244353::new(rhs as u64);
         let inv_rhs = rhs_mod
@@ -338,9 +751,35 @@ impl Div<u32> for ModInt998244353 {
 /// Implements the division assignment operation (`/=`) for `ModInt998244353`.
 /// `ModInt998244353` に対する除算代入演算 (`/=`) を実装する.
 impl DivAssign for ModInt998244353 {
+    /// Divides `self` by another `ModInt998244353` instance.
+    /// `self` を別の `ModInt998244353` インスタンスで除算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The divisor.
+    ///          除数.
+    ///
+    /// # Constraints
+    /// The divisor must not be zero.
+    /// 除数がゼロであってはならない.
+    ///
     /// # Panics
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(log M), where M is the modulus.
+    ///                          ここで M は法である.
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(20);
+    /// let b = ModInt998244353::new(4);
+    /// a /= b;
+    /// assert_eq!(a, ModInt998244353::new(5));
+    /// ```
     fn div_assign(&mut self, rhs: Self) {
         // Calculate modular inverse for division.
         let inv_rhs = rhs
@@ -353,9 +792,34 @@ impl DivAssign for ModInt998244353 {
 /// Implements the division assignment operation (`/=`) for `ModInt998244353` and `u32`.
 /// `ModInt998244353` と `u32` に対する除算代入演算 (`/=`) を実装する.
 impl DivAssign<u32> for ModInt998244353 {
+    /// Divides `self` by a `u32` value.
+    /// `self` を `u32` の値で除算する.
+    ///
+    /// # Args
+    /// - `self`: The `ModInt998244353` instance to be modified.
+    ///           変更される `ModInt998244353` インスタンス.
+    /// - `rhs`: The `u32` divisor.
+    ///          `u32` の除数.
+    ///
+    /// # Constraints
+    /// The divisor must not be zero.
+    /// 除数がゼロであってはならない.
+    ///
     /// # Panics
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(log M), where M is the modulus.
+    ///                          ここで M は法である.
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut a = ModInt998244353::new(20);
+    /// a /= 4u32;
+    /// assert_eq!(a, ModInt998244353::new(5));
+    /// ```
     fn div_assign(&mut self, rhs: u32) {
         let rhs_mod = ModInt998244353::new(rhs as u64);
         let inv_rhs = rhs_mod
@@ -370,6 +834,33 @@ impl DivAssign<u32> for ModInt998244353 {
 impl Neg for ModInt998244353 {
     type Output = Self;
 
+    /// Computes the unary negation of a `ModInt998244353` instance.
+    /// `ModInt998244353` インスタンスの単項否定 (符号反転) を計算する.
+    ///
+    /// # Args
+    /// - `self`: The value to negate.
+    ///           符号反転する値.
+    ///
+    /// # Returns
+    /// A new `ModInt998244353` instance representing the negated value.
+    /// 符号反転された値を表す新しい `ModInt998244353` インスタンス.
+    ///
+    /// # Constraints
+    /// There are no constraints on the input value.
+    /// 入力値に関する制約はない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// let a = ModInt998244353::new(10);
+    /// assert_eq!(-a, ModInt998244353::new(998244343));
+    ///
+    /// let zero = ModInt998244353::new(0);
+    /// assert_eq!(-zero, zero);
+    /// ```
     fn neg(self) -> Self::Output {
         if self.val == 0 {
             Self::new_raw(0)
