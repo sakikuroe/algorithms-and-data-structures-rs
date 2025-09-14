@@ -48,6 +48,7 @@ impl Monoid for MaxMonoid {
         std::i64::MIN
     }
 }
+
 /// A monoid for the addition operation on `i64`.
 /// `i64` 型の加算を行うモノイドである.
 pub struct AddMonoid;
