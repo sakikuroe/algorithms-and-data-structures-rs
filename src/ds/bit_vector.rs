@@ -1,10 +1,10 @@
 /// Precomputed masks to efficiently extract the lower `k` bits of a `u64`.
 /// `u64` の下位 `k` ビットを効率的に抽出するための事前計算されたマスクである.
-const MASKS: [u64; 64] = {
-    let mut masks = [0_u64; 64];
+const MASKS: [u64; u64::BITS as usize] = {
+    let mut masks = [0_u64; u64::BITS as usize];
     let mut k = 1_usize;
     // Generate masks for k from 1 to 63.
-    while k < 64 {
+    while k < u64::BITS as usize {
         masks[k] = (1_u64 << k) - 1;
         k += 1;
     }
@@ -72,9 +72,12 @@ impl BitVector {
     /// ```
     pub fn new(v: &[u8]) -> Self {
         let len = v.len();
-        assert!(len < (1 << 32), "Length of v must be less than 2^{{32}}.");
+        assert!(
+            len < (1 << u32::BITS as usize),
+            "Length of v must be less than 2^{{32}}."
+        );
 
-        let num_blocks = len / 64 + 1;
+        let num_blocks = len / u64::BITS as usize + 1;
         let mut bits = vec![0_u64; num_blocks];
         let mut cumulative_sums = vec![0_u32; num_blocks];
         let mut current_sum = 0_u32;
@@ -84,8 +87,8 @@ impl BitVector {
                 panic!("Input slice `v` must only contain 0 or 1.");
             }
             if bit_val == 1 {
-                let block_index = i / 64;
-                let bit_in_block = i % 64;
+                let block_index = i / u64::BITS as usize;
+                let bit_in_block = i % u64::BITS as usize;
                 bits[block_index] |= 1_u64 << bit_in_block;
             }
         }
@@ -153,7 +156,7 @@ impl BitVector {
 
         // Calculate the block index to efficiently access the precomputed cumulative sums and
         // bit data.
-        let block_index = r / 64;
+        let block_index = r / u64::BITS as usize;
 
         let mut res = 0;
         // Add the cumulative sum of 1s from all preceding full blocks.
@@ -162,7 +165,7 @@ impl BitVector {
         }
         // Add the number of 1s from the partial current block, up to the r-th bit,
         // using MASKS to isolate the relevant bits.
-        res += (self.bits[block_index] & MASKS[r % 64]).count_ones();
+        res += (self.bits[block_index] & MASKS[r % u64::BITS as usize]).count_ones();
         res as usize
     }
 
