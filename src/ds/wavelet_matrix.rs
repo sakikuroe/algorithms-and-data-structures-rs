@@ -49,7 +49,7 @@ impl WaveletMatrix {
     ///
     /// # Examples
     /// ```rust
-    /// use your_crate_name::wavelet_matrix::WaveletMatrix; // Replace `your_crate_name`
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
     ///
     /// let data = vec![10, 5, 20, 15, 5, 10, 25];
     /// let wm = WaveletMatrix::new(&data);
