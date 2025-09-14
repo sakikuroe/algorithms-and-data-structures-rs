@@ -34,7 +34,7 @@ impl BitVector {
     ///
     /// * `v`: A slice of `u8` where each element is either `0` or `1`.
     ///        The length of `v` must be less than 2^{32} (=4294967296)
-    ///   `v`: 各要素が `0` または `1` である `u8` のスライスである.
+    ///   `v`: 各要素が `0 ` または `1 ` である `u8` のスライスである.
     ///        `v` の長さは 2^{32} (=4294967296) 未満でなければならない.
     ///
     /// # Returns
@@ -46,7 +46,7 @@ impl BitVector {
     ///
     /// Panics if any element in `v` is not `0` or `1`.
     /// Panics if the length of `v` is greater than or equal to 2^{32}.
-    /// `v` のいずれかの要素が `0` または `1` でない場合にパニックする.
+    /// `v` のいずれかの要素が `0 ` または `1 ` でない場合にパニックする.
     /// `v` の長さが 2^{32} 以上の場合にパニックする.
     ///
     /// # Complexity
@@ -101,22 +101,22 @@ impl BitVector {
     }
 
     /// Returns the number of 1s in the range `v[0..r) (sum of v[0..r) )`.
-    /// 範囲 `v[0..r)` における 1 の数 (v[0..r) の和) を返す.
+    /// 範囲 `v[0..r)` における `1 ` の数 (v[0..r) の和) を返す.
     ///
     /// # Args
     ///
     /// * `r`: The upper bound of the range. `r` must be less than or equal to `len()`.
-    ///   `r`: 範囲の上限である. `r` は `len()` 以下でなければならない.
+    ///   `r`: 範囲の上限である. `r` は `len() ` 以下でなければならない.
     ///
     /// # Returns
     ///
     /// The sum of 1s in `v[0..r)`. Returns `0` if `r` is `0`.
-    /// `v[0..r)` における 1 の合計を返す. `r` が `0` の場合は `0` を返す.
+    /// `v[0..r)` における `1 ` の合計を返す. `r` が `0 ` の場合は `0 ` を返す.
     ///
     /// # Panics
     ///
     /// Panics if `r > len()`.
-    /// `r > len()` の場合にパニックする.
+    /// `r > len() ` の場合にパニックする.
     ///
     /// # Complexity
     ///
@@ -150,13 +150,16 @@ impl BitVector {
             );
         }
 
-        // Index of the block containing the r-th bit
+        // Calculate the block index to efficiently access the precomputed cumulative sums and bit data.
         let block_index = r / 64;
 
         let mut res = 0;
+        // Add the cumulative sum of 1s from all preceding full blocks.
         if block_index > 0 {
             res += self.cumulative_sums[block_index - 1];
         }
+        // Add the number of 1s from the partial current block, up to the r-th bit,
+        // using MASKS to isolate the relevant bits.
         res += (self.bits[block_index] & MASKS[r % 64]).count_ones();
         res as usize
     }
