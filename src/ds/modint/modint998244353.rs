@@ -128,14 +128,40 @@ impl ModInt998244353 {
         }
     }
 
+    /// Computes `self` raised to the power of `n`.
+    /// `self` の `n` 乗を計算する.
+    ///
+    /// # Args
+    /// - `n`: The non-negative exponent.
+    ///        冪指数.
+    ///
+    /// # Returns
+    /// `Self`: The result of `self` raised to the power of `n`.
+    ///         `self` を `n` 乗した結果.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(log n), where n is the exponent.
+    ///                          ここで n は冪指数である.
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
+    /// let base = ModInt998244353::new(3);
+    /// let result = base.pow(4);
+    /// assert_eq!(81, result.val());
+    /// ```
     pub fn pow(&self, mut n: usize) -> Self {
         let mut res = ModInt998244353::new_raw(1);
         let mut base = *self;
 
+        // This is a standard binary exponentiation (exponentiation by squaring).
         while n > 0 {
+            // If the current bit of n is 1, multiply the result by the base.
             if n % 2 == 1 {
                 res *= base;
             }
+            // Square the base for the next bit.
             base *= base;
             n /= 2;
         }
