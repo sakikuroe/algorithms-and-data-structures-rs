@@ -1,33 +1,39 @@
 //! A trait for run-length encoding a sequence.
-//! Run-length encode と decode に関する trait。
+//! run-length encoding および decoding を行うための trait である.
 
 /// A trait for run-length encode.
-/// Run-length encode の trait.
+/// run-length encoding を実装するための trait である.
 pub trait RunLengthEncode<T>
 where
     T: Eq + Clone,
 {
     /// Performs run-length encoding on a inputed sequence.
-    /// 入力列を run-length encode する。
+    /// 入力列に対して run-length encoding を行う.
     ///
     /// # Args
     /// - `self`: A reference to the sequence to be encoded.
-    ///           Encode 対象の列への参照。
+    ///           encoding 対象となる列への参照である.
     ///
     /// # Returns
-    ///
     /// `Vec<(T, usize)>`: Returns a vector of tuples, where each tuple contains an element and its frequency.
-    ///                    要素とその出現回数のタプルのベクタを返す。
+    ///                    各要素とその出現回数のタプルからなるベクターを返す.
+    ///
+    /// # Constraints
+    /// Constraints are not specified for this function.
+    /// 制約は, 本関数に対して指定されていない.
+    ///
+    /// # Panics
+    /// This function does not panic.
+    /// 本関数はパニックしない.
     ///
     /// # Complexity
-    ///
-    /// - Time complexity: O(N),
-    ///                    O(N)、ここで N は入力された列の長さ。
-    /// - Space complexity: O(K), where K is
-    ///                     O(K)、ここで K は入力列に現れる要素の種類。
+    /// - Time complexity: O(N), where N is the length of the input sequence.
+    ///                          ここで N は入力された列の長さである.
+    /// - Space complexity: O(K), where K is the number of distinct elements in the input.
+    ///                           ここで K は入力列に現れる異なる要素の種類数である.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use anmitsu::string::run_length::RunLengthEncode;
     /// let data = vec!['a', 'a', 'b', 'b', 'b', 'a'];
     /// let encoded = data.run_length_encode();
@@ -41,7 +47,7 @@ where
     T: Eq + Clone,
 {
     fn run_length_encode(&self) -> Vec<(T, usize)> {
-        let mut res: Vec<(T, usize)> = Vec::new();
+        let mut res = Vec::<(T, usize)>::new();
 
         for x in self.iter() {
             // If the result vector is empty or the last element is different,
@@ -59,32 +65,38 @@ where
 }
 
 /// A trait for run-length decoding a sequence.
-/// Run-length decode を行うための trait。
+/// run-length decoding を行うための trait である.
 pub trait RunLengthDecode<T>
 where
     T: Eq + Clone,
 {
     /// Decodes a run-length encoded sequence.
-    /// Run-length encode された列を decode する。
+    /// run-length encoded された列を decoding する.
     ///
     /// # Args
     /// - `self`: A reference to the run-length encoded sequence.
-    ///           Run-length encode された列への参照。
+    ///           run-length encoded された列への参照である.
     ///
     /// # Returns
-    ///
     /// `Vec<T>`: Returns the decoded sequence as a vector of elements.
-    ///           Decode された列を要素の vector として返す。
+    ///           decoded された列を要素のベクターとして返す.
+    ///
+    /// # Constraints
+    /// Constraints are not specified for this function.
+    /// 制約は, 本関数に対して指定されていない.
+    ///
+    /// # Panics
+    /// This function does not panic.
+    /// 本関数はパニックしない.
     ///
     /// # Complexity
-    ///
     /// - Time complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///                    O(N_decoded)、ここで N_decoded は decode 後の列の総要素数である。
+    ///                    ここで N_decoded は decoded 後の列の総要素数である.
     /// - Space complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///                     O(N_decoded)、ここで N_decoded は decode 後の列の総要素数である。
+    ///                     ここで N_decoded は decoded 後の列の総要素数である.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use anmitsu::string::run_length::RunLengthDecode;
     /// let encoded_data = vec![('a', 2), ('b', 3), ('a', 1)];
     /// let decoded = encoded_data.run_length_decode();
@@ -98,7 +110,7 @@ where
     T: Eq + Clone,
 {
     fn run_length_decode(&self) -> Vec<T> {
-        let mut res: Vec<T> = Vec::new();
+        let mut res = Vec::new();
 
         for (x, cnt) in self.iter() {
             // For each element and its count in the encoded sequence,
