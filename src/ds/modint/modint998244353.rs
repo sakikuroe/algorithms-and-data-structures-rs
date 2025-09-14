@@ -1,5 +1,5 @@
 //! This module provides a modular integer implementation for the prime modulus 998244353.
-//! このモジュールは, 素数法 998244353 のためのモジュラー整数実装を提供する.
+//! このモジュールは, 素数 998244353 を法とするモジュラー整数実装を提供する.
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
@@ -27,7 +27,7 @@ impl ModInt998244353 {
     ///         値が `MOD` で還元された新しい `ModInt998244353` インスタンス.
     ///
     /// # Complexity
-    /// - Time complexity: O(1)
+    /// - Time complexity: O(1).
     ///
     /// # Examples
     /// ```rust
@@ -76,7 +76,7 @@ impl ModInt998244353 {
     ///         モジュラー整数の生の `u32` 値.
     ///
     /// # Complexity
-    /// - Time complexity: O(1)
+    /// - Time complexity: O(1).
     ///
     /// # Examples
     /// ```rust
@@ -107,7 +107,7 @@ impl ModInt998244353 {
     /// 逆元が存在するには, `MOD` が素数の場合, `self.val` がゼロであってはならない.
     ///
     /// # Complexity
-    /// - Time complexity: O(log MOD)
+    /// - Time complexity: O(log MOD).
     ///
     /// # Examples
     /// ```rust
@@ -123,7 +123,7 @@ impl ModInt998244353 {
         if self.val == 0 {
             None
         } else {
-            // By Fermat's Little Theorem: a^(MOD-2) mod MOD is the inverse
+            // By Fermat's Little Theorem: a^(MOD-2) mod MOD is the inverse.
             Some(self.pow((MOD - 2) as usize))
         }
     }
@@ -155,7 +155,7 @@ impl From<u32> for ModInt998244353 {
 /// `i32` から `ModInt998244353` への変換を可能にする.
 impl From<i32> for ModInt998244353 {
     fn from(num: i32) -> Self {
-        // Ensure non-negative value for modular arithmetic
+        // Ensure non-negative value for modular arithmetic.
         let val = if num >= 0 {
             num as u64
         } else {
@@ -207,8 +207,7 @@ impl Sub for ModInt998244353 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // Ensure result is non-negative
-        // 結果が非負であることを保証する
+        // Ensure the result is non-negative.
         ModInt998244353::new_raw((self.val + MOD - rhs.val) % MOD)
     }
 }
@@ -219,7 +218,7 @@ impl Sub<u32> for ModInt998244353 {
     type Output = Self;
 
     fn sub(self, rhs: u32) -> Self::Output {
-        // Ensure result is non-negative
+        // Ensure the result is non-negative.
         ModInt998244353::new_raw((self.val + MOD - (rhs % MOD)) % MOD)
     }
 }
@@ -285,7 +284,7 @@ impl Div for ModInt998244353 {
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
     fn div(self, rhs: Self) -> Self::Output {
-        // Calculate modular inverse for division
+        // Calculate modular inverse for division.
         let inv_rhs = rhs
             .inv()
             .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
@@ -317,7 +316,7 @@ impl DivAssign for ModInt998244353 {
     /// Panics if the divisor `rhs` is zero.
     /// 除数 `rhs` がゼロの場合にパニックする.
     fn div_assign(&mut self, rhs: Self) {
-        // Calculate modular inverse for division
+        // Calculate modular inverse for division.
         let inv_rhs = rhs
             .inv()
             .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
