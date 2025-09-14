@@ -33,7 +33,7 @@ impl ModInt998244353 {
     /// ```rust
     /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let m = ModInt998244353::new(1_000_000_000);
-    /// assert_eq!(m.val(), 1_000_000_000 % 998244353);
+    /// assert_eq!(1755647, m.val());
     /// ```
     pub fn new(n: u64) -> Self {
         ModInt998244353 {
@@ -60,7 +60,7 @@ impl ModInt998244353 {
     /// ```rust
     /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let m = ModInt998244353::new_raw(100);
-    /// assert_eq!(m.val(), 100);
+    /// assert_eq!(100, m.val());
     /// // ModInt998244353::new_raw(998244353); // This would panic
     /// ```
     pub fn new_raw(n: u32) -> Self {
@@ -82,7 +82,7 @@ impl ModInt998244353 {
     /// ```rust
     /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let m = ModInt998244353::new(123);
-    /// assert_eq!(m.val(), 123);
+    /// assert_eq!(123, m.val());
     /// ```
     pub fn val(&self) -> u32 {
         self.val
@@ -114,7 +114,7 @@ impl ModInt998244353 {
     /// use anmitsu::ds::modint::modint998244353::ModInt998244353;
     /// let m = ModInt998244353::new(2);
     /// let inv_m = m.inv().unwrap();
-    /// assert_eq!((m * inv_m).val(), 1);
+    /// assert_eq!(1, (m * inv_m).val());
     ///
     /// let zero = ModInt998244353::new(0);
     /// assert!(zero.inv().is_none());
