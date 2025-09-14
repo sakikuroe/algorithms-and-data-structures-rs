@@ -299,29 +299,34 @@ where
     (naive, dense)
 }
 
+// Tests that `new` creates a segment tree of the correct length and `len` returns it.
 #[test]
 fn test_new_and_len() {
-    // Test with size 0.
+    // Arrange & Act: Create a segment tree of size 0.
     let seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(0);
+    // Assert: The length should be 0.
     assert_eq!(seg.len(), 0);
 
-    // Test with a non-zero size.
+    // Arrange & Act: Create a segment tree of size 10.
     let seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(10);
+    // Assert: The length should be 10.
     assert_eq!(seg.len(), 10);
 }
 
+// Tests `set`, `build`, `get`, and `fold` operations with an addition monoid.
 #[test]
 fn test_set_build_get_fold_add() {
+    // Arrange
     let initial_data = vec![1, 10, 100, 1000, 10000];
     let n = initial_data.len();
     let (naive, dense) = setup_trees::<AddMonoid>(&initial_data);
 
-    // Test get.
+    // Act & Assert: Test `get` for all initial elements.
     for i in 0..n {
         assert_eq!(naive.get(i), dense.get(i), "get({}) failed", i);
     }
 
-    // Test fold over various ranges.
+    // Act & Assert: Test `fold` over various ranges.
     for i in 0..=n {
         for j in i..=n {
             assert_eq!(
@@ -335,65 +340,85 @@ fn test_set_build_get_fold_add() {
     }
 }
 
+// Tests the `update` operation and verifies its effect on `get` and `fold`.
 #[test]
 fn test_update_add() {
+    // Arrange
     let initial_data = vec![1, 2, 3, 4, 5];
     let n = initial_data.len();
     let (mut naive, mut dense) = setup_trees::<AddMonoid>(&initial_data);
 
-    // Update a value.
+    // Act
     dense.update(2, 10);
     naive.update(2, 10);
 
-    // Verify the updated value and folds.
+    // Assert
     assert_eq!(10, dense.get(2));
     assert_eq!(naive.fold(0, n), dense.fold(0, n));
     assert_eq!(naive.fold(1, 4), dense.fold(1, 4));
 }
 
+// Tests the `fold` operation with edge cases, specifically empty ranges.
 #[test]
 fn test_fold_edge_cases() {
+    // Arrange
     let seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(5);
-    // Test empty range.
+
+    // Act & Assert: Folding an empty range should return the identity element.
     assert_eq!(AddMonoid::id(), seg.fold(0, 0));
     assert_eq!(AddMonoid::id(), seg.fold(3, 3));
     assert_eq!(AddMonoid::id(), seg.fold(5, 5));
 }
 
+// Tests that `get` panics when the index is out of bounds.
 #[test]
 #[should_panic]
 fn test_get_out_of_bounds() {
+    // Arrange
     let seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(5);
+    // Act: Access an out-of-bounds index.
     seg.get(5);
 }
 
+// Tests that `set` panics when the index is out of bounds.
 #[test]
 #[should_panic]
 fn test_set_out_of_bounds() {
+    // Arrange
     let mut seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(5);
+    // Act: Set an out-of-bounds index.
     seg.set(5, 1);
 }
 
+// Tests that `update` panics when the index is out of bounds.
 #[test]
 #[should_panic]
 fn test_update_out_of_bounds() {
+    // Arrange
     let mut seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(5);
+    // Act: Update an out-of-bounds index.
     seg.update(5, 1);
 }
 
+// Tests that `fold` panics when the range is out of bounds.
 #[test]
 #[should_panic]
 fn test_fold_out_of_bounds() {
+    // Arrange
     let seg = segment_tree_dense::SegmentTreeDense::<AddMonoid>::new(5);
+    // Act: Fold an out-of-bounds range.
     seg.fold(0, 6);
 }
 
+// Tests `max_right` with various predicates and starting positions.
 #[test]
 fn test_max_right_add() {
+    // Arrange
     let initial_data = vec![1, 2, 3, 4, 5];
     let n = initial_data.len();
     let (_, dense) = setup_trees::<AddMonoid>(&initial_data);
 
+    // Act & Assert
     // from l=1, sum < 10 -> [1,4) = 2+3+4=9, [1,5)=14
     assert_eq!(4, dense.max_right(1, |&sum| sum < 10));
     // from l=0, sum <= 6 -> [0,3) = 1+2+3=6, [0,4)=10
@@ -406,12 +431,15 @@ fn test_max_right_add() {
     assert_eq!(n, dense.max_right(n, |&_sum| true));
 }
 
+// Tests `min_left` with various predicates and ending positions.
 #[test]
 fn test_min_left_add() {
+    // Arrange
     let initial_data = vec![1, 2, 3, 4, 5];
     let n = initial_data.len();
     let (naive, mut dense) = setup_trees::<AddMonoid>(&initial_data);
 
+    // Act & Assert
     // until r=4, sum < 10 -> [1,4) = 2+3+4=9, [0,4)=10
     assert_eq!(1, dense.min_left(4, |&sum| sum < 10));
     // until r=5, sum <= 15 -> [0,5) = 15
@@ -440,6 +468,8 @@ fn rand_matrix() -> Matrix2x2 {
     }
 }
 
+// Performs a randomized comparison between `SegmentTreeDense` and the naive implementation
+// using a non-commutative monoid (matrix multiplication).
 #[test]
 fn test_randomized_comparison_matrix() {
     // Arrange
@@ -451,6 +481,7 @@ fn test_randomized_comparison_matrix() {
 
     let mut rng = rand::rng();
 
+    // Act & Assert: Perform a series of random operations and check for consistency.
     for _ in 0..Q {
         let op_type = rng.random_range(0..4);
 
