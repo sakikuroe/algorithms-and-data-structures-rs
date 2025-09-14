@@ -442,6 +442,7 @@ fn rand_matrix() -> Matrix2x2 {
 
 #[test]
 fn test_randomized_comparison_matrix() {
+    // Arrange
     const N: usize = 10000;
     const Q: usize = 10000;
 
