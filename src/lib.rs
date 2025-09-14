@@ -4,18 +4,19 @@ pub mod algebra {
 }
 
 pub mod ds {
+    pub mod bit_vector;
     pub mod segment_tree {
         pub mod segment_tree_dense;
     }
+    pub mod wavelet_matrix;
 }
 
 pub mod math {
     pub mod number_theory;
 }
 
-pub mod ds {
-    pub mod bit_vector;
-    pub mod wavelet_matrix;
+pub mod string {
+    pub mod run_length;
 }
 
 pub fn add(left: u64, right: u64) -> u64 {
