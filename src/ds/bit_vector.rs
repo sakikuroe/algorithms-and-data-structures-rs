@@ -1,6 +1,9 @@
+/// Precomputed masks to efficiently extract the lower `k` bits of a `u64`.
+/// `u64` の下位 `k` ビットを効率的に抽出するための事前計算されたマスクである.
 const MASKS: [u64; 64] = {
     let mut masks = [0_u64; 64];
     let mut k = 1_usize;
+    // Generate masks for k from 1 to 63.
     while k < 64 {
         masks[k] = (1_u64 << k) - 1;
         k += 1;
@@ -19,10 +22,10 @@ const MASKS: [u64; 64] = {
 pub struct BitVector {
     bits: Vec<u64>,
 
-    // Stores the sum of 1s up to the end of each block
+    // Stores the sum of 1s up to the end of each block.
     cumulative_sums: Vec<u32>,
 
-    // Length of the BitVector
+    // Length of the BitVector.
     len: usize,
 }
 
@@ -32,10 +35,10 @@ impl BitVector {
     ///
     /// # Args
     ///
-    /// * `v`: A slice of `u8` where each element is either `0` or `1`.
-    ///        The length of `v` must be less than 2^{32} (=4294967296)
-    ///   `v`: 各要素が `0 ` または `1 ` である `u8` のスライスである.
-    ///        `v` の長さは 2^{32} (=4294967296) 未満でなければならない.
+    /// - `v`: A slice of `u8` where each element is either `0` or `1`.
+    ///        The length of `v` must be less than 2^{32} (=4294967296).
+    ///   `v`: 各要素が `0` または `1` である `u8` のスライスである.
+    ///        `v` の長さは `2^{32}` (=4294967296) 未満でなければならない.
     ///
     /// # Returns
     ///
@@ -46,20 +49,19 @@ impl BitVector {
     ///
     /// Panics if any element in `v` is not `0` or `1`.
     /// Panics if the length of `v` is greater than or equal to 2^{32}.
-    /// `v` のいずれかの要素が `0 ` または `1 ` でない場合にパニックする.
-    /// `v` の長さが 2^{32} 以上の場合にパニックする.
+    /// `v` のいずれかの要素が `0` または `1` でない場合にパニックする.
+    /// `v` の長さが `2^{32}` 以上の場合にパニックする.
     ///
     /// # Complexity
     ///
-    /// Time: O(N), where N is the length of `v`.
-    /// 時間計算量: O(N). ここで N は `v` の長さである.
-    ///
-    /// Space: O(N), where N is the length of `v`.
-    /// 空間計算量: O(N). ここで N は `v` の長さである.
+    /// - Time complexity: O(N), where N is the length of `v`.
+    ///                    時間計算量: O(N) である. ここで N は `v` の長さである.
+    /// - Space complexity: O(N), where N is the length of `v`.
+    ///                     空間計算量: O(N) である. ここで N は `v` の長さである.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use anmitsu::ds::bit_vector;
     ///
     /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1]);
@@ -70,7 +72,7 @@ impl BitVector {
     /// ```
     pub fn new(v: &[u8]) -> Self {
         let len = v.len();
-        assert!(len < (1 << 32), "Length of v must be less than 2^{{32}}");
+        assert!(len < (1 << 32), "Length of v must be less than 2^{{32}}.");
 
         let num_blocks = len / 64 + 1;
         let mut bits = vec![0_u64; num_blocks];
@@ -100,35 +102,34 @@ impl BitVector {
         }
     }
 
-    /// Returns the number of 1s in the range `v[0..r) (sum of v[0..r) )`.
-    /// 範囲 `v[0..r)` における `1 ` の数 (v[0..r) の和) を返す.
+    /// Returns the number of 1s in the range `v[0..r)` (sum of `v[0..r)`).
+    /// 範囲 `v[0..r)` における `1` の数 ( `v[0..r)` の和) を返す.
     ///
     /// # Args
     ///
-    /// * `r`: The upper bound of the range. `r` must be less than or equal to `len()`.
-    ///   `r`: 範囲の上限である. `r` は `len() ` 以下でなければならない.
+    /// - `r`: The upper bound of the range. `r` must be less than or equal to `len()`.
+    ///   `r`: 範囲の上限である. `r` は `len()` 以下でなければならない.
     ///
     /// # Returns
     ///
     /// The sum of 1s in `v[0..r)`. Returns `0` if `r` is `0`.
-    /// `v[0..r)` における `1 ` の合計を返す. `r` が `0 ` の場合は `0 ` を返す.
+    /// `v[0..r)` における `1` の合計を返す. `r` が `0` の場合は `0` を返す.
     ///
     /// # Panics
     ///
     /// Panics if `r > len()`.
-    /// `r > len() ` の場合にパニックする.
+    /// `r > len()` の場合にパニックする.
     ///
     /// # Complexity
     ///
-    /// Time: O(1) due to precomputation.
-    /// 時間計算量: 事前計算により O(1).
-    ///
-    /// Space: O(1) for the query itself.
-    /// 空間計算量: クエリ自体は O(1).
+    /// - Time complexity: O(1) due to precomputation.
+    ///                    時間計算量: 事前計算により O(1) である.
+    /// - Space complexity: O(1) for the query itself.
+    ///                     空間計算量: クエリ自体は O(1) である.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use anmitsu::ds::bit_vector;
     ///
     /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1, 0, 0]);
@@ -145,12 +146,13 @@ impl BitVector {
 
         if r > self.len {
             panic!(
-                "r ({}) cannot be greater than the length of the BitVector ({})",
+                "r ({}) cannot be greater than the length of the BitVector ({}).",
                 r, self.len
             );
         }
 
-        // Calculate the block index to efficiently access the precomputed cumulative sums and bit data.
+        // Calculate the block index to efficiently access the precomputed cumulative sums and
+        // bit data.
         let block_index = r / 64;
 
         let mut res = 0;
@@ -174,15 +176,14 @@ impl BitVector {
     ///
     /// # Complexity
     ///
-    /// Time: O(1)
-    /// 時間計算量: O(1).
-    ///
-    /// Space: O(1)
-    /// 空間計算量: O(1).
+    /// - Time complexity: O(1).
+    ///                    時間計算量: O(1) である.
+    /// - Space complexity: O(1).
+    ///                     空間計算量: O(1) である.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use anmitsu::ds::bit_vector;
     ///
     /// let bv = bit_vector::BitVector::new(&[1, 0, 1]);
@@ -202,15 +203,14 @@ impl BitVector {
     ///
     /// # Complexity
     ///
-    /// Time: O(1)
-    /// 時間計算量: O(1).
-    ///
-    /// Space: O(1)
-    /// 空間計算量: O(1).
+    /// - Time complexity: O(1).
+    ///                    時間計算量: O(1) である.
+    /// - Space complexity: O(1).
+    ///                     空間計算量: O(1) である.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use anmitsu::ds::bit_vector;
     ///
     /// let bv_empty = bit_vector::BitVector::new(&[]);
