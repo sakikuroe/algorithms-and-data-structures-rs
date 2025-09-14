@@ -278,8 +278,9 @@ impl Add for ModInt998244353 {
     /// let b = ModInt998244353::new(10);
     /// assert_eq!(ModInt998244353::new(7), a + b);
     /// ```
-    fn add(self, rhs: Self) -> Self::Output {
-        ModInt998244353::new_raw((self.val + rhs.val) % MOD)
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
     }
 }
 
@@ -316,8 +317,9 @@ impl Add<u32> for ModInt998244353 {
     /// let b: u32 = 10;
     /// assert_eq!(ModInt998244353::new(7), a + b);
     /// ```
-    fn add(self, rhs: u32) -> Self::Output {
-        ModInt998244353::new((self.val as u64 + rhs as u64) % MOD as u64)
+    fn add(mut self, rhs: u32) -> Self::Output {
+        self += rhs;
+        self
     }
 }
 
@@ -350,7 +352,10 @@ impl AddAssign for ModInt998244353 {
     /// assert_eq!(ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
+        self.val += rhs.val;
+        if self.val >= MOD {
+            self.val -= MOD;
+        }
     }
 }
 
@@ -382,7 +387,11 @@ impl AddAssign<u32> for ModInt998244353 {
     /// assert_eq!(ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: u32) {
-        *self = *self + rhs;
+        let rhs_mod = rhs % MOD;
+        self.val += rhs_mod;
+        if self.val >= MOD {
+            self.val -= MOD;
+        }
     }
 }
 
@@ -419,9 +428,9 @@ impl Sub for ModInt998244353 {
     /// let b = ModInt998244353::new(20);
     /// assert_eq!(ModInt998244353::new(998244343), a - b);
     /// ```
-    fn sub(self, rhs: Self) -> Self::Output {
-        // Ensure the result is non-negative.
-        ModInt998244353::new_raw((self.val + MOD - rhs.val) % MOD)
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self -= rhs;
+        self
     }
 }
 
@@ -458,9 +467,9 @@ impl Sub<u32> for ModInt998244353 {
     /// let b: u32 = 20;
     /// assert_eq!(ModInt998244353::new(998244343), a - b);
     /// ```
-    fn sub(self, rhs: u32) -> Self::Output {
-        // Ensure the result is non-negative.
-        ModInt998244353::new_raw((self.val + MOD - (rhs % MOD)) % MOD)
+    fn sub(mut self, rhs: u32) -> Self::Output {
+        self -= rhs;
+        self
     }
 }
 
@@ -493,7 +502,11 @@ impl SubAssign for ModInt998244353 {
     /// assert_eq!(ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
+        if self.val >= rhs.val {
+            self.val -= rhs.val;
+        } else {
+            self.val += MOD - rhs.val;
+        }
     }
 }
 
@@ -525,7 +538,12 @@ impl SubAssign<u32> for ModInt998244353 {
     /// assert_eq!(ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: u32) {
-        *self = *self - rhs;
+        let rhs_mod = rhs % MOD;
+        if self.val >= rhs_mod {
+            self.val -= rhs_mod;
+        } else {
+            self.val += MOD - rhs_mod;
+        }
     }
 }
 
