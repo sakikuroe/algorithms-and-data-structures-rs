@@ -4,10 +4,13 @@ pub mod algebra {
 }
 
 pub mod ds {
-    pub mod bit_vector;
+    pub mod modint {
+        pub mod modint998244353;
+    }
     pub mod segment_tree {
         pub mod segment_tree_dense;
     }
+    pub mod bit_vector;
     pub mod wavelet_matrix;
 }
 
