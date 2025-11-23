@@ -21,6 +21,12 @@ const INTT_RATE: [u32; 22] = [
     0x7392943, 0x24433aa8, 0x1a2993eb, 0x156d2fbf, 0x311e570f, 0x6294a13,
 ];
 
+const INVS: [u32; 23] = [
+    1, 499122177, 748683265, 873463809, 935854081, 967049217, 982646785, 990445569, 994344961,
+    996294657, 997269505, 997756929, 998000641, 998122497, 998183425, 998213889, 998229121,
+    998236737, 998240545, 998242449, 998243401, 998243877, 998244115,
+];
+
 #[inline]
 fn add_mod(lhs: u32, rhs: u32) -> u32 {
     let sum = lhs + rhs;
@@ -39,19 +45,6 @@ fn sub_mod(lhs: u32, rhs: u32) -> u32 {
 #[inline]
 fn mul_mod(lhs: u32, rhs: u32) -> u32 {
     ((lhs as u64 * rhs as u64) % MOD as u64) as u32
-}
-
-fn mod_pow(base: u32, mut exp: u32) -> u32 {
-    let mut res = 1;
-    let mut cur = base;
-    while exp > 0 {
-        if exp & 1 == 1 {
-            res = mul_mod(res, cur);
-        }
-        cur = mul_mod(cur, cur);
-        exp >>= 1;
-    }
-    res
 }
 
 /// Performs an in-place number theoretic transform (NTT) on the given buffer.
@@ -119,16 +112,16 @@ pub fn ntt(a: &mut [u32]) {
     for len in 0..h {
         let p = 1 << (h - len - 1);
         let mut rot = 1;
-        for (s, (al, ar)) in a
-            .chunks_mut(1 << (h - len))
-            .map(|a| a.split_at_mut(p))
-            .enumerate()
-        {
-            for (al, ar) in al.iter_mut().zip(ar.iter_mut()) {
-                let l = *al;
-                let r = mul_mod(*ar, rot);
-                *al = add_mod(l, r);
-                *ar = sub_mod(l, r);
+        let step = 1 << (h - len);
+        for (s, chunk) in a.chunks_mut(step).enumerate() {
+            let ptr = chunk.as_mut_ptr();
+            for i in 0..p {
+                unsafe {
+                    let l = *ptr.add(i);
+                    let r = mul_mod(*ptr.add(i + p), rot);
+                    *ptr.add(i) = add_mod(l, r);
+                    *ptr.add(i + p) = sub_mod(l, r);
+                }
             }
             rot = mul_mod(rot, NTT_RATE[s.trailing_ones() as usize]);
         }
@@ -200,16 +193,16 @@ pub fn intt(a: &mut [u32]) {
     for len in (1..=h).rev() {
         let mut irot = 1;
         let p = 1 << (h - len);
-        for (s, (al, ar)) in a
-            .chunks_mut(1 << (h - len + 1))
-            .map(|a| a.split_at_mut(p))
-            .enumerate()
-        {
-            for (al, ar) in al.iter_mut().zip(ar.iter_mut()) {
-                let l = *al;
-                let r = *ar;
-                *al = add_mod(l, r);
-                *ar = mul_mod(sub_mod(l, r), irot);
+        let step = 1 << (h - len + 1);
+        for (s, chunk) in a.chunks_mut(step).enumerate() {
+            let ptr = chunk.as_mut_ptr();
+            for i in 0..p {
+                unsafe {
+                    let l = *ptr.add(i);
+                    let r = *ptr.add(i + p);
+                    *ptr.add(i) = add_mod(l, r);
+                    *ptr.add(i + p) = mul_mod(sub_mod(l, r), irot);
+                }
             }
             irot = mul_mod(irot, INTT_RATE[s.trailing_ones() as usize]);
         }
@@ -269,9 +262,10 @@ pub fn convolution(a: &[u32], b: &[u32]) -> Vec<u32> {
     let s = a.len() + b.len() - 1;
     if a.len().min(b.len()) <= 32 {
         let mut res = vec![0; s];
-        for (i, &x) in a.iter().enumerate() {
-            for (j, &y) in b.iter().enumerate() {
-                res[i + j] = add_mod(res[i + j], mul_mod(x, y));
+        for i in 0..a.len() {
+            let ai = a[i];
+            for j in 0..b.len() {
+                res[i + j] = add_mod(res[i + j], mul_mod(ai, b[j]));
             }
         }
         return res;
@@ -285,9 +279,11 @@ pub fn convolution(a: &[u32], b: &[u32]) -> Vec<u32> {
         MAX_NTT_LEN
     );
 
-    let mut fa = a.to_owned();
-    let mut fb = b.to_owned();
+    let mut fa = Vec::with_capacity(t);
+    fa.extend_from_slice(a);
     fa.resize(t, 0);
+    let mut fb = Vec::with_capacity(t);
+    fb.extend_from_slice(b);
     fb.resize(t, 0);
 
     ntt(&mut fa);
@@ -296,8 +292,8 @@ pub fn convolution(a: &[u32], b: &[u32]) -> Vec<u32> {
         .zip(fb.iter())
         .for_each(|(x, y)| *x = mul_mod(*x, *y));
     intt(&mut fa);
-    let t_inv = mod_pow(t as u32, MOD - 2);
-    fa.iter_mut().for_each(|x| *x = mul_mod(*x, t_inv));
+    let t_inv = INVS[t.trailing_zeros() as usize];
+    fa.iter_mut().take(s).for_each(|x| *x = mul_mod(*x, t_inv));
     fa.truncate(s);
     fa
 }
