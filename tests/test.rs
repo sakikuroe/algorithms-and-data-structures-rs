@@ -6,6 +6,7 @@ pub mod ds {
         pub mod segment_tree_dense;
     }
     pub mod bit_vector;
+    pub mod union_find;
     pub mod wavelet_matrix;
 }
 
