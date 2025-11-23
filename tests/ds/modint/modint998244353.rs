@@ -389,6 +389,23 @@ fn neg_computes_correctly() {
     }
 }
 
+// Tests `Display` implementation outputs the underlying value.
+#[test]
+fn display_outputs_underlying_value() {
+    // Arrange
+    let cases = [(10_u64, "10"), (MOD as u64 + 5, "5")];
+
+    for &(input, expected) in cases.iter() {
+        let m = ModInt998244353::new(input);
+
+        // Act
+        let displayed = format!("{}", m);
+
+        // Assert
+        assert_eq!(expected, displayed, "Failed for input {}", input);
+    }
+}
+
 // --- Tests for Derived Traits (`PartialEq`, `Eq`, `Copy`, `Clone`) ---
 
 // Tests `PartialEq` and `Eq` implementations.

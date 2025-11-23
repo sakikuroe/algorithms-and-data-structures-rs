@@ -1,6 +1,7 @@
 //! This module provides a modular integer implementation for the prime modulus 998244353.
 //! このモジュールは, 素数 998244353 を法とするモジュラー整数実装を提供する.
 
+use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// The modulus for modular arithmetic operations.
@@ -896,5 +897,11 @@ impl Neg for ModInt998244353 {
         } else {
             Self::new_raw(MOD - self.val)
         }
+    }
+}
+
+impl fmt::Display for ModInt998244353 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.val)
     }
 }
