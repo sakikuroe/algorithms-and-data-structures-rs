@@ -1,5 +1,4 @@
 use anmitsu::ds::modint::convolution998244353;
-use rand::{Rng, SeedableRng, rngs::StdRng};
 
 #[test]
 fn convolution_with_empty_input_returns_empty() {
