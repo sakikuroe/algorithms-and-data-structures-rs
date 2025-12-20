@@ -1,8 +1,12 @@
+pub mod modulo998244353 {
+    pub mod combinatorics;
+    pub mod convolution;
+    pub mod fps;
+    pub mod modint;
+    pub mod modulo;
+}
+
 pub mod ds {
-    pub mod modint {
-        pub mod convolution998244353;
-        pub mod modint998244353;
-    }
     pub mod segment_tree {
         pub mod segment_tree_dense;
     }
