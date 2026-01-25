@@ -20,7 +20,8 @@ impl super::FPS {
     /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき.
     ///
     /// # Complexity
-    /// - Time complexity: 実行時に疎実装または密実装を選択する.
+    /// - 時間計算量: 実行時に疎実装または密実装を選択する.
+    /// - 空間計算量: 実行時に選択される実装に依存する.
     ///
     /// # Examples
     /// ```rust
@@ -32,6 +33,7 @@ impl super::FPS {
     /// ```
     pub fn pow(&self, exponent: usize, degree: usize) -> Self {
         let target_len = degree + 1;
+        // 0 乗は常に 1 と定義する.
         if exponent == 0 {
             return Self { coeffs: vec![1] };
         }
@@ -40,6 +42,7 @@ impl super::FPS {
             "pow requires degree + 1 < modulus"
         );
 
+        // 疎な系列では疎実装を選択し, それ以外は密実装を用いる.
         if self.should_use_sparse_pow(exponent, degree) {
             self.pow_sparse(exponent, degree)
         } else {
@@ -63,8 +66,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). ここで N は `self.len()`.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(N). N は `self.len()` である.
+    /// - 空間計算量: O(1).
     ///
     /// # Examples
     /// ```rust,ignore
@@ -123,7 +126,8 @@ impl super::FPS {
     /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき.
     ///
     /// # Complexity
-    /// - Time complexity: O(N log N). ここで N は `degree + 1`.
+    /// - 時間計算量: O(N log N). N は `degree + 1` である.
+    /// - 空間計算量: O(N). N は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -215,9 +219,9 @@ impl super::FPS {
     /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき.
     ///
     /// # Complexity
-    /// - Time complexity: O((N - M t) * K). ここで
+    /// - 時間計算量: O((N - M t) * K). ここで
     ///   N = degree + 1, t は最小の非ゼロ係数の添字, K は非ゼロ係数の個数である.
-    /// - Space complexity: O(N + K).
+    /// - 空間計算量: O(N + K).
     ///
     /// # Examples
     /// ```rust

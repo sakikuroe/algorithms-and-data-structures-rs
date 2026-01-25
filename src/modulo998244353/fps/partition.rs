@@ -32,14 +32,15 @@ enum LogSeriesKind {
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(1).
-/// - Space complexity: O(1).
+/// - 時間計算量: O(1).
+/// - 空間計算量: O(1).
 ///
 /// # Examples
 /// ```rust,ignore
 /// // 内部関数のため, 直接の使用例は省略する.
 /// ```
 fn should_add_term(kind: LogSeriesKind, j: usize) -> bool {
+    // `log(1 ± x^k)` の係数の符号は, j の偶奇と生成関数の種類で決まる.
     debug_assert!(j >= 1);
     match kind {
         LogSeriesKind::OnePlus => j % 2 == 1,
@@ -67,8 +68,9 @@ fn should_add_term(kind: LogSeriesKind, j: usize) -> bool {
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(N + (degree + 1) log(degree + 1)).
-/// - Space complexity: O(degree + 1).
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1)).
+///   N は `exponents.len()` である.
+/// - 空間計算量: O(degree + 1).
 ///
 /// # Examples
 /// ```rust,ignore
@@ -79,6 +81,7 @@ fn build_log_series(
     degree: usize,
     kind: LogSeriesKind,
 ) -> Option<(super::FPS, usize)> {
+    // `x^degree` まで扱うため, 係数列の長さは `degree + 1` に固定する.
     let target_len = degree.checked_add(1)?;
     if target_len >= modulo::M as usize {
         return None;
@@ -87,6 +90,7 @@ fn build_log_series(
         return None;
     }
 
+    // a[i] = 0 は定数因子になるため, 個数だけ数えて後でまとめて処理する.
     let mut zero_count = 0usize;
     let mut counts = vec![0_u32; target_len];
     for &x in exponents {
@@ -100,9 +104,11 @@ fn build_log_series(
         }
     }
 
+    // `inv_indices[j] = inv(j)` を前計算し, log の展開に用いる.
     let inv_indices = modulo::build_inv_indices(target_len);
     let mut coeffs = vec![0_u32; target_len];
 
+    // log(1 ± x^k) = Σ_{j>=1} sgn(j) * x^{k*j} / j を用いて, 係数を畳み上げる.
     for k in 1..target_len {
         let count_k = counts[k];
         if count_k == 0 {
@@ -141,8 +147,9 @@ fn build_log_series(
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(N + (degree + 1) log(degree + 1)).
-/// - Space complexity: O(degree + 1).
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1)).
+///   N は `exponents.len()` である.
+/// - 空間計算量: O(degree + 1).
 ///
 /// # Examples
 /// ```rust
@@ -154,10 +161,12 @@ fn build_log_series(
 /// assert_eq!(1, f.get(0));
 /// ```
 pub fn product_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option<super::FPS> {
+    // log(Π(1 + x^{a[i]})) を構築し, exp により生成関数へ戻す.
     let (log_series, zero_count) = build_log_series(exponents, degree, LogSeriesKind::OnePlus)?;
     let mut res = log_series.exp(degree)?;
 
     if zero_count > 0 {
+        // a[i] = 0 の項は (1 + x^0) = 2 であり, 定数倍としてまとめて掛ける.
         let factor = modulo::pow(2, zero_count);
         for c in res.coeffs.iter_mut() {
             *c = modulo::mul(*c, factor);
@@ -185,8 +194,9 @@ pub fn product_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option<sup
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(N + (degree + 1) log(degree + 1)).
-/// - Space complexity: O(degree + 1).
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1)).
+///   N は `exponents.len()` である.
+/// - 空間計算量: O(degree + 1).
 ///
 /// # Examples
 /// ```rust
@@ -200,6 +210,7 @@ pub fn product_one_minus_x_powers(exponents: &[u32], degree: usize) -> Option<su
     let (log_series, zero_count) = build_log_series(exponents, degree, LogSeriesKind::OneMinus)?;
 
     if zero_count > 0 {
+        // a[i] = 0 の項は (1 - x^0) = 0 であり, 積は 0 系列になる.
         return Some(super::FPS::new(Vec::new()));
     }
 
@@ -223,8 +234,9 @@ pub fn product_one_minus_x_powers(exponents: &[u32], degree: usize) -> Option<su
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(N + (degree + 1) log(degree + 1)).
-/// - Space complexity: O(degree + 1).
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1)).
+///   N は `exponents.len()` である.
+/// - 空間計算量: O(degree + 1).
 ///
 /// # Examples
 /// ```rust
@@ -235,10 +247,12 @@ pub fn product_one_minus_x_powers(exponents: &[u32], degree: usize) -> Option<su
 /// assert_eq!(1, f.get(0));
 /// ```
 pub fn product_inv_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option<super::FPS> {
+    // log(Π(1/(1 + x^{a[i]}))) を構築し, exp により生成関数へ戻す.
     let (log_series, zero_count) = build_log_series(exponents, degree, LogSeriesKind::InvOnePlus)?;
     let mut res = log_series.exp(degree)?;
 
     if zero_count > 0 {
+        // a[i] = 0 の項は 1/(1 + x^0) = 1/2 であり, 定数倍としてまとめて掛ける.
         let inv_2 = modulo::inv(2);
         let factor = modulo::pow(inv_2, zero_count);
         for c in res.coeffs.iter_mut() {
@@ -268,8 +282,9 @@ pub fn product_inv_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option
 /// - この関数はパニックしない.
 ///
 /// # Complexity
-/// - Time complexity: O(N + (degree + 1) log(degree + 1)).
-/// - Space complexity: O(degree + 1).
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1)).
+///   N は `exponents.len()` である.
+/// - 空間計算量: O(degree + 1).
 ///
 /// # Examples
 /// ```rust
@@ -283,6 +298,7 @@ pub fn product_inv_one_minus_x_powers(exponents: &[u32], degree: usize) -> Optio
     let (log_series, zero_count) = build_log_series(exponents, degree, LogSeriesKind::InvOneMinus)?;
 
     if zero_count > 0 {
+        // a[i] = 0 の項は 1/(1 - x^0) = 1/0 となり, 生成関数が定義できない.
         return None;
     }
 

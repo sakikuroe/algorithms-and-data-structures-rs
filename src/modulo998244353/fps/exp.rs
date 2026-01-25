@@ -1,7 +1,6 @@
 //! 法 998244353 上の形式的指数 (exp) を実装するモジュールである.
 
 use super::super::convolution;
-use super::super::convolution_mont;
 use super::super::modulo;
 
 impl super::FPS {
@@ -21,7 +20,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: 実行時に `exp_dense` または `exp_sparse` を選択する.
+    /// - 空間計算量: 実行時に選択される実装に依存する.
     ///
     /// # Examples
     /// ```rust
@@ -32,6 +32,7 @@ impl super::FPS {
     /// assert_eq!(1, exp.get(0));
     /// ```
     pub fn exp(&self, degree: usize) -> Option<Self> {
+        // 計算対象の項数は `degree + 1` であり, 溢れは `None` として扱う.
         let target_len = degree.checked_add(1)?;
         if target_len >= modulo::M as usize {
             return None;
@@ -39,6 +40,7 @@ impl super::FPS {
         if target_len > convolution::MAX_NTT_LEN {
             return None;
         }
+        // 疎な系列に対しては疎実装を選択し, それ以外は密実装を用いる.
         if self.should_use_sparse_exp(degree) {
             self.exp_sparse(degree)
         } else {
@@ -61,8 +63,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). ここで N は `self.len()`.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(N). N は `self.len()` である.
+    /// - 空間計算量: O(1).
     ///
     /// # Examples
     /// ```rust,ignore
@@ -113,7 +115,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -134,7 +137,35 @@ impl super::FPS {
         self.exp_dense_scalar(degree)
     }
 
+    /// 非 SIMD 実装により, `x^degree` まで (含む) の形式的指数を計算する.
+    ///
+    /// `res = exp(self)` を満たす系列 `res` を, Newton 法で精度を 2 倍ずつ増やしながら求める.
+    /// 具体的には `res <- res * (1 + self - log(res))` を繰り返し適用する.
+    ///
+    /// # Args
+    /// - `degree`: 計算する最高次数 (含む).
+    ///
+    /// # Returns
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    ///
+    /// # Constraints
+    /// - 定数項は 0 でなければならない.
+    /// - `degree + 1 < 998244353` でなければならない.
+    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない.
+    ///
+    /// # Panics
+    /// - この関数はパニックしない.
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
+    ///
+    /// # Examples
+    /// ```rust,ignore
+    /// // `pub fn exp_dense` から呼び出される.
+    /// ```
     fn exp_dense_scalar(&self, degree: usize) -> Option<Self> {
+        // exp の定義より, 入力の定数項は 0 でなければならない.
         if self.get(0) != 0 {
             return None;
         }
@@ -149,21 +180,27 @@ impl super::FPS {
             return Some(Self { coeffs: vec![1] });
         }
 
+        // 初期値 res = 1 (次数 0 まで正しい) から開始し, 項数を 2 倍ずつ増やす.
         let mut res = Self { coeffs: vec![1] };
         let mut current_len = 1;
 
         while current_len < target_len_full {
+            // 次の反復では, `target_len` までの正しさを得る.
             let target_len = (current_len << 1).min(target_len_full);
 
+            // self を `target_len` まで切り詰め, 更新式へ渡す.
             let mut truncated = Self {
                 coeffs: self.coeffs.iter().cloned().take(target_len).collect(),
             };
             truncated.trim();
 
+            // delta = self - log(res) を計算し, `1 + delta` を res に掛ける.
             let mut delta = truncated - res.log_dense(target_len - 1)?;
             if delta.is_zero() {
+                // delta が 0 のとき, `1 + delta` は 1 である.
                 delta = Self { coeffs: vec![1] };
             } else {
+                // 定数項に 1 を足して `1 + delta` を構築する.
                 delta.coeffs[0] = modulo::add(delta.coeffs[0], 1);
             }
 
@@ -176,8 +213,35 @@ impl super::FPS {
         Some(res)
     }
 
+    /// AVX2 + Montgomery により, `x^degree` まで (含む) の形式的指数を計算する.
+    ///
+    /// # Args
+    /// - `degree`: 計算する最高次数 (含む).
+    ///
+    /// # Returns
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    ///
+    /// # Constraints
+    /// - AVX2 が利用可能な環境でのみ呼び出す.
+    /// - 定数項は 0 でなければならない.
+    /// - `degree + 1 < 998244353` でなければならない.
+    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない.
+    ///
+    /// # Panics
+    /// - この関数はパニックし得る (デバッグアサート, および内部実装に依存する).
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
+    ///
+    /// # Examples
+    /// ```rust,ignore
+    /// // AVX2 依存のため, 直接の使用例は省略する.
+    /// ```
     #[cfg(target_arch = "x86_64")]
     fn exp_dense_avx2(&self, degree: usize) -> Option<Self> {
+        use super::super::convolution_mont;
+
         debug_assert!(std::is_x86_feature_detected!("avx2"));
 
         if self.get(0) != 0 {
@@ -421,8 +485,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K * degree). ここで K は非ゼロ係数の個数.
-    /// - Space complexity: O(K + degree).
+    /// - 時間計算量: O(K * degree). K は非ゼロ係数の個数である.
+    /// - 空間計算量: O(K + degree).
     ///
     /// # Examples
     /// ```rust

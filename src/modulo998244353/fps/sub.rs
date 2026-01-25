@@ -1,9 +1,9 @@
 //! 法 998244353 上の形式的べき級数の減算を実装するモジュールである.
 
 use super::super::modulo;
-use std::ops::{Neg, Sub, SubAssign};
+use std::ops;
 
-impl Sub for super::FPS {
+impl ops::Sub for super::FPS {
     type Output = super::FPS;
 
     /// 2 つの形式的べき級数を減算する.
@@ -22,7 +22,8 @@ impl Sub for super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). N は大きい方の項数.
+    /// - 時間計算量: O(N). N は大きい方の項数である.
+    /// - 空間計算量: O(N). N は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -33,18 +34,23 @@ impl Sub for super::FPS {
     /// assert_eq!(fps::FPS::new(vec![2, 2]), a - b);
     /// ```
     fn sub(mut self, rhs: Self) -> Self::Output {
+        // 係数列の長さを大きい方にそろえ, 不足分を 0 で埋める.
         if self.coeffs.len() < rhs.coeffs.len() {
             self.coeffs.resize(rhs.coeffs.len(), 0);
         }
+
+        // 右辺の係数を走査し, 同次数の係数を法 998244353 上で減算する.
         for (i, coeff) in rhs.coeffs.into_iter().enumerate() {
             self.coeffs[i] = modulo::sub(self.coeffs[i], coeff);
         }
+
+        // 末尾のゼロ係数を取り除き, 正規形に保つ.
         self.trim();
         self
     }
 }
 
-impl Neg for super::FPS {
+impl ops::Neg for super::FPS {
     type Output = super::FPS;
 
     /// 各係数を符号反転した系列を返す.
@@ -62,7 +68,8 @@ impl Neg for super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). N は項数.
+    /// - 時間計算量: O(N). N は項数である.
+    /// - 空間計算量: O(N). N は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -72,12 +79,13 @@ impl Neg for super::FPS {
     /// assert_eq!(fps::FPS::new(vec![998244352, 998244351]), -fps);
     /// ```
     fn neg(mut self) -> Self::Output {
+        // 各係数を法 998244353 上で加法逆元へ変換する.
         self.coeffs.iter_mut().for_each(|c| *c = modulo::neg(*c));
         self
     }
 }
 
-impl SubAssign for super::FPS {
+impl ops::SubAssign for super::FPS {
     /// 右辺の系列を減算し, 自身を更新する.
     ///
     /// # Args
@@ -94,7 +102,8 @@ impl SubAssign for super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). N は大きい方の項数.
+    /// - 時間計算量: O(N). N は大きい方の項数である.
+    /// - 空間計算量: O(N). N は更新後の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -106,12 +115,17 @@ impl SubAssign for super::FPS {
     /// assert_eq!(fps::FPS::new(vec![2, 2]), a);
     /// ```
     fn sub_assign(&mut self, rhs: Self) {
+        // 係数列の長さを大きい方にそろえ, 不足分を 0 で埋める.
         if self.coeffs.len() < rhs.coeffs.len() {
             self.coeffs.resize(rhs.coeffs.len(), 0);
         }
+
+        // 右辺の係数を走査し, 同次数の係数を法 998244353 上で減算する.
         for (i, coeff) in rhs.coeffs.into_iter().enumerate() {
             self.coeffs[i] = modulo::sub(self.coeffs[i], coeff);
         }
+
+        // 末尾のゼロ係数を取り除き, 正規形に保つ.
         self.trim();
     }
 }

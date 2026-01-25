@@ -1,9 +1,9 @@
 //! 法 998244353 上の形式的べき級数の加算を実装するモジュールである.
 
 use super::super::modulo;
-use std::ops::{Add, AddAssign};
+use std::ops;
 
-impl Add for super::FPS {
+impl ops::Add for super::FPS {
     type Output = super::FPS;
 
     /// 2 つの形式的べき級数を加算する.
@@ -22,7 +22,8 @@ impl Add for super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). N は大きい方の項数.
+    /// - 時間計算量: O(N). N は大きい方の項数である.
+    /// - 空間計算量: O(N). N は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -33,18 +34,23 @@ impl Add for super::FPS {
     /// assert_eq!(fps::FPS::new(vec![4, 2]), a + b);
     /// ```
     fn add(mut self, rhs: Self) -> Self::Output {
+        // 係数列の長さを大きい方にそろえ, 不足分を 0 で埋める.
         if self.coeffs.len() < rhs.coeffs.len() {
             self.coeffs.resize(rhs.coeffs.len(), 0);
         }
+
+        // 右辺の係数を走査し, 同次数の係数を法 998244353 上で加算する.
         for (i, coeff) in rhs.coeffs.into_iter().enumerate() {
             self.coeffs[i] = modulo::add(self.coeffs[i], coeff);
         }
+
+        // 末尾のゼロ係数を取り除き, 正規形に保つ.
         self.trim();
         self
     }
 }
 
-impl AddAssign for super::FPS {
+impl ops::AddAssign for super::FPS {
     /// 右辺の系列を加算し, 自身を更新する.
     ///
     /// # Args
@@ -61,7 +67,8 @@ impl AddAssign for super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). N は大きい方の項数.
+    /// - 時間計算量: O(N). N は大きい方の項数である.
+    /// - 空間計算量: O(N). N は更新後の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -73,12 +80,17 @@ impl AddAssign for super::FPS {
     /// assert_eq!(fps::FPS::new(vec![4, 2]), a);
     /// ```
     fn add_assign(&mut self, rhs: Self) {
+        // 係数列の長さを大きい方にそろえ, 不足分を 0 で埋める.
         if self.coeffs.len() < rhs.coeffs.len() {
             self.coeffs.resize(rhs.coeffs.len(), 0);
         }
+
+        // 右辺の係数を走査し, 同次数の係数を法 998244353 上で加算する.
         for (i, coeff) in rhs.coeffs.into_iter().enumerate() {
             self.coeffs[i] = modulo::add(self.coeffs[i], coeff);
         }
+
+        // 末尾のゼロ係数を取り除き, 正規形に保つ.
         self.trim();
     }
 }

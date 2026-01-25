@@ -16,7 +16,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N).
+    /// - 時間計算量: O(N). N は元の項数である.
+    /// - 空間計算量: O(N). N は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -28,9 +29,12 @@ impl super::FPS {
     /// assert_eq!(3, shifted.get(1));
     /// ```
     pub fn div_xk(&self, k: usize) -> Self {
+        // k が項数以上であれば, 全ての項が消えるためゼロ多項式になる.
         if k >= self.len() {
             return Self { coeffs: Vec::new() };
         }
+
+        // 係数列を k だけ左にシフトするため, k 以降の部分列を複製する.
         Self {
             coeffs: self.coeffs[k..].to_vec(),
         }

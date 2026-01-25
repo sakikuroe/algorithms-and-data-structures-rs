@@ -19,7 +19,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: 実行時に `inverse_dense` または `inverse_sparse` を選択する.
+    /// - 時間計算量: 実行時に `inverse_dense` または `inverse_sparse` を選択する.
+    /// - 空間計算量: 実行時に選択される実装に依存する.
     ///
     /// # Examples
     /// ```rust
@@ -34,6 +35,7 @@ impl super::FPS {
     /// }
     /// ```
     pub fn inverse(&self, degree: usize) -> Option<Self> {
+        // 疎な系列に対しては疎実装を選択し, それ以外は密実装を用いる.
         if self.should_use_sparse_inverse(degree) {
             self.inverse_sparse(degree)
         } else {
@@ -56,8 +58,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). ここで N は `self.len()`.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(N). N は `self.len()` である.
+    /// - 空間計算量: O(1).
     ///
     /// # Examples
     /// ```rust,ignore
@@ -95,7 +97,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -107,6 +110,7 @@ impl super::FPS {
     /// assert_eq!(1, product[0]);
     /// ```
     pub fn inverse_dense(&self, degree: usize) -> Option<Self> {
+        // 実行環境が AVX2 をサポートする場合は, より高速な実装を選択する.
         #[cfg(target_arch = "x86_64")]
         {
             if std::is_x86_feature_detected!("avx2") {
@@ -133,7 +137,8 @@ impl super::FPS {
     /// - この関数はパニックしない (debug assert のみ).
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
     ///
     /// # Examples
     /// ```rust,ignore
@@ -145,6 +150,7 @@ impl super::FPS {
 
         debug_assert!(std::is_x86_feature_detected!("avx2"));
 
+        // 逆元の計算は, Newton 法により精度を 2 倍ずつ増やしていく.
         let mut poly = self.coeffs.clone();
         let len = degree + 1;
         let constant = *poly.get(0).unwrap_or(&0);
@@ -175,12 +181,14 @@ impl super::FPS {
         while current_len < len {
             let next_len = 2 * current_len;
 
+            // f を `next_len` まで取り出し, NTT により値域へ変換する.
             f_vals.clear();
-            f_vals.extend(poly.iter().cloned().take(next_len));
+            f_vals.extend(poly.iter().copied().take(next_len));
             f_vals.resize(next_len, 0);
 
+            // g (現在の逆元近似) を `next_len` へ拡張し, NTT により値域へ変換する.
             g_vals.clear();
-            g_vals.extend(inverse_coeffs.iter().cloned());
+            g_vals.extend(inverse_coeffs.iter().copied());
             g_vals.resize(next_len, 0);
 
             unsafe {
@@ -197,6 +205,7 @@ impl super::FPS {
                 convolution_mont::mul_scalar_mont(&mut f_vals, inv_ntt_len);
             }
 
+            // f*g の上半分から, Newton 更新に必要な項を抽出する.
             h_vals.clear();
             h_vals.resize(next_len, 0);
             for i in 0..current_len {
@@ -211,7 +220,7 @@ impl super::FPS {
             }
 
             let mut updated = Vec::with_capacity(next_len);
-            updated.extend(inverse_coeffs.iter().cloned());
+            updated.extend(inverse_coeffs.iter().copied());
             updated.resize(next_len, 0);
             for i in 0..current_len {
                 updated[current_len + i] = modulo::neg(h_vals[i]);
@@ -225,12 +234,11 @@ impl super::FPS {
             convolution_mont::mont_to_standard(&mut inverse_coeffs);
         }
         inverse_coeffs.truncate(len);
-        while inverse_coeffs.last().map_or(false, |c| *c == 0) {
-            inverse_coeffs.pop();
-        }
-        Some(Self {
+        let mut res = Self {
             coeffs: inverse_coeffs,
-        })
+        };
+        res.trim();
+        Some(res)
     }
 
     /// `x^degree` まで (含む) の逆元を計算する (非 SIMD 実装).
@@ -248,7 +256,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
     ///
     /// # Examples
     /// ```rust,ignore
@@ -261,12 +270,14 @@ impl super::FPS {
             return None;
         }
 
+        // 次数 0 だけを求める場合, 逆元は定数項の逆数である.
         if len == 1 {
             return Some(Self {
                 coeffs: vec![modulo::inv(constant)],
             });
         }
 
+        // Newton 法の初期値として, 定数項の逆数を用いる.
         let mut inverse_coeffs = vec![modulo::inv(constant)];
         let mut current_len = 1;
 
@@ -278,10 +289,12 @@ impl super::FPS {
             let next_len = (current_len << 1).min(len);
             let ntt_len = current_len << 1;
 
+            // f を `ntt_len` まで取り出し, NTT により値域へ変換する.
             f_vals.clear();
             f_vals.extend(self.coeffs.iter().cloned().take(ntt_len));
             f_vals.resize(ntt_len, 0);
 
+            // g (現在の逆元近似) を `ntt_len` へ拡張し, NTT により値域へ変換する.
             g_vals.clear();
             g_vals.extend(inverse_coeffs.iter().cloned());
             g_vals.resize(ntt_len, 0);
@@ -291,6 +304,7 @@ impl super::FPS {
 
             let inv_ntt_len = modulo::inv(ntt_len as u32);
 
+            // 値域で f*g を計算し, 係数域へ戻した後に長さで正規化する.
             for (value, g_value) in f_vals.iter_mut().zip(g_vals.iter()) {
                 *value = modulo::mul(*value, *g_value);
             }
@@ -299,6 +313,7 @@ impl super::FPS {
                 .iter_mut()
                 .for_each(|value| *value = modulo::mul(*value, inv_ntt_len));
 
+            // f*g の上半分を抜き出し, g との積から Newton 更新項を求める.
             h_vals.clear();
             h_vals.resize(ntt_len, 0);
             for i in 0..current_len {
@@ -353,8 +368,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K * (degree + 1)). ここで K は非ゼロ係数の個数.
-    /// - Space complexity: O(K + degree).
+    /// - 時間計算量: O(K * (degree + 1)). K は非ゼロ係数の個数である.
+    /// - 空間計算量: O(K + degree).
     ///
     /// # Examples
     /// ```rust

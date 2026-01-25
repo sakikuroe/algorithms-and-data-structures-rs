@@ -13,8 +13,8 @@ use super::super::modulo;
 /// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353).
 ///
 /// # Complexity
-/// - Time complexity: O(d log d log k), ここで d は `Q(x)` の次数である.
-/// - Space complexity: O(d).
+/// - 時間計算量: O(d log d log k). d は `Q(x)` の次数である.
+/// - 空間計算量: O(d).
 ///
 /// # Examples
 /// ```rust
@@ -28,6 +28,7 @@ use super::super::modulo;
 /// assert_eq!(1, bostan_mori::bostan_mori(&p, &q, 10));
 /// ```
 pub fn bostan_mori(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
+    // 実行環境が AVX2 をサポートする場合は, より高速な実装を選択する.
     #[cfg(target_arch = "x86_64")]
     {
         if std::is_x86_feature_detected!("avx2") {
@@ -55,18 +56,20 @@ pub fn bostan_mori(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 /// - この関数はパニックし得る (内部の畳み込み実装に依存する).
 ///
 /// # Complexity
-/// - Time complexity: O(d log d log k), ここで d は `Q(x)` の次数である.
-/// - Space complexity: O(d).
+/// - 時間計算量: O(d log d log k). d は `Q(x)` の次数である.
+/// - 空間計算量: O(d).
 ///
 /// # Examples
 /// ```rust,ignore
 /// // `pub fn bostan_mori` から呼び出される.
 /// ```
 fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
+    // 分子・分母を破壊的に更新するため, ここで複製する.
     let mut p = p.clone();
     let mut q = q.clone();
 
     while k > 0 {
+        // Q(-x) を構築するために, 奇数次の係数だけ符号反転する.
         let q_neg_x = {
             let mut res = q.clone();
             res.coeffs
@@ -77,24 +80,28 @@ fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
             res
         };
 
+        // P <- P * Q(-x), Q <- Q * Q(-x) により, 偶数次・奇数次の項を分離する.
         p *= q_neg_x.clone();
         q *= q_neg_x;
 
-        p.coeffs = p
-            .coeffs
-            .into_iter()
-            .skip((k % 2) as usize)
-            .step_by(2)
-            .collect();
+        // k の偶奇に応じて, 分子は偶数次または奇数次の係数だけを抽出する.
+        p.coeffs = p.coeffs.into_iter().skip(k % 2).step_by(2).collect();
+
+        // 分母は常に偶数次の係数だけを抽出する.
         q.coeffs = q.coeffs.into_iter().step_by(2).collect();
         p.trim();
         q.trim();
+
+        // 次数を半分に縮約する.
         k /= 2;
-        if p.len() > k as usize && q.len() > k as usize {
+
+        // 係数が十分そろった場合, 逆元で商を求めて打ち切る.
+        if p.len() > k && q.len() > k {
             return (p * q.inverse(k).unwrap()).get(k);
         }
     }
 
+    // k = 0 まで縮約した場合, 定数項の比が答えになる.
     modulo::mul(p.get(0), modulo::inv(q.get(0)))
 }
 
@@ -116,8 +123,8 @@ fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
 /// - この関数はパニックし得る (デバッグアサート, および内部の畳み込み実装に依存する).
 ///
 /// # Complexity
-/// - Time complexity: O(n log n log(k / n)), ここで n は `Q(x)` の長さの 2 冪での切り上げである.
-/// - Space complexity: O(n).
+/// - 時間計算量: O(n log n log(k / n)). n は `Q(x)` の長さを 2 冪へ切り上げた値である.
+/// - 空間計算量: O(n).
 ///
 /// # Examples
 /// ```rust,ignore
@@ -130,6 +137,7 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 
     debug_assert!(std::is_x86_feature_detected!("avx2"));
 
+    // 定数項が 0 の場合, 逆元が存在しないため係数は定義できないものとして 0 を返す.
     if q.get(0) == 0 {
         return 0;
     }
@@ -239,8 +247,8 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 /// - この関数はパニックし得る (デバッグアサート).
 ///
 /// # Complexity
-/// - Time complexity: O(n).
-/// - Space complexity: O(n).
+/// - 時間計算量: O(n).
+/// - 空間計算量: O(n).
 ///
 /// # Examples
 /// ```rust,ignore
@@ -301,8 +309,8 @@ fn build_w_for_pairing(n: usize) -> Vec<u32> {
 /// - `initial_terms.is_empty()` のとき.
 ///
 /// # Complexity
-/// - Time complexity: O(d log d log k), ここで d は漸化式の次数である.
-/// - Space complexity: O(d).
+/// - 時間計算量: O(d log d log k). d は漸化式の次数である.
+/// - 空間計算量: O(d).
 ///
 /// # Examples
 /// ```rust

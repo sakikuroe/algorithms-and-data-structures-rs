@@ -18,7 +18,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: 実行時に `log_dense` または `log_sparse` を選択する.
+    /// - 空間計算量: 実行時に選択される実装に依存する.
     ///
     /// # Examples
     /// ```rust
@@ -29,6 +30,7 @@ impl super::FPS {
     /// assert_eq!(1, log.get(1));
     /// ```
     pub fn log(&self, degree: usize) -> Option<Self> {
+        // 疎な系列に対しては疎実装を選択し, それ以外は密実装を用いる.
         if self.should_use_sparse_log(degree) {
             self.log_sparse(degree)
         } else {
@@ -51,8 +53,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N). ここで N は `self.len()`.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(N). N は `self.len()` である.
+    /// - 空間計算量: O(1).
     ///
     /// # Examples
     /// ```rust,ignore
@@ -95,7 +97,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K log K). ここで K は `degree + 1`.
+    /// - 時間計算量: O(K log K). K は `degree + 1` である.
+    /// - 空間計算量: O(K). K は結果の項数である.
     ///
     /// # Examples
     /// ```rust
@@ -106,18 +109,25 @@ impl super::FPS {
     /// assert_eq!(1, log.get(1));
     /// ```
     pub fn log_dense(&self, degree: usize) -> Option<Self> {
+        // 定数項が 1 でなければ, 形式的対数は定義されない.
         if self.get(0) != 1 {
             return None;
         }
+
+        // 以降は `x^degree` までを扱うため, 項数を `degree + 1` にそろえる.
         let target_len = degree + 1;
         if target_len == 1 {
             return Some(Self { coeffs: vec![0] });
         }
+
+        // f を `x^degree` まで切り詰めた上で, (log f)' = f'/f を計算する.
         let mut f = Self {
             coeffs: self.coeffs.iter().cloned().take(target_len).collect(),
         };
         let inv = f.inverse_dense(degree - 1)?;
         f.derivative();
+
+        // f'/f を求め, 積分して定数項 0 の対数を得る.
         let mut res = f * inv;
         res.truncate(degree);
         res.integral();
@@ -142,8 +152,8 @@ impl super::FPS {
     /// - この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(K * degree). ここで K は非ゼロ係数の個数.
-    /// - Space complexity: O(K + degree).
+    /// - 時間計算量: O(K * degree). K は非ゼロ係数の個数である.
+    /// - 空間計算量: O(K + degree).
     ///
     /// # Examples
     /// ```rust
