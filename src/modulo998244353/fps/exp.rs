@@ -1,27 +1,26 @@
-//! 法 998244353 上の形式的指数 (exp) を実装するモジュールである.
+//! 法 998244353 上の形式的指数 (exp) を実装するモジュールである。
 
-use super::super::convolution;
-use super::super::modulo;
+use super::super::{convolution, modulo};
 
 impl super::FPS {
-    /// `x^degree` まで (含む) の形式的指数を計算する (疎密を自動選択する).
+    /// `x^degree` まで (含む) の形式的指数を計算する (疎密を自動選択する)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
     ///
     /// # Constraints
-    /// - 定数項は 0 でなければならない.
-    /// - `degree + 1 < 998244353` でなければならない.
+    /// - 定数項は 0 でなければならない。
+    /// - `degree + 1 < 998244353` でなければならない。
     ///
     /// # Panics
-    /// - この関数はパニックしない.
+    /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - 時間計算量: 実行時に `exp_dense` または `exp_sparse` を選択する.
-    /// - 空間計算量: 実行時に選択される実装に依存する.
+    /// - 時間計算量: 実行時に `exp_dense` または `exp_sparse` を選択する。
+    /// - 空間計算量: 実行時に選択される実装に依存する。
     ///
     /// # Examples
     /// ```rust
@@ -32,7 +31,7 @@ impl super::FPS {
     /// assert_eq!(1, exp.get(0));
     /// ```
     pub fn exp(&self, degree: usize) -> Option<Self> {
-        // 計算対象の項数は `degree + 1` であり, 溢れは `None` として扱う.
+        // 計算対象の項数は `degree + 1` であり、溢れは `None` として扱う。
         let target_len = degree.checked_add(1)?;
         if target_len >= modulo::M as usize {
             return None;
@@ -40,7 +39,7 @@ impl super::FPS {
         if target_len > convolution::MAX_NTT_LEN {
             return None;
         }
-        // 疎な系列に対しては疎実装を選択し, それ以外は密実装を用いる.
+        // 疎な系列に対しては疎実装を選択し、それ以外は密実装を用いる。
         if self.should_use_sparse_exp(degree) {
             self.exp_sparse(degree)
         } else {
@@ -48,27 +47,27 @@ impl super::FPS {
         }
     }
 
-    /// `exp` が疎実装を選択すべきかどうかを判定する.
+    /// `exp` が疎実装を選択すべきかどうかを判定する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `bool`: 疎実装を選ぶなら `true`.
+    /// `bool`: 疎実装を選ぶなら `true`。
     ///
     /// # Constraints
-    /// 制約はない.
+    /// 制約はない。
     ///
     /// # Panics
-    /// - この関数はパニックしない.
+    /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - 時間計算量: O(N). N は `self.len()` である.
-    /// - 空間計算量: O(1).
+    /// - 時間計算量: O(N)。N は `self.len()` である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust,ignore
-    /// // `pub fn exp` から呼び出される.
+    /// // `pub fn exp` から呼び出される。
     /// ```
     fn should_use_sparse_exp(&self, degree: usize) -> bool {
         let target_len = degree + 1;
@@ -76,9 +75,9 @@ impl super::FPS {
             return false;
         }
 
-        // 疎実装は O(K * len) と見積もる. ここで K は `1..=degree` の非ゼロ項数である.
-        // 密実装は NTT 長 `t` に対して O(t log2 t) と見積もる. `exp_dense` は doubling を行うため,
-        // おおよそ log2(len) 回の畳み込みを行うとしてコストを見積もる.
+        // 疎実装は O(K * len) と見積もる。ここで K は `1..=degree` の非ゼロ項数である。
+        // 密実装は NTT 長 `t` に対して O(t log2 t) と見積もる。`exp_dense` は doubling を行うため、
+        // おおよそ log2(len) 回の畳み込みを行うとしてコストを見積もる。
         let non_zero_count = self
             .non_zero_terms_iter()
             .take_while(|(i, _)| *i <= degree)
@@ -99,24 +98,24 @@ impl super::FPS {
         sparse_cost < dense_cost
     }
 
-    /// `x^degree` まで (含む) の形式的指数を計算する (密な実装).
+    /// `x^degree` まで (含む) の形式的指数を計算する (密な実装)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
     ///
     /// # Constraints
-    /// - 定数項は 0 でなければならない.
-    /// - `degree + 1 < 998244353` でなければならない.
+    /// - 定数項は 0 でなければならない。
+    /// - `degree + 1 < 998244353` でなければならない。
     ///
     /// # Panics
-    /// - この関数はパニックしない.
+    /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - 時間計算量: O(K log K). K は `degree + 1` である.
-    /// - 空間計算量: O(K). K は結果の項数である.
+    /// - 時間計算量: O(K log K)。K は `degree + 1` である。
+    /// - 空間計算量: O(K)。K は結果の項数である。
     ///
     /// # Examples
     /// ```rust
@@ -129,7 +128,9 @@ impl super::FPS {
     pub fn exp_dense(&self, degree: usize) -> Option<Self> {
         #[cfg(target_arch = "x86_64")]
         {
-            if std::is_x86_feature_detected!("avx2") {
+            use std::arch;
+
+            if arch::is_x86_feature_detected!("avx2") {
                 return self.exp_dense_avx2(degree);
             }
         }
@@ -137,35 +138,35 @@ impl super::FPS {
         self.exp_dense_scalar(degree)
     }
 
-    /// 非 SIMD 実装により, `x^degree` まで (含む) の形式的指数を計算する.
+    /// 非 SIMD 実装により、`x^degree` まで (含む) の形式的指数を計算する。
     ///
-    /// `res = exp(self)` を満たす系列 `res` を, Newton 法で精度を 2 倍ずつ増やしながら求める.
-    /// 具体的には `res <- res * (1 + self - log(res))` を繰り返し適用する.
+    /// `res = exp(self)` を満たす系列 `res` を、Newton 法で精度を 2 倍ずつ増やしながら求める。
+    /// 具体的には `res <- res * (1 + self - log(res))` を繰り返し適用する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
     ///
     /// # Constraints
-    /// - 定数項は 0 でなければならない.
-    /// - `degree + 1 < 998244353` でなければならない.
-    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない.
+    /// - 定数項は 0 でなければならない。
+    /// - `degree + 1 < 998244353` でなければならない。
+    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない。
     ///
     /// # Panics
-    /// - この関数はパニックしない.
+    /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - 時間計算量: O(K log K). K は `degree + 1` である.
-    /// - 空間計算量: O(K). K は結果の項数である.
+    /// - 時間計算量: O(K log K)。K は `degree + 1` である。
+    /// - 空間計算量: O(K)。K は結果の項数である。
     ///
     /// # Examples
     /// ```rust,ignore
-    /// // `pub fn exp_dense` から呼び出される.
+    /// // `pub fn exp_dense` から呼び出される。
     /// ```
     fn exp_dense_scalar(&self, degree: usize) -> Option<Self> {
-        // exp の定義より, 入力の定数項は 0 でなければならない.
+        // exp の定義より、入力の定数項は 0 でなければならない。
         if self.get(0) != 0 {
             return None;
         }
@@ -180,27 +181,27 @@ impl super::FPS {
             return Some(Self { coeffs: vec![1] });
         }
 
-        // 初期値 res = 1 (次数 0 まで正しい) から開始し, 項数を 2 倍ずつ増やす.
+        // 初期値 res = 1 (次数 0 まで正しい) から開始し、項数を 2 倍ずつ増やす。
         let mut res = Self { coeffs: vec![1] };
         let mut current_len = 1;
 
         while current_len < target_len_full {
-            // 次の反復では, `target_len` までの正しさを得る.
+            // 次の反復では、`target_len` までの正しさを得る。
             let target_len = (current_len << 1).min(target_len_full);
 
-            // self を `target_len` まで切り詰め, 更新式へ渡す.
+            // self を `target_len` まで切り詰め、更新式へ渡す。
             let mut truncated = Self {
                 coeffs: self.coeffs.iter().cloned().take(target_len).collect(),
             };
             truncated.trim();
 
-            // delta = self - log(res) を計算し, `1 + delta` を res に掛ける.
+            // delta = self - log(res) を計算し、`1 + delta` を res に掛ける。
             let mut delta = truncated - res.log_dense(target_len - 1)?;
             if delta.is_zero() {
-                // delta が 0 のとき, `1 + delta` は 1 である.
+                // delta が 0 のとき、`1 + delta` は 1 である。
                 delta = Self { coeffs: vec![1] };
             } else {
-                // 定数項に 1 を足して `1 + delta` を構築する.
+                // 定数項に 1 を足して `1 + delta` を構築する。
                 delta.coeffs[0] = modulo::add(delta.coeffs[0], 1);
             }
 
@@ -213,36 +214,37 @@ impl super::FPS {
         Some(res)
     }
 
-    /// AVX2 + Montgomery により, `x^degree` まで (含む) の形式的指数を計算する.
+    /// AVX2 + Montgomery により、`x^degree` まで (含む) の形式的指数を計算する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
     ///
     /// # Constraints
-    /// - AVX2 が利用可能な環境でのみ呼び出す.
-    /// - 定数項は 0 でなければならない.
-    /// - `degree + 1 < 998244353` でなければならない.
-    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない.
+    /// - AVX2 が利用可能な環境でのみ呼び出す。
+    /// - 定数項は 0 でなければならない。
+    /// - `degree + 1 < 998244353` でなければならない。
+    /// - `degree + 1 <= convolution::MAX_NTT_LEN` でなければならない。
     ///
     /// # Panics
-    /// - この関数はパニックし得る (デバッグアサート, および内部実装に依存する).
+    /// - この関数はパニックし得る (デバッグアサート、および内部実装に依存する)。
     ///
     /// # Complexity
-    /// - 時間計算量: O(K log K). K は `degree + 1` である.
-    /// - 空間計算量: O(K). K は結果の項数である.
+    /// - 時間計算量: O(K log K)。K は `degree + 1` である。
+    /// - 空間計算量: O(K)。K は結果の項数である。
     ///
     /// # Examples
     /// ```rust,ignore
-    /// // AVX2 依存のため, 直接の使用例は省略する.
+    /// // AVX2 依存のため、直接の使用例は省略する。
     /// ```
     #[cfg(target_arch = "x86_64")]
     fn exp_dense_avx2(&self, degree: usize) -> Option<Self> {
         use super::super::convolution_mont;
+        use std::{arch, mem};
 
-        debug_assert!(std::is_x86_feature_detected!("avx2"));
+        debug_assert!(arch::is_x86_feature_detected!("avx2"));
 
         if self.get(0) != 0 {
             return None;
@@ -274,10 +276,10 @@ impl super::FPS {
             convolution_mont::standard_to_mont(&mut h_mont);
         }
 
-        // 反復内の係数操作で用いる `(i)` と `inv(i)` をまとめて参照する.
+        // 反復内の係数操作で用いる `(i)` と `inv(i)` をまとめて参照する。
         //
-        // `modulo::inv` をループ内で呼ぶと O(log MOD) が支配的になり得るため,
-        // `MAX_NTT_LEN` までの逆元列を 1 度だけ前計算して再利用する.
+        // `modulo::inv` をループ内で呼ぶと O(log MOD) が支配的になり得るため、
+        // `MAX_NTT_LEN` までの逆元列を 1 度だけ前計算して再利用する。
         let num_mont = convolution_mont::num_mont_table();
         let inv_num_mont = convolution_mont::inv_num_mont_table();
 
@@ -287,7 +289,7 @@ impl super::FPS {
         let mut g_coeffs = vec![one_mont];
         let mut g_ntt = vec![one_mont];
 
-        // 反復内で再利用するバッファを確保し, 不要な再割当を避ける.
+        // 反復内で再利用するバッファを確保し、不要な再割当を避ける。
         let mut f2_ntt = Vec::new();
         let mut g0_ntt = Vec::new();
         let mut g2_old_ntt = Vec::new();
@@ -393,7 +395,7 @@ impl super::FPS {
                 s[1..].copy_from_slice(&fp[..(m - 1)]);
             }
 
-            // --- ブロック E: t = g*s mod x^m, かつ DFT(g,2m) を確保する ---
+            // --- ブロック E: t = g*s mod x^m、かつ DFT(g,2m) を確保する ---
             g2_ntt.clear();
             g2_ntt.resize(two_m, 0);
             g2_ntt[..m].copy_from_slice(&g_coeffs);
@@ -418,9 +420,9 @@ impl super::FPS {
 
             // --- ブロック F: u = HighHalf(h - ∫(x^(m-1) t)) ---
             //
-            // w = ∫(Shift(t, m-1)) とすると, i=0..m-1 に対して
-            // w[m+i] = t[i] / (m+i) が成り立つため, 2m 全体の構築は不要である.
-            // ここでは u[i] = h[m+i] - t[i]/(m+i) を直接計算する.
+            // w = ∫(Shift(t, m-1)) とすると、i=0..m-1 に対して
+            // w[m+i] = t[i] / (m+i) が成り立つため、2m 全体の構築は不要である。
+            // ここでは u[i] = h[m+i] - t[i]/(m+i) を直接計算する。
             u.clear();
             u.resize(m, 0);
             u.copy_from_slice(&t2_coeffs[..m]);
@@ -450,9 +452,9 @@ impl super::FPS {
             f_coeffs.resize(two_m, 0);
             f_coeffs[m..].copy_from_slice(&v2_coeffs[..m]);
 
-            // 次の反復の入口条件を満たすため, g は上半分を 0 として保持する.
+            // 次の反復の入口条件を満たすため、g は上半分を 0 として保持する。
             g_coeffs.resize(two_m, 0);
-            std::mem::swap(&mut g_ntt, &mut g2_ntt);
+            mem::swap(&mut g_ntt, &mut g2_ntt);
 
             m = two_m;
         }
@@ -466,27 +468,27 @@ impl super::FPS {
         Some(res)
     }
 
-    /// 疎な形式的べき級数の形式的指数を `x^degree` まで (含む) 計算する.
+    /// 疎な形式的べき級数の形式的指数を `x^degree` まで (含む) 計算する。
     ///
-    /// `F = exp(f)` が満たす `F' = F f'` を用い, `f'` の疎な表現を使って次数の
-    /// 低い順に計算する.
+    /// `F = exp(f)` が満たす `F' = F f'` を用い、`f'` の疎な表現を使って次数の
+    /// 低い順に計算する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む).
+    /// - `degree`: 計算する最高次数 (含む)。
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列.
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
     ///
     /// # Constraints
-    /// - 定数項は 0 でなければならない.
-    /// - `degree + 1 < 998244353` でなければならない.
+    /// - 定数項は 0 でなければならない。
+    /// - `degree + 1 < 998244353` でなければならない。
     ///
     /// # Panics
-    /// - この関数はパニックしない.
+    /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - 時間計算量: O(K * degree). K は非ゼロ係数の個数である.
-    /// - 空間計算量: O(K + degree).
+    /// - 時間計算量: O(K * degree)。K は非ゼロ係数の個数である。
+    /// - 空間計算量: O(K + degree)。
     ///
     /// # Examples
     /// ```rust
@@ -514,7 +516,7 @@ impl super::FPS {
 
         let max_deriv_degree = degree - 1;
 
-        // `f'(x)` の疎な表現を `max_deriv_degree` 以下で構築する.
+        // `f'(x)` の疎な表現を `max_deriv_degree` 以下で構築する。
         let mut sparse_deriv_terms = Vec::new();
         for (i, &c) in self.coeffs.iter().enumerate().skip(1) {
             if i > degree {
@@ -536,7 +538,7 @@ impl super::FPS {
         let mut coeffs = vec![0_u32; target_len];
         coeffs[0] = 1;
 
-        // 漸化式 (n + 1) * F_{n+1} = sum_{i=0}^n F_i * f'_{n-i} を用いる.
+        // 漸化式 (n + 1) * F_{n+1} = sum_{i=0}^n F_i * f'_{n-i} を用いる。
         for n in 0..degree {
             let mut acc = 0_u32;
             for &(deg, c) in sparse_deriv_terms.iter().take_while(|&&(deg, _)| deg <= n) {
@@ -548,5 +550,158 @@ impl super::FPS {
         let mut res = Self { coeffs };
         res.trim();
         Some(res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Background: 定数項が 0 の密な形式的べき級数 (x + 2x^2 + ... + 6x^6)。
+    fn create_zero_constant_dense_fps() -> super::super::FPS {
+        super::super::FPS::new(vec![0, 1, 2, 3, 4, 5, 6])
+    }
+
+    /// Background: 定数項が 0 で非ゼロ項が少ない疎な形式的べき級数。
+    fn create_zero_constant_sparse_fps() -> super::super::FPS {
+        super::super::FPS::new(vec![0, 1, 0, 2, 0, 0, 3])
+    }
+
+    /// Background: 定数項が非ゼロの形式的べき級数。exp が定義できない境界値である。
+    fn create_fps_with_nonzero_constant() -> super::super::FPS {
+        super::super::FPS::new(vec![1, 2, 3])
+    }
+
+    // exp のテスト: 戻り値そのものを検証する
+    mod exp {
+        use super::*;
+
+        /// Scenario: 疎密どちらの実装を選んでも、自動選択された exp は同じ結果になる
+        /// - Given: 定数項が 0 で非ゼロ項が少ない疎な形式的べき級数がある
+        /// - When: 自動選択で exp を計算する
+        /// - Then: 疎実装で直接計算した結果と一致する
+        #[test]
+        fn matches_exp_sparse_for_sparse_series() {
+            // Given
+            let sut = create_zero_constant_sparse_fps();
+            let degree = 6;
+
+            // When
+            let auto = sut.exp(degree);
+
+            // Then
+            let sparse = sut.exp_sparse(degree).unwrap();
+            assert_eq!(sparse, auto.unwrap());
+        }
+
+        /// Scenario: 定数項が非ゼロの級数には形式的指数が定義できない
+        /// - Given: 定数項が非ゼロの形式的べき級数がある
+        /// - When: exp を計算する
+        /// - Then: None が返る
+        #[test]
+        fn returns_none_when_constant_term_is_not_zero() {
+            // Given
+            let sut = create_fps_with_nonzero_constant();
+
+            // When
+            let result = sut.exp(4);
+
+            // Then
+            assert!(result.is_none());
+        }
+
+        /// Scenario: degree が 0 のとき、exp は定数項 1 の 1 項だけになる
+        /// - Given: 定数項が 0 の形式的べき級数がある
+        /// - When: degree = 0 で exp を計算する
+        /// - Then: 結果の定数項が 1 になる
+        #[test]
+        fn returns_constant_one_when_degree_is_zero() {
+            // Given
+            let sut = create_zero_constant_dense_fps();
+
+            // When
+            let result = sut.exp(0);
+
+            // Then
+            assert_eq!(1, result.unwrap().get(0));
+        }
+    }
+
+    // exp_dense のテスト: 戻り値そのものを検証する
+    mod exp_dense {
+        use super::*;
+
+        /// Scenario: exp_dense と log_dense は互いに逆演算であり、元の級数を復元する
+        /// - Given: 定数項が 0 の密な形式的べき級数がある
+        /// - When: exp_dense を計算し、その結果に log_dense を適用する
+        /// - Then: 各係数が元の級数と一致する
+        #[test]
+        fn log_dense_recovers_original_series() {
+            // Given
+            let sut = create_zero_constant_dense_fps();
+            let degree = 32;
+
+            // When
+            let exp = sut.exp_dense(degree).unwrap();
+            let log = exp.log_dense(degree).unwrap();
+
+            // Then
+            for i in 0..=degree {
+                assert_eq!(sut.get(i), log.get(i));
+            }
+        }
+
+        /// Scenario: 定数項が非ゼロの級数には形式的指数が定義できない
+        /// - Given: 定数項が非ゼロの形式的べき級数がある
+        /// - When: exp_dense を計算する
+        /// - Then: None が返る
+        #[test]
+        fn returns_none_when_constant_term_is_not_zero() {
+            // Given
+            let sut = create_fps_with_nonzero_constant();
+
+            // When
+            let result = sut.exp_dense(4);
+
+            // Then
+            assert!(result.is_none());
+        }
+    }
+
+    // exp_sparse のテスト: 戻り値そのものを検証する
+    mod exp_sparse {
+        use super::*;
+
+        /// Scenario: 疎な級数に対して、exp_sparse は exp_dense と同じ結果になる
+        /// - Given: 定数項が 0 で非ゼロ項が少ない疎な形式的べき級数がある
+        /// - When: exp_sparse と exp_dense をそれぞれ計算する
+        /// - Then: 両者の結果は等しい
+        #[test]
+        fn matches_exp_dense_for_sparse_series() {
+            // Given
+            let sut = create_zero_constant_sparse_fps();
+            let degree = 6;
+
+            // When
+            let exp_sparse = sut.exp_sparse(degree).unwrap();
+
+            // Then
+            let exp_dense = sut.exp_dense(degree).unwrap();
+            assert_eq!(exp_dense, exp_sparse);
+        }
+
+        /// Scenario: 定数項が非ゼロの級数には形式的指数が定義できない
+        /// - Given: 定数項が非ゼロの形式的べき級数がある
+        /// - When: exp_sparse を計算する
+        /// - Then: None が返る
+        #[test]
+        fn returns_none_when_constant_term_is_not_zero() {
+            // Given
+            let sut = create_fps_with_nonzero_constant();
+
+            // When
+            let result = sut.exp_sparse(4);
+
+            // Then
+            assert!(result.is_none());
+        }
     }
 }

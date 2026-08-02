@@ -1,168 +1,163 @@
-//! This module provides a modular integer implementation for the prime modulus 998244353.
-//! このモジュールは, 素数 998244353 を法とするモジュラー整数実装を提供する.
+//! 素数 998244353 を法とするモジュラー整数の実装を提供するモジュールである。
 
-use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{fmt, ops};
 
-/// The modulus for modular arithmetic operations.
-/// モジュラー演算の法.
-const MOD: u32 = 998244353; // 119 * (1 << 23) + 1
+/// モジュラー演算の法である。
+const MOD: u32 = 998244353; // 998244353 = 119 * 2^23 + 1 という NTT フレンドリーな素数である。
 
-/// Represents a modular integer for the prime modulus 998244353.
-/// 素数 998244353 を法とするモジュラー整数を表現する.
+/// 素数 998244353 を法とするモジュラー整数を表現する。
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ModInt998244353 {
+    /// `[0, MOD)` の範囲に正規化された内部表現である。
     val: u32,
 }
 
 impl ModInt998244353 {
-    /// Creates a new `ModInt998244353` instance from a `u64` value.
-    /// `u64` 値から新しい `ModInt998244353` インスタンスを生成する.
+    /// `u64` 値から新しい `ModInt998244353` インスタンスを生成する。
     ///
     /// # Args
-    /// - `n`: The `u64` value to be converted to a modular integer.
-    ///        モジュラー整数に変換する `u64` 値.
+    /// - `n`: モジュラー整数に変換する `u64` 値。
     ///
     /// # Returns
-    /// `Self`: A new `ModInt998244353` instance with its value reduced modulo `MOD`.
-    ///         値が `MOD` で還元された新しい `ModInt998244353` インスタンス.
+    /// `Self`: 値が `MOD` で還元された新しい `ModInt998244353` インスタンス。
+    ///
+    /// # Constraints
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
+    /// - 時間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let m = ModInt998244353::new(1_000_000_000);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::new(1_000_000_000);
     /// assert_eq!(1755647, m.val());
     /// ```
     pub fn new(n: u64) -> Self {
+        // n を MOD で還元し、[0, MOD) の範囲に収める。
         ModInt998244353 {
             val: (n % MOD as u64) as u32,
         }
     }
 
-    /// Creates a new `ModInt998244353` instance from a raw `u32` value.
-    /// 生の `u32` 値から新しい `ModInt998244353` インスタンスを生成する.
+    /// 生の `u32` 値から新しい `ModInt998244353` インスタンスを生成する。
     ///
     /// # Args
-    /// - `n`: The `u32` value, which must be less than `MOD`.
-    ///        `MOD` 未満でなければならない `u32` 値.
+    /// - `n`: `MOD` 未満でなければならない `u32` 値。
     ///
     /// # Returns
-    /// `Self`: A new `ModInt998244353` instance.
-    ///         新しい `ModInt998244353` インスタンス.
+    /// `Self`: 新しい `ModInt998244353` インスタンス。
+    ///
+    /// # Constraints
+    /// - `n` は `MOD` 未満でなければならない。
     ///
     /// # Panics
-    /// Panics if `n` is greater than or equal to `MOD`.
-    /// `n` が `MOD` 以上の場合にパニックする.
+    /// `n` が `MOD` 以上の場合にパニックする。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let m = ModInt998244353::new_raw(100);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::new_raw(100);
     /// assert_eq!(100, m.val());
-    /// // ModInt998244353::new_raw(998244353); // This would panic
     /// ```
     pub fn new_raw(n: u32) -> Self {
+        // 呼び出し側が n < MOD を保証している前提で、還元処理を省略して直接構築する。
         assert!(n < MOD, "Raw value {} must be less than MOD {}", n, MOD);
         ModInt998244353 { val: n }
     }
 
-    /// Returns the underlying `u32` value of the modular integer.
-    /// モジュラー整数の基となる `u32` 値を返す.
+    /// モジュラー整数の基となる `u32` 値を返す。
     ///
     /// # Returns
-    /// `u32`: The raw `u32` value of the modular integer.
-    ///         モジュラー整数の生の `u32` 値.
+    /// `u32`: モジュラー整数の生の `u32` 値。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
+    /// - 時間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let m = ModInt998244353::new(123);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::new(123);
     /// assert_eq!(123, m.val());
     /// ```
     pub fn val(&self) -> u32 {
         self.val
     }
 
-    /// Computes the modular multiplicative inverse of the modular integer.
-    /// モジュラー整数のモジュラー乗法逆元を計算する.
+    /// モジュラー整数のモジュラー乗法逆元を計算する。
     ///
-    /// This method uses Fermat's Little Theorem, which requires the modulus `MOD` to be prime.
-    /// Since `MOD` is prime (998244353), the inverse `a^(MOD-2)` is computed.
-    /// このメソッドはフェルマーの小定理を使用し, 法 `MOD` が素数であることを前提とする.
-    /// `MOD` は素数 (998244353) であるため, 逆元 `a^(MOD-2)` が計算される.
+    /// このメソッドはフェルマーの小定理を用いており、法 `MOD` が素数であることを前提とする。
+    /// `MOD` は素数 (998244353) であるため、逆元 `a^(MOD-2)` を計算する。
     ///
     /// # Returns
-    /// `Option<Self>`: Returns `Some(inverse)` if `self.val` is non-zero,
-    ///                 `None` if `self.val` is zero (as inverse does not exist).
-    ///                 `self.val` が非ゼロの場合に `Some(inverse)` を返し,
-    ///                 `self.val` がゼロの場合に `None` を返す (逆元が存在しないため).
+    /// `Option<Self>`: `self.val` が非ゼロの場合は `Some(逆元)` を、ゼロの場合は
+    /// 逆元が存在しないため `None` を返す。
     ///
     /// # Constraints
-    /// For an inverse to exist, `self.val` must not be zero when `MOD` is prime.
-    /// 逆元が存在するには, `MOD` が素数の場合, `self.val` がゼロであってはならない.
+    /// - `MOD` が素数であるとき、逆元が存在するには `self.val` がゼロであってはならない。
     ///
     /// # Complexity
-    /// - Time complexity: O(log MOD).
+    /// - 時間計算量: O(log MOD)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let m = ModInt998244353::new(2);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::new(2);
     /// let inv_m = m.inv().unwrap();
     /// assert_eq!(1, (m * inv_m).val());
     ///
-    /// let zero = ModInt998244353::new(0);
+    /// let zero = modint::ModInt998244353::new(0);
     /// assert!(zero.inv().is_none());
     /// ```
     pub fn inv(&self) -> Option<Self> {
         if self.val == 0 {
             None
         } else {
-            // By Fermat's Little Theorem: a^(MOD-2) mod MOD is the inverse.
+            // フェルマーの小定理より、MOD が素数のとき a^(MOD-2) mod MOD が乗法逆元となる。
             Some(self.pow((MOD - 2) as usize))
         }
     }
 
-    /// Computes `self` raised to the power of `n`.
-    /// `self` の `n` 乗を計算する.
+    /// `self` の `n` 乗を計算する。
     ///
     /// # Args
-    /// - `n`: The non-negative exponent.
-    ///        冪指数.
+    /// - `n`: 非負の冪指数。
     ///
     /// # Returns
-    /// `Self`: The result of `self` raised to the power of `n`.
-    ///         `self` を `n` 乗した結果.
+    /// `Self`: `self` を `n` 乗した結果。
     ///
     /// # Complexity
-    /// - Time complexity: O(log n), where n is the exponent.
-    ///                          ここで n は冪指数である.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(log n)。ここで n は冪指数である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let base = ModInt998244353::new(3);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let base = modint::ModInt998244353::new(3);
     /// let result = base.pow(4);
     /// assert_eq!(81, result.val());
     /// ```
     pub fn pow(&self, mut n: usize) -> Self {
+        // 累積する結果。初期値は乗法単位元の 1 である。
         let mut res = ModInt998244353::new_raw(1);
+        // 2 乗を繰り返していく途中経過の底。
         let mut base = *self;
 
-        // This is a standard binary exponentiation (exponentiation by squaring).
+        // 二分累乗法 (繰り返し二乗法) により、O(log n) 回の乗算で self^n を計算する。
         while n > 0 {
-            // If the current bit of n is 1, multiply the result by the base.
+            // n の最下位ビットが 1 の場合、現在の底を結果に掛け合わせる。
             if n % 2 == 1 {
                 res *= base;
             }
-            // Square the base for the next bit.
+            // 底を 2 乗し、次の桁に備える。
             base *= base;
             n /= 2;
         }
@@ -170,73 +165,66 @@ impl ModInt998244353 {
     }
 }
 
-/// Allows conversion from `u32` to `ModInt998244353`.
-/// `u32` から `ModInt998244353` への変換を可能にする.
+/// `u32` から `ModInt998244353` への変換を可能にする。
 impl From<u32> for ModInt998244353 {
-    /// Creates a `ModInt998244353` instance from a `u32` value.
-    /// `u32` の値から `ModInt998244353` インスタンスを生成する.
+    /// `u32` の値から `ModInt998244353` インスタンスを生成する。
     ///
     /// # Args
-    /// - `num`: The `u32` value to convert.
-    ///          変換する `u32` の値.
+    /// - `num`: 変換する `u32` の値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance equivalent to `num` modulo `998244353`.
-    /// `num` を `998244353` で割った余りと等価な, 新しい `ModInt998244353` インスタンス.
+    /// `num` を `998244353` で割った余りと等価な、新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input value.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let val: u32 = 1_000_000_007;
-    /// let m: ModInt998244353 = val.into();
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let val = 1_000_000_007_u32;
+    /// let m = modint::ModInt998244353::from(val);
     /// assert_eq!(1755654, m.val()); // 1_000_000_007 % 998244353
     /// ```
     fn from(num: u32) -> Self {
+        // u64 に拡張して new に委譲し、MOD による還元を行う。
         ModInt998244353::new(num as u64)
     }
 }
 
-/// Allows conversion from `i32` to `ModInt998244353`.
-/// `i32` から `ModInt998244353` への変換を可能にする.
+/// `i32` から `ModInt998244353` への変換を可能にする。
 impl From<i32> for ModInt998244353 {
-    /// Creates a `ModInt998244353` instance from an `i32` value, handling negative numbers correctly.
-    /// `i32` の値から `ModInt998244353` インスタンスを生成する. 負数も正しく扱う.
+    /// `i32` の値から `ModInt998244353` インスタンスを生成する。負数も正しく扱う。
     ///
     /// # Args
-    /// - `num`: The `i32` value to convert.
-    ///          変換する `i32` の値.
+    /// - `num`: 変換する `i32` の値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance. Negative inputs are converted to a positive equivalent in modular arithmetic.
-    /// 新しい `ModInt998244353` インスタンス. 負の入力は, 法演算における正の等価値に変換される.
+    /// 新しい `ModInt998244353` インスタンス。負の入力は、法演算における正の等価値に変換される。
     ///
     /// # Constraints
-    /// There are no constraints on the input value.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let m_pos: ModInt998244353 = 10i32.into();
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m_pos = modint::ModInt998244353::from(10_i32);
     /// assert_eq!(10, m_pos.val());
     ///
-    /// let m_neg: ModInt998244353 = (-10i32).into();
+    /// let m_neg = modint::ModInt998244353::from(-10_i32);
     /// assert_eq!(998244353 - 10, m_neg.val());
     /// ```
     fn from(num: i32) -> Self {
-        // Ensure non-negative value for modular arithmetic.
+        // num が負の場合、num % MOD as i32 は負の値になり得るため、MOD を加えて非負の値に補正する。
         let val = if num >= 0 {
             num as u64
         } else {
@@ -246,489 +234,448 @@ impl From<i32> for ModInt998244353 {
     }
 }
 
-/// Implements the addition operation (`+`) for two `ModInt998244353` instances.
-/// 2つの `ModInt998244353` インスタンスに対する加算演算 (`+`) を実装する.
-impl Add for ModInt998244353 {
+/// 2 つの `ModInt998244353` インスタンスに対する加算演算 (`+`) を実装する。
+impl ops::Add for ModInt998244353 {
     type Output = Self;
 
-    /// Adds two `ModInt998244353` instances.
-    /// 2つの `ModInt998244353` インスタンスを加算する.
+    /// 2 つの `ModInt998244353` インスタンスを加算する。
     ///
     /// # Args
-    /// - `self`: The left-hand side operand.
-    ///           左辺のオペランド.
-    /// - `rhs`: The right-hand side operand.
-    ///          右辺のオペランド.
+    /// - `self`: 左辺のオペランド。
+    /// - `rhs`: 右辺のオペランド。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the sum.
-    /// 和を表す新しい `ModInt998244353` インスタンス.
+    /// 和を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(998244350);
-    /// let b = ModInt998244353::new(10);
-    /// assert_eq!(ModInt998244353::new(7), a + b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(998244350);
+    /// let b = modint::ModInt998244353::new(10);
+    /// assert_eq!(modint::ModInt998244353::new(7), a + b);
     /// ```
     fn add(mut self, rhs: Self) -> Self::Output {
+        // += 演算子に処理を委譲し、結果を新しい値として返す。
         self += rhs;
         self
     }
 }
 
-/// Implements the addition operation (`+`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する加算演算 (`+`) を実装する.
-impl Add<u32> for ModInt998244353 {
+/// `ModInt998244353` と `u32` に対する加算演算 (`+`) を実装する。
+impl ops::Add<u32> for ModInt998244353 {
     type Output = Self;
 
-    /// Adds a `u32` value to a `ModInt998244353` instance.
-    /// `ModInt998244353` インスタンスに `u32` の値を加算する.
+    /// `ModInt998244353` インスタンスに `u32` の値を加算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance.
-    ///           `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to add.
-    ///          加算する `u32` の値.
+    /// - `self`: `ModInt998244353` インスタンス。
+    /// - `rhs`: 加算する `u32` の値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the sum.
-    /// 和を表す新しい `ModInt998244353` インスタンス.
+    /// 和を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(998244350);
-    /// let b: u32 = 10;
-    /// assert_eq!(ModInt998244353::new(7), a + b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(998244350);
+    /// let b = 10_u32;
+    /// assert_eq!(modint::ModInt998244353::new(7), a + b);
     /// ```
     fn add(mut self, rhs: u32) -> Self::Output {
+        // += 演算子に処理を委譲し、結果を新しい値として返す。
         self += rhs;
         self
     }
 }
 
-/// Implements the addition assignment operation (`+=`) for `ModInt998244353`.
-/// `ModInt998244353` に対する加算代入演算 (`+=`) を実装する.
-impl AddAssign for ModInt998244353 {
-    /// Adds another `ModInt998244353` instance to `self`.
-    /// 別の `ModInt998244353` インスタンスを `self` に加算する.
+/// `ModInt998244353` に対する加算代入演算 (`+=`) を実装する。
+impl ops::AddAssign for ModInt998244353 {
+    /// 別の `ModInt998244353` インスタンスを `self` に加算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The right-hand side operand.
-    ///          右辺のオペランド.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 右辺のオペランド。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(998244350);
-    /// let b = ModInt998244353::new(10);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(998244350);
+    /// let b = modint::ModInt998244353::new(10);
     /// a += b;
-    /// assert_eq!(ModInt998244353::new(7), a);
+    /// assert_eq!(modint::ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: Self) {
+        // self.val, rhs.val はいずれも MOD 未満なので、和は u32 でオーバーフローしない。
         self.val += rhs.val;
+        // 和が MOD 以上になった場合のみ MOD を引き、[0, MOD) の範囲に戻す。
         if self.val >= MOD {
             self.val -= MOD;
         }
     }
 }
 
-/// Implements the addition assignment operation (`+=`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する加算代入演算 (`+=`) を実装する.
-impl AddAssign<u32> for ModInt998244353 {
-    /// Adds a `u32` value to `self`.
-    /// `u32` の値を `self` に加算する.
+/// `ModInt998244353` と `u32` に対する加算代入演算 (`+=`) を実装する。
+impl ops::AddAssign<u32> for ModInt998244353 {
+    /// `u32` の値を `self` に加算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to add.
-    ///          加算する `u32` の値.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 加算する `u32` の値。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(998244350);
-    /// a += 10u32;
-    /// assert_eq!(ModInt998244353::new(7), a);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(998244350);
+    /// a += 10_u32;
+    /// assert_eq!(modint::ModInt998244353::new(7), a);
     /// ```
     fn add_assign(&mut self, rhs: u32) {
+        // rhs は MOD 未満とは限らないため、先に MOD で還元しておく。
         let rhs_mod = rhs % MOD;
         self.val += rhs_mod;
+        // 和が MOD 以上になった場合のみ MOD を引き、[0, MOD) の範囲に戻す。
         if self.val >= MOD {
             self.val -= MOD;
         }
     }
 }
 
-/// Implements the subtraction operation (`-`) for two `ModInt998244353` instances.
-/// 2つの `ModInt998244353` インスタンスに対する減算演算 (`-`) を実装する.
-impl Sub for ModInt998244353 {
+/// 2 つの `ModInt998244353` インスタンスに対する減算演算 (`-`) を実装する。
+impl ops::Sub for ModInt998244353 {
     type Output = Self;
 
-    /// Subtracts one `ModInt998244353` instance from another.
-    /// ある `ModInt998244353` インスタンスから別のインスタンスを減算する.
+    /// ある `ModInt998244353` インスタンスから別のインスタンスを減算する。
     ///
     /// # Args
-    /// - `self`: The left-hand side operand (minuend).
-    ///           左辺のオペランド (被減数).
-    /// - `rhs`: The right-hand side operand (subtrahend).
-    ///          右辺のオペランド (減数).
+    /// - `self`: 左辺のオペランド (被減数)。
+    /// - `rhs`: 右辺のオペランド (減数)。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the difference.
-    /// 差を表す新しい `ModInt998244353` インスタンス.
+    /// 差を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(10);
-    /// let b = ModInt998244353::new(20);
-    /// assert_eq!(ModInt998244353::new(998244343), a - b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(10);
+    /// let b = modint::ModInt998244353::new(20);
+    /// assert_eq!(modint::ModInt998244353::new(998244343), a - b);
     /// ```
     fn sub(mut self, rhs: Self) -> Self::Output {
+        // -= 演算子に処理を委譲し、結果を新しい値として返す。
         self -= rhs;
         self
     }
 }
 
-/// Implements the subtraction operation (`-`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する減算演算 (`-`) を実装する.
-impl Sub<u32> for ModInt998244353 {
+/// `ModInt998244353` と `u32` に対する減算演算 (`-`) を実装する。
+impl ops::Sub<u32> for ModInt998244353 {
     type Output = Self;
 
-    /// Subtracts a `u32` value from a `ModInt998244353` instance.
-    /// `ModInt998244353` インスタンスから `u32` の値を減算する.
+    /// `ModInt998244353` インスタンスから `u32` の値を減算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance.
-    ///           `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to subtract.
-    ///          減算する `u32` の値.
+    /// - `self`: `ModInt998244353` インスタンス。
+    /// - `rhs`: 減算する `u32` の値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the difference.
-    /// 差を表す新しい `ModInt998244353` インスタンス.
+    /// 差を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(10);
-    /// let b: u32 = 20;
-    /// assert_eq!(ModInt998244353::new(998244343), a - b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(10);
+    /// let b = 20_u32;
+    /// assert_eq!(modint::ModInt998244353::new(998244343), a - b);
     /// ```
     fn sub(mut self, rhs: u32) -> Self::Output {
+        // -= 演算子に処理を委譲し、結果を新しい値として返す。
         self -= rhs;
         self
     }
 }
 
-/// Implements the subtraction assignment operation (`-=`) for `ModInt998244353`.
-/// `ModInt998244353` に対する減算代入演算 (`-=`) を実装する.
-impl SubAssign for ModInt998244353 {
-    /// Subtracts another `ModInt998244353` instance from `self`.
-    /// 別の `ModInt998244353` インスタンスを `self` から減算する.
+/// `ModInt998244353` に対する減算代入演算 (`-=`) を実装する。
+impl ops::SubAssign for ModInt998244353 {
+    /// 別の `ModInt998244353` インスタンスを `self` から減算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The right-hand side operand.
-    ///          右辺のオペランド.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 右辺のオペランド。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(10);
-    /// let b = ModInt998244353::new(20);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(10);
+    /// let b = modint::ModInt998244353::new(20);
     /// a -= b;
-    /// assert_eq!(ModInt998244353::new(998244343), a);
+    /// assert_eq!(modint::ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: Self) {
+        // self.val が rhs.val 以上であれば、そのまま引くだけで [0, MOD) の範囲に収まる。
         if self.val >= rhs.val {
             self.val -= rhs.val;
         } else {
+            // self.val が rhs.val 未満の場合はアンダーフローするため、先に MOD を足してから引く。
             self.val += MOD - rhs.val;
         }
     }
 }
 
-/// Implements the subtraction assignment operation (`-=`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する減算代入演算 (`-=`) を実装する.
-impl SubAssign<u32> for ModInt998244353 {
-    /// Subtracts a `u32` value from `self`.
-    /// `u32` の値を `self` から減算する.
+/// `ModInt998244353` と `u32` に対する減算代入演算 (`-=`) を実装する。
+impl ops::SubAssign<u32> for ModInt998244353 {
+    /// `u32` の値を `self` から減算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to subtract.
-    ///          減算する `u32` の値.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 減算する `u32` の値。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(10);
-    /// a -= 20u32;
-    /// assert_eq!(ModInt998244353::new(998244343), a);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(10);
+    /// a -= 20_u32;
+    /// assert_eq!(modint::ModInt998244353::new(998244343), a);
     /// ```
     fn sub_assign(&mut self, rhs: u32) {
+        // rhs は MOD 未満とは限らないため、先に MOD で還元しておく。
         let rhs_mod = rhs % MOD;
+        // self.val が rhs_mod 以上であれば、そのまま引くだけで [0, MOD) の範囲に収まる。
         if self.val >= rhs_mod {
             self.val -= rhs_mod;
         } else {
+            // self.val が rhs_mod 未満の場合はアンダーフローするため、先に MOD を足してから引く。
             self.val += MOD - rhs_mod;
         }
     }
 }
 
-/// Implements the multiplication operation (`*`) for two `ModInt998244353` instances.
-/// 2つの `ModInt998244353` インスタンスに対する乗算演算 (`*`) を実装する.
-impl Mul for ModInt998244353 {
+/// 2 つの `ModInt998244353` インスタンスに対する乗算演算 (`*`) を実装する。
+impl ops::Mul for ModInt998244353 {
     type Output = Self;
 
-    /// Multiplies two `ModInt998244353` instances.
-    /// 2つの `ModInt998244353` インスタンスを乗算する.
+    /// 2 つの `ModInt998244353` インスタンスを乗算する。
     ///
     /// # Args
-    /// - `self`: The left-hand side operand.
-    ///           左辺のオペランド.
-    /// - `rhs`: The right-hand side operand.
-    ///          右辺のオペランド.
+    /// - `self`: 左辺のオペランド。
+    /// - `rhs`: 右辺のオペランド。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the product.
-    /// 積を表す新しい `ModInt998244353` インスタンス.
+    /// 積を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(100_000);
-    /// let b = ModInt998244353::new(100_000);
-    /// assert_eq!(ModInt998244353::new(17556470), a * b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(100_000);
+    /// let b = modint::ModInt998244353::new(100_000);
+    /// assert_eq!(modint::ModInt998244353::new(17556470), a * b);
     /// ```
     fn mul(self, rhs: Self) -> Self::Output {
+        // self.val * rhs.val は最大で (MOD - 1)^2 程度になり u32 を超えるため、
+        // u64 に拡張してから乗算し、new で MOD により還元する。
         ModInt998244353::new((self.val as u64) * (rhs.val as u64))
     }
 }
 
-/// Implements the multiplication operation (`*`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する乗算演算 (`*`) を実装する.
-impl Mul<u32> for ModInt998244353 {
+/// `ModInt998244353` と `u32` に対する乗算演算 (`*`) を実装する。
+impl ops::Mul<u32> for ModInt998244353 {
     type Output = Self;
 
-    /// Multiplies a `ModInt998244353` instance by a `u32` value.
-    /// `ModInt998244353` インスタンスに `u32` の値を乗算する.
+    /// `ModInt998244353` インスタンスに `u32` の値を乗算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance.
-    ///           `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to multiply by.
-    ///          乗算する `u32` の値.
+    /// - `self`: `ModInt998244353` インスタンス。
+    /// - `rhs`: 乗算する `u32` の値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the product.
-    /// 積を表す新しい `ModInt998244353` インスタンス.
+    /// 積を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(100_000);
-    /// let b: u32 = 100_000;
-    /// assert_eq!(ModInt998244353::new(17556470), a * b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(100_000);
+    /// let b = 100_000_u32;
+    /// assert_eq!(modint::ModInt998244353::new(17556470), a * b);
     /// ```
     fn mul(self, rhs: u32) -> Self::Output {
+        // self.val * rhs は最大で (MOD - 1) * (u32::MAX) 程度になり u32 を超えるため、
+        // u64 に拡張してから乗算し、new で MOD により還元する。
         ModInt998244353::new((self.val as u64) * (rhs as u64))
     }
 }
 
-/// Implements the multiplication assignment operation (`*=`) for `ModInt998244353`.
-/// `ModInt998244353` に対する乗算代入演算 (`*=`) を実装する.
-impl MulAssign for ModInt998244353 {
-    /// Multiplies `self` by another `ModInt998244353` instance.
-    /// `self` に別の `ModInt998244353` インスタンスを乗算する.
+/// `ModInt998244353` に対する乗算代入演算 (`*=`) を実装する。
+impl ops::MulAssign for ModInt998244353 {
+    /// `self` に別の `ModInt998244353` インスタンスを乗算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The right-hand side operand.
-    ///          右辺のオペランド.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 右辺のオペランド。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(100_000);
-    /// let b = ModInt998244353::new(100_000);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(100_000);
+    /// let b = modint::ModInt998244353::new(100_000);
     /// a *= b;
-    /// assert_eq!(ModInt998244353::new(17556470), a);
+    /// assert_eq!(modint::ModInt998244353::new(17556470), a);
     /// ```
     fn mul_assign(&mut self, rhs: Self) {
+        // 乗算演算子に処理を委譲する。
         *self = *self * rhs;
     }
 }
 
-/// Implements the multiplication assignment operation (`*=`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する乗算代入演算 (`*=`) を実装する.
-impl MulAssign<u32> for ModInt998244353 {
-    /// Multiplies `self` by a `u32` value.
-    /// `self` に `u32` の値を乗算する.
+/// `ModInt998244353` と `u32` に対する乗算代入演算 (`*=`) を実装する。
+impl ops::MulAssign<u32> for ModInt998244353 {
+    /// `self` に `u32` の値を乗算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` value to multiply by.
-    ///          乗算する `u32` の値.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 乗算する `u32` の値。
     ///
     /// # Constraints
-    /// There are no constraints on the input values.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(100_000);
-    /// a *= 100_000u32;
-    /// assert_eq!(ModInt998244353::new(17556470), a);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(100_000);
+    /// a *= 100_000_u32;
+    /// assert_eq!(modint::ModInt998244353::new(17556470), a);
     /// ```
     fn mul_assign(&mut self, rhs: u32) {
+        // 乗算演算子に処理を委譲する。
         *self = *self * rhs;
     }
 }
 
-/// Implements the division operation (`/`) for two `ModInt998244353` instances.
-/// 2つの `ModInt998244353` インスタンスに対する除算演算 (`/`) を実装する.
-impl Div for ModInt998244353 {
+/// 2 つの `ModInt998244353` インスタンスに対する除算演算 (`/`) を実装する。
+impl ops::Div for ModInt998244353 {
     type Output = Self;
 
-    /// Divides `self` by another `ModInt998244353` instance using modular inverse.
-    /// モジュラ逆数を用いて, `self` を別の `ModInt998244353` インスタンスで除算する.
+    /// モジュラー逆元を用いて、`self` を別の `ModInt998244353` インスタンスで除算する。
     ///
     /// # Args
-    /// - `self`: The dividend.
-    ///           被除数.
-    /// - `rhs`: The divisor.
-    ///          除数.
+    /// - `self`: 被除数。
+    /// - `rhs`: 除数。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the quotient.
-    /// 商を表す新しい `ModInt998244353` インスタンス.
+    /// 商を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input values, but the divisor must not be zero.
-    /// 入力値に関する制約はないが, 除数がゼロであってはならない.
+    /// - 除数がゼロであってはならない。
     ///
     /// # Panics
-    /// Panics if the divisor `rhs` is zero.
-    /// 除数 `rhs` がゼロの場合にパニックする.
+    /// 除数 `rhs` がゼロの場合にパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(log M), where M is the modulus.
-    ///                          ここで M は法である.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(log M)。ここで M は法である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(20);
-    /// let b = ModInt998244353::new(4);
-    /// assert_eq!(ModInt998244353::new(5), a / b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(20);
+    /// let b = modint::ModInt998244353::new(4);
+    /// assert_eq!(modint::ModInt998244353::new(5), a / b);
     /// ```
     fn div(self, rhs: Self) -> Self::Output {
-        // Calculate modular inverse for division.
+        // 除算を乗算として扱うため、除数の逆元をあらかじめ計算する。
+        // 逆元が存在しない (rhs が 0 の) 場合はパニックする。
         let inv_rhs = rhs
             .inv()
             .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
@@ -736,45 +683,39 @@ impl Div for ModInt998244353 {
     }
 }
 
-/// Implements the division operation (`/`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する除算演算 (`/`) を実装する.
-impl Div<u32> for ModInt998244353 {
+/// `ModInt998244353` と `u32` に対する除算演算 (`/`) を実装する。
+impl ops::Div<u32> for ModInt998244353 {
     type Output = Self;
 
-    /// Divides a `ModInt998244353` instance by a `u32` value using modular inverse.
-    /// モジュラ逆数を用いて, `ModInt998244353` インスタンスを `u32` の値で除算する.
+    /// モジュラー逆元を用いて、`ModInt998244353` インスタンスを `u32` の値で除算する。
     ///
     /// # Args
-    /// - `self`: The dividend.
-    ///           被除数.
-    /// - `rhs`: The `u32` divisor.
-    ///          `u32` の除数.
+    /// - `self`: 被除数。
+    /// - `rhs`: `u32` の除数。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the quotient.
-    /// 商を表す新しい `ModInt998244353` インスタンス.
+    /// 商を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// The divisor must not be zero.
-    /// 除数がゼロであってはならない.
+    /// - 除数がゼロであってはならない。
     ///
     /// # Panics
-    /// Panics if the divisor `rhs` is zero.
-    /// 除数 `rhs` がゼロの場合にパニックする.
+    /// 除数 `rhs` がゼロの場合にパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(log M), where M is the modulus.
-    ///                          ここで M は法である.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(log M)。ここで M は法である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(20);
-    /// let b: u32 = 4;
-    /// assert_eq!(ModInt998244353::new(5), a / b);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let a = modint::ModInt998244353::new(20);
+    /// let b = 4_u32;
+    /// assert_eq!(modint::ModInt998244353::new(5), a / b);
     /// ```
     fn div(self, rhs: u32) -> Self::Output {
+        // rhs を ModInt998244353 に変換したうえで、除算演算子に処理を委譲する。
         let rhs_mod = ModInt998244353::new(rhs as u64);
         let inv_rhs = rhs_mod
             .inv()
@@ -783,115 +724,102 @@ impl Div<u32> for ModInt998244353 {
     }
 }
 
-/// Implements the division assignment operation (`/=`) for `ModInt998244353`.
-/// `ModInt998244353` に対する除算代入演算 (`/=`) を実装する.
-impl DivAssign for ModInt998244353 {
-    /// Divides `self` by another `ModInt998244353` instance.
-    /// `self` を別の `ModInt998244353` インスタンスで除算する.
+/// `ModInt998244353` に対する除算代入演算 (`/=`) を実装する。
+impl ops::DivAssign for ModInt998244353 {
+    /// `self` を別の `ModInt998244353` インスタンスで除算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The divisor.
-    ///          除数.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: 除数。
     ///
     /// # Constraints
-    /// The divisor must not be zero.
-    /// 除数がゼロであってはならない.
+    /// - 除数がゼロであってはならない。
     ///
     /// # Panics
-    /// Panics if the divisor `rhs` is zero.
-    /// 除数 `rhs` がゼロの場合にパニックする.
+    /// 除数 `rhs` がゼロの場合にパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(log M), where M is the modulus.
-    ///                          ここで M は法である.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(log M)。ここで M は法である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(20);
-    /// let b = ModInt998244353::new(4);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(20);
+    /// let b = modint::ModInt998244353::new(4);
     /// a /= b;
-    /// assert_eq!(ModInt998244353::new(5), a);
+    /// assert_eq!(modint::ModInt998244353::new(5), a);
     /// ```
     fn div_assign(&mut self, rhs: Self) {
+        // 除算演算子に処理を委譲する。
         *self = *self / rhs;
     }
 }
 
-/// Implements the division assignment operation (`/=`) for `ModInt998244353` and `u32`.
-/// `ModInt998244353` と `u32` に対する除算代入演算 (`/=`) を実装する.
-impl DivAssign<u32> for ModInt998244353 {
-    /// Divides `self` by a `u32` value.
-    /// `self` を `u32` の値で除算する.
+/// `ModInt998244353` と `u32` に対する除算代入演算 (`/=`) を実装する。
+impl ops::DivAssign<u32> for ModInt998244353 {
+    /// `self` を `u32` の値で除算する。
     ///
     /// # Args
-    /// - `self`: The `ModInt998244353` instance to be modified.
-    ///           変更される `ModInt998244353` インスタンス.
-    /// - `rhs`: The `u32` divisor.
-    ///          `u32` の除数.
+    /// - `self`: 変更される `ModInt998244353` インスタンス。
+    /// - `rhs`: `u32` の除数。
     ///
     /// # Constraints
-    /// The divisor must not be zero.
-    /// 除数がゼロであってはならない.
+    /// - 除数がゼロであってはならない。
     ///
     /// # Panics
-    /// Panics if the divisor `rhs` is zero.
-    /// 除数 `rhs` がゼロの場合にパニックする.
+    /// 除数 `rhs` がゼロの場合にパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(log M), where M is the modulus.
-    ///                          ここで M は法である.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(log M)。ここで M は法である。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let mut a = ModInt998244353::new(20);
-    /// a /= 4u32;
-    /// assert_eq!(ModInt998244353::new(5), a);
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let mut a = modint::ModInt998244353::new(20);
+    /// a /= 4_u32;
+    /// assert_eq!(modint::ModInt998244353::new(5), a);
     /// ```
     fn div_assign(&mut self, rhs: u32) {
+        // 除算演算子に処理を委譲する。
         *self = *self / rhs;
     }
 }
 
-/// Implements the unary negation operation (`-`) for `ModInt998244353`.
-/// `ModInt998244353` に対する単項否定演算 (`-`) を実装する.
-impl Neg for ModInt998244353 {
+/// `ModInt998244353` に対する単項否定演算 (`-`) を実装する。
+impl ops::Neg for ModInt998244353 {
     type Output = Self;
 
-    /// Computes the unary negation of a `ModInt998244353` instance.
-    /// `ModInt998244353` インスタンスの単項否定 (符号反転) を計算する.
+    /// `ModInt998244353` インスタンスの単項否定 (符号反転) を計算する。
     ///
     /// # Args
-    /// - `self`: The value to negate.
-    ///           符号反転する値.
+    /// - `self`: 符号反転する値。
     ///
     /// # Returns
-    /// A new `ModInt998244353` instance representing the negated value.
-    /// 符号反転された値を表す新しい `ModInt998244353` インスタンス.
+    /// 符号反転された値を表す新しい `ModInt998244353` インスタンス。
     ///
     /// # Constraints
-    /// There are no constraints on the input value.
-    /// 入力値に関する制約はない.
+    /// 入力値に関する制約はない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: O(1)。
+    /// - 空間計算量: O(1)。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::modulo998244353::modint::ModInt998244353;
-    /// let a = ModInt998244353::new(10);
-    /// assert_eq!(ModInt998244353::new(998244343), -a);
+    /// use anmitsu::modulo998244353::modint;
     ///
-    /// let zero = ModInt998244353::new(0);
+    /// let a = modint::ModInt998244353::new(10);
+    /// assert_eq!(modint::ModInt998244353::new(998244343), -a);
+    ///
+    /// let zero = modint::ModInt998244353::new(0);
     /// assert_eq!(zero, -zero);
     /// ```
     fn neg(self) -> Self::Output {
+        // 0 の加法逆元は 0 自身であり、それ以外は MOD から val を引いた値が加法逆元となる。
         if self.val == 0 {
             Self::new_raw(0)
         } else {
@@ -900,17 +828,652 @@ impl Neg for ModInt998244353 {
     }
 }
 
+/// `ModInt998244353` の表示形式 (`Display`) を実装する。
 impl fmt::Display for ModInt998244353 {
+    /// 内部の値をそのまま文字列として書式化する。
+    ///
+    /// # Args
+    /// - `f`: 書き込み先のフォーマッタ。
+    ///
+    /// # Returns
+    /// 書式化の結果を表す `fmt::Result`。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::new(42);
+    /// assert_eq!("42", format!("{}", m));
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.val)
     }
 }
 
-/// `ModInt998244353` の既定値を提供する.
-///
-/// `0` を表す値を返す.
+/// `ModInt998244353` の既定値を提供する。
 impl Default for ModInt998244353 {
+    /// 既定値として、値が `0` である `ModInt998244353` を返す。
+    ///
+    /// # Returns
+    /// 値が `0` である `ModInt998244353` インスタンス。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::modulo998244353::modint;
+    ///
+    /// let m = modint::ModInt998244353::default();
+    /// assert_eq!(0, m.val());
+    /// ```
     fn default() -> Self {
         ModInt998244353 { val: 0 }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // new のテスト: 戻り値を検証する。
+    mod new {
+        use super::*;
+
+        /// Scenario: MOD 未満の値を渡すと、そのままの値を持つインスタンスが生成される。
+        /// - Given: MOD 未満の値がある。
+        /// - When: `new` でインスタンスを生成する。
+        /// - Then: 入力と同じ値を持つインスタンスが得られる。
+        #[test]
+        fn creates_instance_with_value_unchanged_when_less_than_mod() {
+            // Given
+            let cases = [0_u64, 1, 123, (MOD - 1) as u64];
+
+            for n in cases {
+                // When
+                let sut = ModInt998244353::new(n);
+                // Then
+                assert_eq!(n as u32, sut.val());
+            }
+        }
+
+        /// Scenario: MOD 以上の値を渡すと、MOD で還元された値になる。
+        /// - Given: MOD 以上の値がある。
+        /// - When: `new` でインスタンスを生成する。
+        /// - Then: `n mod MOD` の値を持つインスタンスが得られる。
+        #[test]
+        fn wraps_around_when_value_is_ge_mod() {
+            // Given
+            let cases = [
+                (MOD as u64, 0_u32),
+                (MOD as u64 + 1, 1),
+                (2 * MOD as u64, 0),
+                (u64::MAX, (u64::MAX % MOD as u64) as u32),
+            ];
+
+            for (n, expected) in cases {
+                // When
+                let sut = ModInt998244353::new(n);
+                // Then
+                assert_eq!(expected, sut.val());
+            }
+        }
+    }
+
+    // new_raw のテスト: 戻り値および異常系を検証する。
+    mod new_raw {
+        use super::*;
+
+        /// Scenario: MOD 未満の値を渡すと、そのままの値を持つインスタンスが生成される。
+        /// - Given: MOD 未満の値がある。
+        /// - When: `new_raw` でインスタンスを生成する。
+        /// - Then: 入力と同じ値を持つインスタンスが得られる。
+        #[test]
+        fn creates_instance_for_valid_value() {
+            // Given
+            let n = MOD - 1;
+            // When
+            let sut = ModInt998244353::new_raw(n);
+            // Then
+            assert_eq!(n, sut.val());
+        }
+
+        /// Scenario: MOD と等しい値を渡すとパニックする。
+        /// - Given: MOD と等しい値がある。
+        /// - When: `new_raw` でインスタンスを生成する。
+        /// - Then: パニックする。
+        #[test]
+        #[should_panic(expected = "Raw value 998244353 must be less than MOD 998244353")]
+        fn panics_when_value_equals_mod() {
+            // Given, When, Then (パニックする)
+            ModInt998244353::new_raw(MOD);
+        }
+
+        /// Scenario: MOD を超える値を渡すとパニックする。
+        /// - Given: MOD より大きい値がある。
+        /// - When: `new_raw` でインスタンスを生成する。
+        /// - Then: パニックする。
+        #[test]
+        #[should_panic(expected = "Raw value 998244354 must be less than MOD 998244353")]
+        fn panics_when_value_exceeds_mod() {
+            // Given, When, Then (パニックする)
+            ModInt998244353::new_raw(MOD + 1);
+        }
+    }
+
+    // From<u32>, From<i32> のテスト: 戻り値を検証する。
+    mod from {
+        use super::*;
+
+        /// Scenario: `u32` の値は、MOD で還元されて変換される。
+        /// - Given: 0、MOD 未満の値、MOD 以上の値、u32::MAX を含む複数の入力がある。
+        /// - When: `ModInt998244353::from` で変換する。
+        /// - Then: 各ケースで `input mod MOD` の値が得られる。
+        #[test]
+        fn converts_u32_reducing_by_modulus() {
+            // Given
+            let cases = [
+                (0_u32, 0_u32),
+                (123, 123),
+                (MOD, 0),
+                (MOD + 10, 10),
+                (u32::MAX, u32::MAX % MOD),
+            ];
+
+            for (input, expected) in cases {
+                // When
+                let sut = ModInt998244353::from(input);
+                // Then
+                assert_eq!(expected, sut.val());
+            }
+        }
+
+        /// Scenario: `i32` の非負の値は、MOD で還元されて変換される。
+        /// - Given: 0、通常の正の値、型の最大値 (i32::MAX) がある。
+        /// - When: `ModInt998244353::from` で変換する。
+        /// - Then: 各ケースで `input mod MOD` の値が得られる。
+        #[test]
+        fn converts_nonnegative_i32_reducing_by_modulus() {
+            // Given
+            let cases = [
+                (0_i32, 0_u32),
+                (123, 123),
+                (i32::MAX, (i32::MAX as u64 % MOD as u64) as u32),
+            ];
+
+            for (input, expected) in cases {
+                // When
+                let sut = ModInt998244353::from(input);
+                // Then
+                assert_eq!(expected, sut.val());
+            }
+        }
+
+        /// Scenario: `i32` の負の値は、法演算における正の等価値に変換される。
+        /// - Given: -1、型の最小値 (i32::MIN) を含む負の値がある。
+        /// - When: `ModInt998244353::from` で変換する。
+        /// - Then: MOD を加えて正規化された値が得られる。
+        #[test]
+        fn converts_negative_i32_to_positive_equivalent() {
+            // Given
+            let cases = [
+                (-1_i32, MOD - 1),
+                (-123, MOD - 123),
+                // (-2147483648 % 998244353 + 998244353) % 998244353 = 847249411
+                (i32::MIN, 847249411),
+            ];
+
+            for (input, expected) in cases {
+                // When
+                let sut = ModInt998244353::from(input);
+                // Then
+                assert_eq!(expected, sut.val());
+            }
+        }
+    }
+
+    // add, add_assign のテスト: 戻り値と状態変化を検証する。
+    mod add {
+        use super::*;
+
+        /// Scenario: `+` および `+=` は、MOD の下での和を返す。
+        /// - Given: 和が MOD を超えない、または超える複数の値の組がある。
+        /// - When: 加算 (`+`) および加算代入 (`+=`) を行う。
+        /// - Then: いずれも `(a + b) mod MOD` になる。
+        #[test]
+        fn computes_sum_modulo_mod() {
+            // Given
+            let cases = [
+                (1_u32, 1_u32, 2_u32),
+                (MOD - 1, 1, 0),
+                (MOD - 1, 2, 1),
+                (0, 0, 0),
+                (MOD - 1, MOD - 1, MOD - 2),
+            ];
+
+            for (a_val, b_val, expected) in cases {
+                let a = ModInt998244353::new(a_val as u64);
+                let b = ModInt998244353::new(b_val as u64);
+
+                // When (+)
+                let sut = a + b;
+                // Then (+)
+                assert_eq!(expected, sut.val());
+
+                // When (+=)
+                let mut sut = a;
+                sut += b;
+                // Then (+=)
+                assert_eq!(expected, sut.val());
+            }
+        }
+
+        /// Scenario: `u32` を右辺に取る `+` および `+=` も、MOD の下での和を返す。
+        /// - Given: `ModInt998244353` と `u32` の組がある。
+        /// - When: 加算 (`+`) および加算代入 (`+=`) を行う。
+        /// - Then: いずれも `(a + b) mod MOD` になる。
+        #[test]
+        fn computes_sum_with_u32_rhs() {
+            // Given
+            let a = ModInt998244353::new(998244350);
+            let b = 10_u32;
+
+            // When (+)
+            let sut = a + b;
+            // Then (+)
+            assert_eq!(7, sut.val());
+
+            // When (+=)
+            let mut sut = a;
+            sut += b;
+            // Then (+=)
+            assert_eq!(7, sut.val());
+        }
+    }
+
+    // sub, sub_assign のテスト: 戻り値と状態変化を検証する。
+    mod sub {
+        use super::*;
+
+        /// Scenario: `-` および `-=` は、MOD の下での差を返す。
+        /// - Given: 被減数が減数以上、または未満の複数の値の組がある。
+        /// - When: 減算 (`-`) および減算代入 (`-=`) を行う。
+        /// - Then: いずれも `(a - b) mod MOD` になる。
+        #[test]
+        fn computes_difference_modulo_mod() {
+            // Given
+            let cases = [
+                (2_u64, 1_u64, 1_u32),
+                (1, 2, MOD - 1),
+                (0, 0, 0),
+                (123, 123, 0),
+            ];
+
+            for (a_val, b_val, expected) in cases {
+                let a = ModInt998244353::new(a_val);
+                let b = ModInt998244353::new(b_val);
+
+                // When (-)
+                let sut = a - b;
+                // Then (-)
+                assert_eq!(expected, sut.val());
+
+                // When (-=)
+                let mut sut = a;
+                sut -= b;
+                // Then (-=)
+                assert_eq!(expected, sut.val());
+            }
+        }
+
+        /// Scenario: `u32` を右辺に取る `-` および `-=` も、MOD の下での差を返す。
+        /// - Given: `ModInt998244353` と `u32` の組がある。
+        /// - When: 減算 (`-`) および減算代入 (`-=`) を行う。
+        /// - Then: いずれも `(a - b) mod MOD` になる。
+        #[test]
+        fn computes_difference_with_u32_rhs() {
+            // Given
+            let a = ModInt998244353::new(10);
+            let b = 20_u32;
+
+            // When (-)
+            let sut = a - b;
+            // Then (-)
+            assert_eq!(MOD - 10, sut.val());
+
+            // When (-=)
+            let mut sut = a;
+            sut -= b;
+            // Then (-=)
+            assert_eq!(MOD - 10, sut.val());
+        }
+    }
+
+    // mul, mul_assign のテスト: 戻り値と状態変化を検証する。
+    mod mul {
+        use super::*;
+
+        /// Scenario: `*` および `*=` は、MOD の下での積を返す。
+        /// - Given: 0 を含む値、MOD - 1 同士など複数の値の組がある。
+        /// - When: 乗算 (`*`) および乗算代入 (`*=`) を行う。
+        /// - Then: いずれも `(a * b) mod MOD` になる。
+        #[test]
+        fn computes_product_modulo_mod() {
+            // Given
+            let cases = [
+                (2_u64, 3_u64, 6_u32),
+                (0, 123, 0),
+                (MOD as u64 - 1, MOD as u64 - 1, 1), // (-1) * (-1) = 1
+                (100_000, 100_000, 17556470),        // 10_000_000_000 % MOD
+            ];
+
+            for (a_val, b_val, expected) in cases {
+                let a = ModInt998244353::new(a_val);
+                let b = ModInt998244353::new(b_val);
+
+                // When (*)
+                let sut = a * b;
+                // Then (*)
+                assert_eq!(expected, sut.val());
+
+                // When (*=)
+                let mut sut = a;
+                sut *= b;
+                // Then (*=)
+                assert_eq!(expected, sut.val());
+            }
+        }
+
+        /// Scenario: `u32` を右辺に取る `*` および `*=` も、MOD の下での積を返す。
+        /// - Given: `ModInt998244353` と `u32` の組がある。
+        /// - When: 乗算 (`*`) および乗算代入 (`*=`) を行う。
+        /// - Then: いずれも `(a * b) mod MOD` になる。
+        #[test]
+        fn computes_product_with_u32_rhs() {
+            // Given
+            let a = ModInt998244353::new(100_000);
+            let b = 100_000_u32;
+
+            // When (*)
+            let sut = a * b;
+            // Then (*)
+            assert_eq!(17556470, sut.val());
+
+            // When (*=)
+            let mut sut = a;
+            sut *= b;
+            // Then (*=)
+            assert_eq!(17556470, sut.val());
+        }
+    }
+
+    // div, div_assign のテスト: 戻り値、状態変化、および異常系を検証する。
+    mod div {
+        use super::*;
+
+        /// Scenario: `/` および `/=` は、除数の逆元を用いた商を返す。
+        /// - Given: 割り切れる組、割り切れない組を含む複数の値の組がある。
+        /// - When: 除算 (`/`) および除算代入 (`/=`) を行う。
+        /// - Then: いずれも商と除数の積が被除数に一致する。
+        #[test]
+        fn computes_quotient_via_modular_inverse() {
+            // Given
+            let cases = [(6_u64, 2_u64), (7, 2), (0, 123), (123, 123)];
+
+            for (a_val, b_val) in cases {
+                let a = ModInt998244353::new(a_val);
+                let b = ModInt998244353::new(b_val);
+
+                // When (/)
+                let sut = a / b;
+                // Then (/)
+                assert_eq!(a, sut * b);
+
+                // When (/=)
+                let mut sut = a;
+                sut /= b;
+                // Then (/=)
+                assert_eq!(a, sut * b);
+            }
+        }
+
+        /// Scenario: ゼロによる除算 (`/`) はパニックする。
+        /// - Given: 除数がゼロの組がある。
+        /// - When: 除算する。
+        /// - Then: パニックする。
+        #[test]
+        #[should_panic(expected = "Division by zero is not allowed for ModInt998244353")]
+        fn div_panics_when_divisor_is_zero() {
+            // Given
+            let a = ModInt998244353::new(10);
+            let b = ModInt998244353::new(0);
+            // When, Then (パニックする)
+            let _ = a / b;
+        }
+
+        /// Scenario: ゼロによる除算代入 (`/=`) はパニックする。
+        /// - Given: 除数がゼロの組がある。
+        /// - When: 除算代入する。
+        /// - Then: パニックする。
+        #[test]
+        #[should_panic(expected = "Division by zero is not allowed for ModInt998244353")]
+        fn div_assign_panics_when_divisor_is_zero() {
+            // Given
+            let mut a = ModInt998244353::new(10);
+            let b = ModInt998244353::new(0);
+            // When, Then (パニックする)
+            a /= b;
+        }
+    }
+
+    // neg のテスト: 戻り値を検証する。
+    mod neg {
+        use super::*;
+
+        /// Scenario: 単項否定は加法逆元を返し、2 回適用すると元の値に戻る。
+        /// - Given: 0、通常の値、MOD - 1 を含む複数の値がある。
+        /// - When: 単項否定を行う。
+        /// - Then: `MOD - val` (val が 0 のときは 0) になり、もう一度否定すると元の値に戻る。
+        #[test]
+        fn negates_value_and_is_involutive() {
+            // Given
+            let cases = [
+                (0_u64, 0_u32),
+                (1, MOD - 1),
+                (123, MOD - 123),
+                (MOD as u64 - 1, 1),
+            ];
+
+            for (val, expected) in cases {
+                let sut = ModInt998244353::new(val);
+
+                // When
+                let negated = -sut;
+                // Then
+                assert_eq!(expected, negated.val());
+                assert_eq!(sut, -negated);
+            }
+        }
+    }
+
+    // pow のテスト: 戻り値を検証する。
+    mod pow {
+        use super::*;
+
+        /// Scenario: `pow` は、累乗の結果を MOD の下で返す。
+        /// - Given: 通常の底と指数、指数 0、指数 1 を含む複数の組がある。
+        /// - When: べき乗を計算する。
+        /// - Then: 各ケースで期待した値が返る。
+        #[test]
+        fn computes_power_modulo_mod() {
+            // Given
+            let cases = [
+                (2_u64, 10_usize, 1024_u32),
+                (3, 4, 81),
+                (123, 0, 1),   // 指数が 0 の場合は底に関わらず 1 になる。
+                (123, 1, 123), // 指数が 1 の場合は底そのものになる。
+                (0, 5, 0),
+                (MOD as u64 - 1, 2, 1),
+            ];
+
+            for (base_val, exp, expected) in cases {
+                // When
+                let sut = ModInt998244353::new(base_val);
+                let result = sut.pow(exp);
+                // Then
+                assert_eq!(expected, result.val());
+            }
+        }
+    }
+
+    // inv のテスト: 戻り値を検証する。
+    mod inv {
+        use super::*;
+
+        /// Scenario: 非ゼロの値の逆元は、元の値と乗算すると乗法単位元 1 になる。
+        /// - Given: 通常の値と、境界値 (MOD - 1) がある。
+        /// - When: 逆元を計算する。
+        /// - Then: `Some` が返り、元の値との積が 1 になる。
+        #[test]
+        fn multiplies_to_one_with_original_value() {
+            // Given
+            let cases = [2_u64, 123, MOD as u64 - 1];
+
+            for val in cases {
+                let sut = ModInt998244353::new(val);
+                let one = ModInt998244353::new(1);
+
+                // When
+                let result = sut.inv();
+
+                // Then
+                assert!(result.is_some());
+                assert_eq!(one, sut * result.unwrap());
+            }
+        }
+
+        /// Scenario: ゼロには逆元が存在しない。
+        /// - Given: 値が 0 のインスタンスがある。
+        /// - When: 逆元を計算する。
+        /// - Then: `None` が返る。
+        #[test]
+        fn returns_none_for_zero() {
+            // Given
+            let sut = ModInt998244353::new(0);
+            // When
+            let result = sut.inv();
+            // Then
+            assert!(result.is_none());
+        }
+    }
+
+    // Display のテスト: 依存先 (フォーマッタ) への出力内容を検証する。
+    mod display {
+        use super::*;
+
+        /// Scenario: `Display` は、内部値をそのまま文字列として出力する。
+        /// - Given: MOD 未満の値、MOD 以上の値がある。
+        /// - When: `format!` で文字列化する。
+        /// - Then: 還元後の値がそのまま文字列になる。
+        #[test]
+        fn formats_underlying_value() {
+            // Given
+            let cases = [(10_u64, "10"), (MOD as u64 + 5, "5")];
+
+            for (input, expected) in cases {
+                let sut = ModInt998244353::new(input);
+
+                // When
+                let result = format!("{}", sut);
+
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+    }
+
+    // Default のテスト: 戻り値を検証する。
+    mod default {
+        use super::*;
+
+        /// Scenario: 既定値は、値が 0 のインスタンスになる。
+        /// - Given: (前提なし)
+        /// - When: `Default::default` を呼ぶ。
+        /// - Then: 値が 0 のインスタンスが得られる。
+        #[test]
+        fn returns_zero_value() {
+            // Given, When
+            let sut = ModInt998244353::default();
+            // Then
+            assert_eq!(0, sut.val());
+        }
+    }
+
+    // PartialEq, Eq, Copy, Clone の派生実装のテスト: 戻り値を検証する。
+    mod derived_traits {
+        use super::*;
+
+        /// Scenario: 内部値が等しいインスタンス同士は等価と判定される。
+        /// - Given: 同じ値を持つインスタンスと、MOD の加算により同じ剰余類に属するインスタンスがある。
+        /// - When: 等価性を比較する。
+        /// - Then: いずれも等しいと判定される。
+        #[test]
+        fn considers_instances_with_same_residue_equal() {
+            // Given
+            let a1 = ModInt998244353::new(100);
+            let a2 = ModInt998244353::new(100);
+            let c = ModInt998244353::new(MOD as u64 + 100);
+
+            // When, Then
+            assert_eq!(a1, a2);
+            assert_eq!(a1, c);
+        }
+
+        /// Scenario: 内部値が異なるインスタンス同士は非等価と判定される。
+        /// - Given: 異なる値を持つ 2 つのインスタンスがある。
+        /// - When: 等価性を比較する。
+        /// - Then: 等しくないと判定される。
+        #[test]
+        fn considers_instances_with_different_residue_unequal() {
+            // Given
+            let a = ModInt998244353::new(100);
+            let b = ModInt998244353::new(200);
+
+            // When, Then
+            assert_ne!(a, b);
+        }
+
+        /// Scenario: `Copy` によって複製された値は、元の値と独立に変更できる。
+        /// - Given: 1 つのインスタンスがある。
+        /// - When: 代入によって複製し、複製先だけを変更する。
+        /// - Then: 元のインスタンスは変更されない。
+        #[test]
+        fn copy_leaves_original_unaffected() {
+            // Given
+            let sut = ModInt998244353::new(12345);
+
+            // When
+            let mut copied = sut;
+            copied += 1_u32;
+
+            // Then
+            assert_eq!(12345, sut.val());
+            assert_eq!(12346, copied.val());
+        }
+
+        /// Scenario: `Clone` によって複製された値は、元の値と独立に変更できる。
+        /// - Given: 1 つのインスタンスがある。
+        /// - When: `clone` によって複製し、複製先だけを変更する。
+        /// - Then: 元のインスタンスは変更されない。
+        #[test]
+        fn clone_leaves_original_unaffected() {
+            // Given
+            let sut = ModInt998244353::new(12345);
+
+            // When
+            let mut cloned = sut.clone();
+            cloned -= 1_u32;
+
+            // Then
+            assert_eq!(12345, sut.val());
+            assert_eq!(12344, cloned.val());
+        }
     }
 }
