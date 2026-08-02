@@ -1,5 +1,8 @@
 pub mod bin {
     pub mod library_checker {
+        pub mod bundled {
+            pub mod convolution_mod;
+        }
         pub mod convolution_mod;
     }
 }
