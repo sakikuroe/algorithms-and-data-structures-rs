@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 rand = "0.9.1"
+
+[[bin]]
+name = "lc-convolution-mod"
+path = "src/bin/library_checker/convolution_mod.rs"
