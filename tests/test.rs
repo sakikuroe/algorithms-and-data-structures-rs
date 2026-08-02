@@ -1,3 +1,9 @@
+pub mod bin {
+    pub mod library_checker {
+        pub mod convolution_mod;
+    }
+}
+
 pub mod ds {
     pub mod segment_tree {
         pub mod segment_tree_dense;
