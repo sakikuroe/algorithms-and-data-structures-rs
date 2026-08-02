@@ -22,6 +22,10 @@ pub mod ds {
     pub mod wavelet_matrix;
 }
 
+pub mod io {
+    pub mod fastio;
+}
+
 pub mod math {
     pub mod number_theory;
 }
