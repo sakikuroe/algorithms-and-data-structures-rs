@@ -158,9 +158,10 @@ pub unsafe fn convolution_avx2(mut a: Vec<u32>, mut b: Vec<u32>) -> Vec<u32> {
         convolution_mont::mont_to_standard(&mut a);
 
         // パディング分を含まない、本来の結果長 `s` だけを取り出す。
-        let mut res = Vec::with_capacity(s);
-        res.extend_from_slice(&a.as_mut_slice()[..s]);
-        res
+        // 新しい `Vec` へコピーするのではなく、`a` 自体を切り詰めて返すことで、
+        // 要素数分のコピーを丸ごと避ける。
+        a.truncate(s);
+        a
     }
 }
 

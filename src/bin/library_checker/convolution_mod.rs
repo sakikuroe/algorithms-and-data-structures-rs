@@ -4,7 +4,9 @@
 use anmitsu::io::fastio::Fastio;
 use anmitsu::modulo998244353::convolution;
 
-fn run(io: &mut Fastio) {
+fn main() {
+    let mut io = Fastio::new();
+
     let n = io.u32() as usize;
     let m = io.u32() as usize;
 
@@ -22,10 +24,6 @@ fn run(io: &mut Fastio) {
     for c in c {
         io.writeln(c);
     }
-}
 
-fn main() {
-    let mut io = Fastio::new();
-    run(&mut io);
     io.flush();
 }
