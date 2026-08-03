@@ -3,37 +3,37 @@ Library Checker / AtCoder 提出用に、src/bin/{library_checker,atcoder}/<slug
 単一ファイルへバンドルし、続けて不要コードを枝刈りするスクリプトである。
 
 使い方:
-    python3 tools/bundle.py <slug> [<slug> ...]   # 指定した問題をバンドル + 枝刈り
-    python3 tools/bundle.py --all                 # PROBLEM_OPERATIONS 登録済みの全問題
-    python3 tools/bundle.py --list                # 登録済み/未登録の問題一覧を表示
+    python3 tools/bundle.py <slug> [<slug> ...]    # 指定した問題をバンドル + 枝刈り
+    python3 tools/bundle.py --all                  # src/bin 以下の全問題
     python3 tools/bundle.py --prune <path> <bin>   # 既存ファイルの枝刈りのみ行う
-                                                    # (convolution_mod など、手動でバンドル
-                                                    # した非 fps 系ファイル向け)
 
-新しい問題を追加する場合:
-    1. src/bin/library_checker/<slug>.rs または src/bin/atcoder/<slug>.rs を作成する
-       (先頭 2 行が `// Library Checker: <題名>` / `// AtCoder: <題名>` と
-       `// <URL>` になっている前提)。
-    2. 下記 PROBLEM_OPERATIONS に `"<slug>": [使用する fps 操作のリスト]` を追記する。
-       使用する操作は main() の呼び出しから判断する:
-         .inverse(...)         -> "inv"
-         .log(...)             -> "log"
-         .exp(...)             -> "exp"
-         .pow(...)             -> "pow"
-         FPS::product(...) や `*`/`*=` 演算子 -> "mul"
-         bostan_mori::...      -> "bostan_mori"
-         partition::...        -> "partition"
-    3. `python3 tools/bundle.py <slug>` を実行する。
+新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs または
+src/bin/atcoder/<slug>.rs を作成し (先頭 2 行が `// Library Checker: <題名>` /
+`// AtCoder: <題名>` と `// <URL>` になっている前提)、Cargo.toml にバンドル後の
+バイナリーを登録したうえで `python3 tools/bundle.py <slug>` を実行するだけでよい。
+どのモジュールを取り込むかを手で指定する必要はない。
+
+バンドルは、まず src/lib.rs のモジュールツリーをそのまま単一ファイルへ展開し、
+そのうえでコンパイラの診断を頼りに到達しないコードを削る、という手順で行う。
+必要なモジュールの判断をコンパイラに委ねているため、`log` が `inverse` を呼ぶ
+といった use 文に現れない依存関係や、`*` 演算子から Mul の実装に到達する依存関係も
+取りこぼさない。
+
+枝刈りが働く前提として、展開後のトップレベルのモジュールには `pub` を付けずに
+出力している。`pub mod` にすると rustc が全アイテムを外部から到達可能とみなし、
+dead_code をひとつも報告しなくなるためである。
 
 main() 本体はこのスクリプトに複製せず、実行の都度 src/bin/**/<slug>.rs から
 読み込むため、実装を変更しても再バンドルするだけで常に最新の内容が反映される。
 """
 
 import argparse
+import dataclasses
 import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -44,73 +44,94 @@ SRC_DIRS = {
 }
 BIN_PREFIX = {"Library Checker": "lc", "AtCoder": "ac"}
 
+# 枝刈りを繰り返す上限。トレイト実装の除去が新たな dead_code を生むため、
+# 何も削れなくなるまで数回の往復が必要になる。
+MAX_PRUNE_ITERATIONS = 30
+
 
 # =============================================================================
-# 依存関係テーブル
+# モジュールツリーの探索
 # =============================================================================
 
-# 各 fps 操作が (自分自身を含め) 追加で必要とする fps サブモジュール一覧。
-# 呼び出し関係の根拠:
-# - inv: 他の fps サブモジュールに依存しない。
-# - log: log_dense が inverse_dense (inv) と `f * inv` (mul の Mul 実装) を使う。
-# - exp: exp_dense_scalar が log_dense (log とその依存の inv/mul) と、
-#   `truncated - res.log_dense(...)` (sub の Sub 実装)、`res *= delta`
-#   (mul の MulAssign 実装) を使う。
-# - pow: pow_dense が log_dense と exp_dense を呼ぶため、log と exp の依存を引き継ぐ。
-# - mul: FPS::product / Mul 演算子は convolution を直接使うのみ。
-# - bostan_mori: linear_recurrence_kth_term / bostan_mori は Mul (mul) と
-#   inverse (inv) だけを使う。
-# - partition: product_(inv_)one_minus_x_powers は内部で exp を使うため、
-#   exp の依存一式を引き継ぐ。
-OPERATION_DEPS = {
-    "inv": ["inv"],
-    "log": ["inv", "mul", "log"],
-    "exp": ["inv", "mul", "sub", "log", "exp"],
-    "pow": ["inv", "mul", "sub", "log", "exp", "pow"],
-    "mul": ["mul"],
-    "bostan_mori": ["inv", "mul", "bostan_mori"],
-    "partition": ["inv", "mul", "sub", "log", "exp", "partition"],
-}
-
-# fps サブモジュールを列挙する際の正準順序 (可読性のためだけの並び順であり、
-# コンパイル可否には影響しない)。
-SUBMODULE_ORDER = [
-    "add", "bostan_mori", "div", "exp", "inv", "log", "mul", "partition", "pow", "sub",
-]
-
-# 問題ごとに、main() が直接使用する fps 操作の一覧。
-PROBLEM_OPERATIONS = {
-    "inv_of_formal_power_series": ["inv"],
-    "exp_of_formal_power_series": ["exp"],
-    "log_of_formal_power_series": ["log"],
-    "pow_of_formal_power_series": ["pow"],
-    "inv_of_formal_power_series_sparse": ["inv"],
-    "exp_of_formal_power_series_sparse": ["exp"],
-    "log_of_formal_power_series_sparse": ["log"],
-    "pow_of_formal_power_series_sparse": ["pow"],
-    "kth_term_of_linearly_recurrent_sequence": ["bostan_mori"],
-    "partition_function": ["partition"],
-    "product_of_polynomial_sequence": ["mul"],
-    "fps24_k_permutation": ["inv"],
-    "fps24_l_permutation2": ["exp"],
-    "fps24_m_connected_graph": ["log"],
-    "fps24_c_sequence": ["pow"],
-    "fps24_i_score": ["mul"],
-    "fps24_a_snack": ["pow"],
-    "fps24_b_tuple_of_integers": ["bostan_mori"],
-    "fps24_d_sequence2": ["inv", "pow"],
-    "fps24_e_sequence3": ["mul"],
-    "fps24_n_coin2": ["partition"],
-    "abc422_g_balls_and_boxes": ["partition", "mul"],
-}
+# `mod X;` 形式のファイル参照と、`mod X { ... }` 形式のインライン宣言。
+# 可視性は `pub`、`pub(crate)` のいずれも受け付ける。
+MOD_DECL_RE = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)\s*;")
+MOD_OPEN_RE = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)\s*\{")
 
 
-def needed_submodules(slug):
-    operations = PROBLEM_OPERATIONS[slug]
-    needed = set()
-    for op in operations:
-        needed.update(OPERATION_DEPS[op])
-    return [name for name in SUBMODULE_ORDER if name in needed]
+@dataclasses.dataclass
+class Module:
+    """バンドル対象のモジュール 1 つ分を表す。"""
+
+    name: str
+
+    # 対応する .rs ファイル。src/lib.rs 内で `mod X { ... }` と直接書かれている
+    # 階層 (algebra や ds など) には実体のファイルがないため、その場合は None である。
+    path: "Path | None"
+
+    children: "list[Module]"
+
+
+def discover_children(path):
+    """モジュールファイルが宣言する子モジュールを再帰的に探索する。
+
+    `src/modulo998244353/fps.rs` の `mod add;` から
+    `src/modulo998244353/fps/add.rs` を辿る、という対応関係を利用する。
+    """
+    text = strip_cfg_test_mod(path.read_text(encoding="utf-8"))
+    directory = path.parent / path.stem
+    children = []
+    for line in text.split("\n"):
+        match = MOD_DECL_RE.match(line)
+        if not match:
+            continue
+        child_path = directory / f"{match.group(1)}.rs"
+        if not child_path.exists():
+            raise FileNotFoundError(f"{path}: 宣言された {child_path} が存在しない")
+        children.append(Module(match.group(1), child_path, discover_children(child_path)))
+    return children
+
+
+def discover_module_tree():
+    """src/lib.rs を読み取り、バンドルすべきモジュールツリーを組み立てる。
+
+    lib.rs のモジュール宣言だけを対象とし、`pub fn add` のような lib.rs 自身の
+    アイテムは展開しない。波括弧の深さを数えることで、`mod X { ... }` の入れ子と
+    関数本体の波括弧を区別している。
+    """
+    lines = strip_cfg_test_mod((REPO / "src/lib.rs").read_text(encoding="utf-8")).split("\n")
+
+    root = []
+    children = root
+    directory = REPO / "src"
+    depth = 0
+    # 開いている `mod X { ... }` を、抜けたときに復帰するための情報とともに積む。
+    stack = []
+
+    for line in lines:
+        match = MOD_OPEN_RE.match(line)
+        if match:
+            node = Module(match.group(1), None, [])
+            children.append(node)
+            stack.append((children, directory, depth))
+            children = node.children
+            directory = directory / match.group(1)
+            depth += line.count("{") - line.count("}")
+            continue
+
+        match = MOD_DECL_RE.match(line)
+        if match:
+            path = directory / f"{match.group(1)}.rs"
+            if not path.exists():
+                raise FileNotFoundError(f"src/lib.rs: 宣言された {path} が存在しない")
+            children.append(Module(match.group(1), path, discover_children(path)))
+            continue
+
+        depth += line.count("{") - line.count("}")
+        while stack and depth <= stack[-1][2]:
+            children, directory, _ = stack.pop()
+
+    return root
 
 
 # =============================================================================
@@ -169,8 +190,8 @@ def strip_submodule_decls(text, names):
     return "\n".join(out)
 
 
-def load(relative_path, strip_mods=None):
-    text = (REPO / relative_path).read_text(encoding="utf-8")
+def load(path, strip_mods=None):
+    text = path.read_text(encoding="utf-8")
     text = strip_cfg_test_mod(text)
     if strip_mods:
         text = strip_submodule_decls(text, strip_mods)
@@ -182,44 +203,28 @@ def indent(text, level):
     return "\n".join((pad + line if line.strip() else "") for line in text.split("\n"))
 
 
-def render_mod(name, content, children, level):
+def render_module(module, level):
+    """モジュールを入れ子の `mod` ブロックとして出力する。
+
+    トップレベルだけ `pub` を付けないのは、`pub mod` にすると rustc が
+    全アイテムを外部到達可能とみなして dead_code を報告しなくなるためである。
+    内側は `pub` のままでよく、外側が private であれば実効可視性は抑えられる。
+    """
+    keyword = "mod" if level == 0 else "pub mod"
     body_parts = []
-    if content:
-        body_parts.append(indent(content, level + 1))
-    for child_name, (child_content, child_children) in children.items():
-        body_parts.append(render_mod(child_name, child_content, child_children, level + 1))
-    body = "\n\n".join(p for p in body_parts if p.strip())
+    if module.path is not None:
+        content = load(module.path, strip_mods=[child.name for child in module.children])
+        if content.strip():
+            body_parts.append(indent(content, level + 1))
+    for child in module.children:
+        body_parts.append(render_module(child, level + 1))
+    body = "\n\n".join(part for part in body_parts if part.strip())
     pad = "    " * level
-    return f"{pad}pub mod {name} {{\n{body}\n{pad}}}"
+    return f"{pad}{keyword} {module.name} {{\n{body}\n{pad}}}"
 
 
-def build_core(needed_fps_submodules):
-    fastio = load("src/io/fastio.rs")
-    modulo = load("src/modulo998244353/modulo.rs")
-    convolution = load("src/modulo998244353/convolution.rs")
-    convolution_avx2 = load("src/modulo998244353/convolution_avx2.rs")
-    convolution_mont = load("src/modulo998244353/convolution_mont.rs")
-
-    io_mod = render_mod("io", "", {"fastio": (fastio, {})}, 0)
-
-    modulo_children = {
-        "modulo": (modulo, {}),
-        "convolution": (convolution, {}),
-        "convolution_avx2": (convolution_avx2, {}),
-        "convolution_mont": (convolution_mont, {}),
-    }
-    if needed_fps_submodules:
-        # fps.rs が宣言する全サブモジュール (SUBMODULE_ORDER) をいったん全て取り除いた上で、
-        # 実際に必要なものだけを子モジュールとして再度組み込む。
-        fps_root = load("src/modulo998244353/fps.rs", strip_mods=SUBMODULE_ORDER)
-        fps_children = {
-            name: (load(f"src/modulo998244353/fps/{name}.rs"), {})
-            for name in needed_fps_submodules
-        }
-        modulo_children["fps"] = (fps_root, fps_children)
-
-    modulo_mod = render_mod("modulo998244353", "", modulo_children, 0)
-    return io_mod + "\n\n" + modulo_mod
+def build_core():
+    return "\n\n".join(render_module(module, 0) for module in discover_module_tree())
 
 
 def find_source_file(slug):
@@ -260,33 +265,43 @@ def out_path_for(source, slug):
     return SRC_DIRS[source] / "bundled" / f"{slug}.rs"
 
 
-def generate(slug):
-    if slug not in PROBLEM_OPERATIONS:
-        raise KeyError(
-            f"'{slug}' は PROBLEM_OPERATIONS に未登録である。"
-            "tools/bundle.py 冒頭のコメントに従って追記すること。"
-        )
+def ensure_bin_registered(bin_name, out_path):
+    """バンドル後のバイナリーが Cargo.toml に登録されているかを確認する。
+
+    枝刈りは `cargo build` の診断を利用するため、登録がないと何も削れない。
+    cargo の分かりにくいエラーになる前に、追記すべき内容を示して中断する。
+    """
+    manifest = (REPO / "Cargo.toml").read_text(encoding="utf-8")
+    if f'name = "{bin_name}"' in manifest:
+        return
+    snippet = f'[[bin]]\nname = "{bin_name}"\npath = "{out_path.relative_to(REPO)}"'
+    raise RuntimeError(
+        f"Cargo.toml に {bin_name} が登録されていない。"
+        "枝刈りは cargo の診断を用いるため、以下を Cargo.toml へ追記してから再実行すること。\n\n"
+        f"{snippet}\n"
+    )
+
+
+def generate(slug, core):
     source, src_path = find_source_file(slug)
     title, url, body = extract_source(src_path)[1:]
 
-    submodules = needed_submodules(slug)
-    core = build_core(submodules)
-    fps_note = f"、および fps 配下で実際に呼び出す {{{', '.join(submodules)}}}" if submodules else ""
+    out_path = out_path_for(source, slug)
+    bin_name = bin_name_for(source, slug)
+    ensure_bin_registered(bin_name, out_path)
+
     header = (
         f"// {source}: {title}\n"
         f"// {url}\n"
         "//\n"
-        "// anmitsu クレートの io::fastio と modulo998244353::{modulo, convolution,\n"
-        f"// convolution_avx2, convolution_mont}}{fps_note} を手動でこのファイルへ\n"
-        "// バンドルしたものである。ジャッジは外部クレートへの依存を解決できないため、\n"
-        "// このファイル単体で完結させている。\n\n"
+        "// anmitsu クレートを単一ファイルへ展開したうえで、この問題から到達しない\n"
+        "// コードを tools/bundle.py が自動で枝刈りしたものである。ジャッジは外部\n"
+        "// クレートへの依存を解決できないため、このファイル単体で完結させている。\n\n"
     )
     content = header + core + "\n\n" + body
 
-    out_path = out_path_for(source, slug)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(content, encoding="utf-8")
-    bin_name = bin_name_for(source, slug)
     print(f"generated {out_path.relative_to(REPO)} ({len(content.splitlines())} lines)")
     return out_path, bin_name
 
@@ -295,41 +310,78 @@ def generate(slug):
 # 枝刈り (dead code / 未使用の trait 実装 / doc コメント除去)
 # =============================================================================
 
+# mono-items が実装を書き出す形式は 2 通りある。ジェネリックな実装や標準ライブラリー
+# の型に対する実装は `<&str as std::convert::AsRef<Path>>::as_ref` のように書かれるが、
+# このクレート自身の型に対する実装は
+# `modulo998244353::fps::mul::<impl std::ops::Mul for modulo998244353::fps::FPS>::mul`
+# という形になる。後者を取りこぼすと、実際には使われている `*` や `-` の実装を
+# 未使用と誤判定してしまうため、両方を拾う。
 MONO_IMPL_RE = re.compile(r"<(?P<ty>.+?) as (?P<trait>[\w:]+)>::")
+MONO_IMPL_FOR_RE = re.compile(r"<impl\s+(?P<trait>[\w:]+)(?:<[^>]*>)?\s+for\s+(?P<ty>[\w:]+)")
 # Drop は明示的な呼び出しがなくてもスコープを抜けるときに暗黙に呼ばれるため、
 # "呼ばれていないように見える" だけで消してしまうと (flush 漏れなどの) 実害の
 # あるバグになる。安全のため、削除候補の探索から常に除外する。
 NEVER_PRUNE_TRAITS = {"Drop"}
 
-IMPL_FOR_RE = re.compile(r"^\s*impl\s+([A-Za-z_]\w*)\s+for\s+([A-Za-z_][\w:<>\[\], ]*?)\s*\{")
-IMPL_INHERENT_RE = re.compile(r"^\s*impl\s+([A-Za-z_]\w*)\s*\{")
-TYPE_DEF_RE = re.compile(r"^\s*(?:pub\s+)?(?:struct|enum)\s+([A-Za-z_]\w*)")
+# トレイト名はパス修飾されることがある (`impl ops::Add for FPS`) ため、`::` を許す。
+IMPL_FOR_RE = re.compile(
+    r"^\s*impl\s+([A-Za-z_][\w:]*)\s+for\s+([A-Za-z_][\w:<>\[\], ]*?)\s*\{"
+)
+
+# 孤立した impl と use を見つけるための定義。impl のヘッダーは `where` 節が続いて
+# `{` が次行以降に来ることがあるため、`{` の存在を前提にしない。
+IMPL_LINE_RE = re.compile(r"^\s*impl\s*(?:<[^>]*>)?\s*(.+)$")
+TYPE_DEF_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)"
+)
+TRAIT_DEF_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+([A-Za-z_]\w*)"
+)
+USE_SINGLE_RE = re.compile(r"^\s*use\s+[\w:]+::([A-Za-z_]\w*)\s*;")
+
+# 丸ごと削除してよい dead_code 診断だけを選ぶ。rustc は enum のバリアントや
+# 構造体のフィールドについても dead_code を報告するが、それらの primary span は
+# アイテムの先頭ではなくバリアント行やフィールド行を指す。そこを起点に
+# find_item_range を走らせると、次に現れる `;` までを巻き込んで enum 定義を
+# 破壊してしまうため、アイテム単位の診断のみを受け付ける方針とする。
+REMOVABLE_DEAD_CODE_RE = re.compile(
+    r"^(?:multiple\s+)?"
+    r"(?:function|method|associated function|associated item|struct|enum|union"
+    r"|trait|type alias|constant|static|module|macro)s?\b"
+)
 
 
-def build_dead_code_diagnostics(path, bin_name):
+def build_diagnostics(rel_path, bin_name):
+    """バンドル結果をビルドし、コンパイルの可否と dead_code の行番号を返す。
+
+    cargo が JSON で返す `file_name` はワークスペース相対パスであるため、
+    突き合わせる側も相対パスでなければならない。絶対パスを渡すと一致せず、
+    dead_code による枝刈りが黙って無効になる。
+    """
     proc = subprocess.run(
         ["cargo", "build", "--bin", bin_name, "--message-format=json"],
         capture_output=True, text=True, cwd=REPO,
     )
-    diags = []
+    dead_lines = []
     for line in proc.stdout.splitlines():
         try:
-            msg = json.loads(line)
+            record = json.loads(line)
         except ValueError:
             continue
-        if msg.get("reason") != "compiler-message":
+        if record.get("reason") != "compiler-message":
             continue
-        m = msg.get("message", {})
-        code = (m.get("code") or {}).get("code")
-        if code != "dead_code":
+        message = record.get("message", {})
+        if (message.get("code") or {}).get("code") != "dead_code":
             continue
-        for sp in m.get("spans", []):
-            if sp.get("is_primary") and sp.get("file_name") == path:
-                diags.append(sp["line_start"])
-    return sorted(set(diags))
+        if not REMOVABLE_DEAD_CODE_RE.match(message.get("message", "")):
+            continue
+        for span in message.get("spans", []):
+            if span.get("is_primary") and span.get("file_name") == rel_path:
+                dead_lines.append(span["line_start"])
+    return proc.returncode == 0, sorted(set(dead_lines))
 
 
-def build_mono_items(path):
+def build_mono_items(rel_path):
     # nightly の -Z print-mono-items=yes は、実際に単相化された (=生成される) アイテムを
     # 標準出力へ書き出す。これにより、dead_code lint では検出できない「trait 実装は
     # あるが、その型では一度も呼ばれていない」ケースを 1 回のビルドで判定できる。
@@ -338,14 +390,18 @@ def build_mono_items(path):
     # 単相化の収集が最後まで走らず標準出力が不完全になる。その不完全な結果を
     # 「使われていない」と誤判定して usable な impl まで消してしまうと危険なので、
     # コンパイルが失敗した場合は None を返し、呼び出し側で今回の枝刈りを見送る。
-    proc = subprocess.run(
-        [
-            "rustc", "+nightly", "--edition", "2021", "-O",
-            "-Z", "print-mono-items=yes", "--crate-type", "bin",
-            "-o", "/tmp/_mono_probe_out", path,
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    )
+    #
+    # edition は Cargo.toml と揃える必要がある。ずれているとプローブが必ず失敗し、
+    # トレイト実装の枝刈りが常に見送られてしまう。
+    with tempfile.TemporaryDirectory() as workdir:
+        proc = subprocess.run(
+            [
+                "rustc", "+nightly", "--edition", "2024", "-O",
+                "-Z", "print-mono-items=yes", "--crate-type", "bin",
+                "-o", str(Path(workdir) / "probe"), rel_path,
+            ],
+            capture_output=True, text=True, cwd=REPO,
+        )
     if proc.returncode != 0:
         print("  (mono-items probe failed to compile; skipping this round)")
         return None
@@ -353,17 +409,24 @@ def build_mono_items(path):
     for line in proc.stdout.splitlines():
         if not line.startswith("MONO_ITEM"):
             continue
-        for match in MONO_IMPL_RE.finditer(line):
-            pairs.add((match.group("ty"), match.group("trait")))
+        for pattern in (MONO_IMPL_RE, MONO_IMPL_FOR_RE):
+            for match in pattern.finditer(line):
+                pairs.add((match.group("ty"), match.group("trait")))
     return pairs
 
 
-def type_matches(mono_ty, short_ty):
-    return mono_ty == short_ty or mono_ty.endswith("::" + short_ty)
+def path_matches(mono_name, source_name):
+    """mono-items が出力するパスと、ソース上の表記が同じものを指すかを判定する。
 
+    ソース側は `impl ops::Sub for super::FPS` のように相対パスで書かれるのに対し、
+    mono-items 側は `<modulo998244353::fps::FPS as std::ops::Sub>` のように絶対パスで
+    出力される。前方の修飾は一致しないため、末尾の識別子どうしを比べる。
 
-def trait_matches(mono_trait, short_trait):
-    return mono_trait == short_trait or mono_trait.endswith("::" + short_trait)
+    取り違えた場合に使用中の実装まで消してしまうことを避けたいので、判定は
+    一致する側へ倒してある。別モジュールに同名の型があると使われていない実装を
+    残すことがあるが、その場合の損失は出力が数行大きくなることだけである。
+    """
+    return base_ident(mono_name) == base_ident(source_name)
 
 
 def is_comment_or_attr(line):
@@ -445,21 +508,56 @@ def find_item_range(lines, sig_line_1indexed):
     raise RuntimeError(f"could not find end of item starting at line {sig_line_1indexed}")
 
 
-def find_orphaned_inherent_impl_lines(lines):
-    # dead_code 枝刈りで struct/enum を消すと、それを対象にした "impl Type { ... }"
-    # (trait 実装ではない、素の impl ブロック) が、参照先を失ったまま取り残されることがある。
-    # コンパイルエラーになる前に、対応する定義が残っているかをここで確認して一緒に消す。
-    defined = set()
+def collect_definitions(lines):
+    """ファイル内で定義されている型とトレイトの名前を集める。"""
+    names = set()
     for line in lines:
-        m = TYPE_DEF_RE.match(line)
-        if m:
-            defined.add(m.group(1))
+        for pattern in (TYPE_DEF_RE, TRAIT_DEF_RE):
+            match = pattern.match(line)
+            if match:
+                names.add(match.group(1))
+    return names
+
+
+def base_ident(expr):
+    """`super::FPS` や `SegmentTreeDense<M>` から、基になる識別子を取り出す。"""
+    return expr.split("<", 1)[0].strip().rsplit("::", 1)[-1].strip()
+
+
+def impl_targets(head):
+    """impl のヘッダーから、実装するトレイト名と自己型名を取り出す。
+
+    トレイト実装でない場合、トレイト名は None である。
+    """
+    head = head.split("{", 1)[0].split(" where ", 1)[0].strip()
+    if " for " in head:
+        trait_part, type_part = head.split(" for ", 1)
+        return base_ident(trait_part), base_ident(type_part)
+    return None, base_ident(head)
+
+
+def find_orphaned_lines(lines, removed_names):
+    """定義が消えた型やトレイトを参照している impl と use の行を探す。
+
+    dead_code の枝刈りは `struct MinMonoid` や `trait Monoid` を単体で消すため、
+    それらを対象とする `impl Monoid for MinMonoid` や、別モジュールからの
+    `use ...::monoid::Monoid;` が参照先を失って取り残される。放置するとコンパイル
+    エラーになるので、同じラウンドのうちに回収する。
+
+    判定に用いるのは、バンドル生成時点では定義されていたのに今は存在しない名前の
+    集合である。`impl FastWrite for u32` の `u32` のように、もともと定義がない名前を
+    誤って対象にしてしまうことがない。
+    """
     orphaned = []
     for idx, line in enumerate(lines):
-        m = IMPL_INHERENT_RE.match(line)
-        if not m:
-            continue
-        if m.group(1) not in defined:
+        match = IMPL_LINE_RE.match(line)
+        if match:
+            trait_name, type_name = impl_targets(match.group(1))
+            if type_name in removed_names or (trait_name and trait_name in removed_names):
+                orphaned.append(idx + 1)
+                continue
+        match = USE_SINGLE_RE.match(line)
+        if match and match.group(1) in removed_names:
             orphaned.append(idx + 1)
     return orphaned
 
@@ -471,10 +569,10 @@ def find_unused_impl_lines(lines, mono_pairs):
         if not m:
             continue
         trait_name, type_name = m.group(1), m.group(2)
-        if trait_name in NEVER_PRUNE_TRAITS:
+        if trait_name.rsplit("::", 1)[-1] in NEVER_PRUNE_TRAITS:
             continue
         used = any(
-            trait_matches(mono_trait, trait_name) and type_matches(mono_ty, type_name)
+            path_matches(mono_trait, trait_name) and path_matches(mono_ty, type_name)
             for mono_ty, mono_trait in mono_pairs
         )
         if not used:
@@ -483,8 +581,7 @@ def find_unused_impl_lines(lines, mono_pairs):
 
 
 def remove_ranges(path, ranges):
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().split("\n")
+    lines = path.read_text(encoding="utf-8").split("\n")
     ranges = sorted(set(ranges), key=lambda r: -r[0])
     removed_here = 0
     for s, e in ranges:
@@ -493,39 +590,43 @@ def remove_ranges(path, ranges):
             continue
         del lines[s:e + 1]
         removed_here += 1
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
     return removed_here
 
 
 def strip_doc_comments(path):
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().split("\n")
+    lines = path.read_text(encoding="utf-8").split("\n")
     kept = [line for line in lines if line.strip()[:3] not in ("///", "//!")]
     removed = len(lines) - len(kept)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(kept))
+    path.write_text("\n".join(kept), encoding="utf-8")
     return removed
 
 
-def prune_dead_code_once(path, bin_name):
-    dead_lines = build_dead_code_diagnostics(path, bin_name)
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().split("\n")
-    orphaned_lines = find_orphaned_inherent_impl_lines(lines)
-    target_lines = sorted(set(dead_lines) | set(orphaned_lines))
-    if not target_lines:
+def prune_dead_items(path, dead_lines):
+    if not dead_lines:
         return 0
-    ranges = [find_item_range(lines, ln) for ln in target_lines]
+    lines = path.read_text(encoding="utf-8").split("\n")
+    ranges = [find_item_range(lines, ln) for ln in dead_lines]
     return remove_ranges(path, ranges)
 
 
-def prune_unused_impls_once(path):
-    mono_pairs = build_mono_items(path)
+def prune_orphans(path, original_names):
+    lines = path.read_text(encoding="utf-8").split("\n")
+    removed_names = original_names - collect_definitions(lines)
+    if not removed_names:
+        return 0
+    orphaned_lines = find_orphaned_lines(lines, removed_names)
+    if not orphaned_lines:
+        return 0
+    ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
+    return remove_ranges(path, ranges)
+
+
+def prune_unused_impls(path, rel_path):
+    mono_pairs = build_mono_items(rel_path)
     if mono_pairs is None:
         return 0
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().split("\n")
+    lines = path.read_text(encoding="utf-8").split("\n")
     unused_lines = find_unused_impl_lines(lines, mono_pairs)
     if not unused_lines:
         return 0
@@ -533,23 +634,104 @@ def prune_unused_impls_once(path):
     return remove_ranges(path, ranges)
 
 
-def prune(path, bin_name):
-    path = str(path)
+EMPTY_BLOCK_RE = re.compile(r"^(\s*)(?:pub(?:\([^)]*\))?\s+)?(mod\s+\w+|impl\s+[^{]*?)\s*\{\s*$")
+
+
+def is_vacuous_line(line):
+    """ブロックの中身として意味を持たない行かどうかを判定する。
+
+    空行とコメントに加えて、`use` の宣言も中身とはみなさない。使われていた型が
+    すべて消えたモジュールには `use` だけが残ることがあり、それを中身と数えると
+    空の殻を畳めなくなるためである。ただし `pub use` は再エクスポートとして
+    外部から参照され得るので、中身として扱う。
+    """
+    stripped = line.strip()
+    if not stripped or is_comment_or_attr(line):
+        return True
+    return stripped.startswith("use ") and stripped.endswith(";")
+
+
+def strip_empty_blocks(path):
+    """中身が空になった `mod` と素の `impl` のブロックを取り除く。
+
+    不要なモジュールは、内部のアイテムがすべて dead_code として消えたあと、
+    `pub mod exp { impl super::FPS { } }` のような殻だけが残る。これを畳むことで、
+    使わないモジュールがファイルから丸ごと消える。トレイト実装は空であっても
+    `impl Copy for X {}` のように意味を持つため、`for` を含む行は対象から除く。
+    """
+    lines = path.read_text(encoding="utf-8").split("\n")
+    removed = 0
+    changed = True
+    while changed:
+        changed = False
+        for i, line in enumerate(lines):
+            match = EMPTY_BLOCK_RE.match(line)
+            if not match or " for " in match.group(2):
+                continue
+            pad = match.group(1)
+            j = i + 1
+            while j < len(lines) and is_vacuous_line(lines[j]):
+                j += 1
+            if j >= len(lines) or lines[j] != pad + "}":
+                continue
+            start = i
+            while start > 0 and is_comment_or_attr(lines[start - 1]):
+                start -= 1
+            del lines[start:j + 1]
+            removed += 1
+            changed = True
+            break
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return removed
+
+
+def prune(out_path, bin_name):
+    """バンドル結果から到達しないコードを、コンパイルが通らなくなるまで削る。
+
+    枝刈りは診断を頼りにした発見的な処理であるため、削りすぎてコンパイルが
+    通らなくなる可能性がある。そこで各ラウンドの開始時にビルドの成否を確認し、
+    失敗していれば直前の正常な状態へ巻き戻して打ち切る。
+    """
+    path = Path(out_path)
+    if not path.is_absolute():
+        path = REPO / path
+    rel_path = str(path.relative_to(REPO))
+
+    # 何が消えたのかを判定する基準として、枝刈り前の定義一覧を控えておく。
+    original_names = collect_definitions(path.read_text(encoding="utf-8").split("\n"))
+
     total_removed = 0
-    for iteration in range(30):
-        removed = prune_dead_code_once(path, bin_name)
-        removed += prune_unused_impls_once(path)
+    snapshot = None
+    for iteration in range(MAX_PRUNE_ITERATIONS):
+        compiled, dead_lines = build_diagnostics(rel_path, bin_name)
+        if not compiled:
+            if snapshot is None:
+                raise RuntimeError(f"{rel_path}: 生成した直後の時点でコンパイルが通らない")
+            path.write_text(snapshot, encoding="utf-8")
+            print(f"  iteration {iteration}: build broke; rolled back to the previous round")
+            break
+        # 次のラウンドが壊した場合に備え、コンパイルが通る状態を控えておく。
+        snapshot = path.read_text(encoding="utf-8")
+
+        removed = prune_dead_items(path, dead_lines)
+        removed += prune_orphans(path, original_names)
+        removed += prune_unused_impls(path, rel_path)
+        removed += strip_empty_blocks(path)
         total_removed += removed
         print(f"  iteration {iteration}: removed {removed} items")
         if removed == 0:
             break
     else:
         print("  stopped after max iterations")
-        return
 
     doc_lines_removed = strip_doc_comments(path)
+    compiled, _ = build_diagnostics(rel_path, bin_name)
+    if not compiled:
+        raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
+
     print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
     print(f"  total items removed: {total_removed}")
+    print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
 
 
 # =============================================================================
@@ -557,40 +739,23 @@ def prune(path, bin_name):
 # =============================================================================
 
 
-def list_problems():
-    print("登録済み (generate + prune 可能):")
-    for slug in sorted(PROBLEM_OPERATIONS):
-        try:
-            source, _ = find_source_file(slug)
-        except FileNotFoundError:
-            source = "(ソースファイルなし!)"
-        print(f"  {slug}  [{source}]")
-
-    discovered = set()
+def discover_slugs():
+    slugs = set()
     for directory in SRC_DIRS.values():
         for path in directory.glob("*.rs"):
-            discovered.add(path.stem)
-    unregistered = sorted(discovered - set(PROBLEM_OPERATIONS))
-    if unregistered:
-        print("\n未登録 (src/bin/ には存在するが PROBLEM_OPERATIONS に未追記):")
-        for slug in unregistered:
-            print(f"  {slug}")
+            slugs.add(path.stem)
+    return sorted(slugs)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("slugs", nargs="*", help="バンドルする問題のスラッグ")
-    parser.add_argument("--all", action="store_true", help="登録済みの全問題をバンドルする")
-    parser.add_argument("--list", action="store_true", help="登録済み/未登録の問題一覧を表示する")
+    parser.add_argument("--all", action="store_true", help="src/bin 以下の全問題をバンドルする")
     parser.add_argument(
         "--prune", nargs=2, metavar=("PATH", "BIN_NAME"),
-        help="既存ファイルの枝刈りのみ行う (convolution_mod など手動バンドル向け)",
+        help="既存ファイルの枝刈りのみ行う (手動でバンドルしたファイル向け)",
     )
     args = parser.parse_args()
-
-    if args.list:
-        list_problems()
-        return
 
     if args.prune:
         path, bin_name = args.prune
@@ -598,19 +763,27 @@ def main():
         prune(path, bin_name)
         return
 
-    if args.all:
-        targets = sorted(PROBLEM_OPERATIONS)
-    else:
-        targets = args.slugs
-
+    targets = discover_slugs() if args.all else args.slugs
     if not targets:
-        parser.error("バンドルする問題のスラッグ、--all、--list、--prune のいずれかを指定すること")
+        parser.error("バンドルする問題のスラッグ、--all、--prune のいずれかを指定すること")
 
+    # モジュールツリーの展開結果は問題によらず共通であるため、一度だけ構築する。
+    core = build_core()
+
+    failures = []
     for slug in targets:
         print(f"### {slug} ###")
-        out_path, bin_name = generate(slug)
-        prune(out_path, bin_name)
+        try:
+            out_path, bin_name = generate(slug, core)
+            prune(out_path, bin_name)
+        except (RuntimeError, FileNotFoundError) as error:
+            print(f"  failed: {error}")
+            failures.append(slug)
         print()
+
+    if failures:
+        print(f"failed: {', '.join(failures)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
