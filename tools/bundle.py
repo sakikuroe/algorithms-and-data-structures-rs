@@ -13,6 +13,10 @@ src/bin/atcoder/<slug>.rs を作成し (先頭 2 行が `// Library Checker: <�
 バイナリーを登録したうえで `python3 tools/bundle.py <slug>` を実行するだけでよい。
 どのモジュールを取り込むかを手で指定する必要はない。
 
+バンドル後のバイナリーは生成物であってリポジトリーには含めないため、Cargo.toml へは
+`required-features = ["bundled"]` を添えて登録する。こうしておかないと、生成前の
+クリーンチェックアウトで cargo がパスを解決できず、`cargo test` 自体が失敗する。
+
 バンドルは、まず src/lib.rs のモジュールツリーをそのまま単一ファイルへ展開し、
 そのうえでコンパイラの診断を頼りに到達しないコードを削る、という手順で行う。
 必要なモジュールの判断をコンパイラに委ねているため、`log` が `inverse` を呼ぶ
@@ -274,7 +278,10 @@ def ensure_bin_registered(bin_name, out_path):
     manifest = (REPO / "Cargo.toml").read_text(encoding="utf-8")
     if f'name = "{bin_name}"' in manifest:
         return
-    snippet = f'[[bin]]\nname = "{bin_name}"\npath = "{out_path.relative_to(REPO)}"'
+    snippet = (
+        f'[[bin]]\nname = "{bin_name}"\npath = "{out_path.relative_to(REPO)}"\n'
+        'required-features = ["bundled"]'
+    )
     raise RuntimeError(
         f"Cargo.toml に {bin_name} が登録されていない。"
         "枝刈りは cargo の診断を用いるため、以下を Cargo.toml へ追記してから再実行すること。\n\n"
@@ -357,9 +364,16 @@ def build_diagnostics(rel_path, bin_name):
     cargo が JSON で返す `file_name` はワークスペース相対パスであるため、
     突き合わせる側も相対パスでなければならない。絶対パスを渡すと一致せず、
     dead_code による枝刈りが黙って無効になる。
+
+    バンドル後のバイナリーは `bundled` feature の下に置かれているため、
+    ここで明示的に有効化する。有効化を忘れると cargo がターゲットを
+    解決できず、枝刈りが一切行われないまま終わる。
     """
     proc = subprocess.run(
-        ["cargo", "build", "--bin", bin_name, "--message-format=json"],
+        [
+            "cargo", "build", "--bin", bin_name,
+            "--features", "bundled", "--message-format=json",
+        ],
         capture_output=True, text=True, cwd=REPO,
     )
     dead_lines = []
