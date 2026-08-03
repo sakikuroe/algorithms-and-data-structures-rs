@@ -94,7 +94,7 @@ pub const INVS: [u32; 23] = [
 /// `[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: `ω^i` テーブル。
 ///
 /// # Constraints
-/// - `NTT_NAIVE_THRESHOLD > 0` である。
+/// - `NTT_NAIVE_THRESHOLD > 0`
 ///
 /// # Panics
 /// - この関数はパニックしない。
@@ -140,7 +140,7 @@ const fn build_naive_ntt_omega_pows() -> [[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_
 /// `[u32; NTT_NAIVE_LG_MAX + 1]`: `ω^{-1}` テーブル。
 ///
 /// # Constraints
-/// - `NTT_NAIVE_THRESHOLD > 0` である。
+/// - `NTT_NAIVE_THRESHOLD > 0`
 ///
 /// # Panics
 /// - この関数はパニックしない。
@@ -177,7 +177,7 @@ const fn build_naive_intt_omega_inv() -> [u32; NTT_NAIVE_LG_MAX + 1] {
 /// `(ω^k)^j` テーブル。
 ///
 /// # Constraints
-/// - `NTT_NAIVE_THRESHOLD > 0` である。
+/// - `NTT_NAIVE_THRESHOLD > 0`
 ///
 /// # Panics
 /// - この関数はパニックしない。
@@ -225,7 +225,7 @@ const fn build_naive_ntt_base_pows()
 /// `(ω^{-j})^k` テーブル。
 ///
 /// # Constraints
-/// - `NTT_NAIVE_THRESHOLD > 0` である。
+/// - `NTT_NAIVE_THRESHOLD > 0`
 ///
 /// # Panics
 /// - この関数はパニックしない。
@@ -285,7 +285,7 @@ const fn build_naive_intt_base_pows()
 /// `[[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: ビット反転テーブル。
 ///
 /// # Constraints
-/// - `NTT_NAIVE_THRESHOLD > 0` である。
+/// - `NTT_NAIVE_THRESHOLD > 0`
 ///
 /// # Panics
 /// - この関数はパニックしない。
@@ -365,7 +365,7 @@ pub fn bit_reverse(mut x: usize, lg: usize) -> usize {
 /// 既存の NTT 実装と同じビット反転順で出力する。
 ///
 /// # Args
-/// - `a`: 係数列。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: 係数列であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。
@@ -418,7 +418,7 @@ fn ntt_naive(a: &mut [u32]) {
 /// 逆 NTT を愚直に実行する (正規化なし)。
 ///
 /// # Args
-/// - `a`: NTT 値 (ビット反転順)。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: NTT 値 (ビット反転順) であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。
@@ -471,7 +471,7 @@ fn intt_naive(a: &mut [u32]) {
 /// NTT をバタフライで実行する。
 ///
 /// # Args
-/// - `a`: 係数列。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: 係数列であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。
@@ -530,7 +530,7 @@ fn ntt_butterfly(a: &mut [u32]) {
 /// 逆 NTT をバタフライで実行する (正規化なし)。
 ///
 /// # Args
-/// - `a`: NTT 値。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: NTT 値であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。

@@ -235,7 +235,7 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 /// pairing で用いる `inv(2 * x)` の列を構築する。
 ///
 /// # Args
-/// - `n`: pairing 後の NTT 長。`n` は 0 ではない 2 の冪である。
+/// - `n`: pairing 後の NTT 長であり、`n` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `Vec<u32>`: `w[i] = inv(2 * x_i)` を満たす列 (Montgomery 表現)、ここで

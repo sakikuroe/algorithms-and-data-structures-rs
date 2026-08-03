@@ -130,7 +130,7 @@ const AVX2_U32_LANES: usize = 8;
 /// REDC アルゴリズムにより、`val * R^{-1} mod MOD` を除算なしで計算する。
 ///
 /// # Args
-/// - `val`: reduction 対象の値である。
+/// - `val`: reduction 対象の値
 ///
 /// # Returns
 /// `u32`: `val * R^{-1} mod MOD` を返す。
@@ -171,8 +171,8 @@ pub fn reduce_mont(val: u64) -> u32 {
 /// Montgomery 乗算を行う。
 ///
 /// # Args
-/// - `a`: 乗数 (Montgomery 表現) である。
-/// - `b`: 被乗数 (Montgomery 表現) である。
+/// - `a`: 乗数 (Montgomery 表現)
+/// - `b`: 被乗数 (Montgomery 表現)
 ///
 /// # Returns
 /// `u32`: `a * b * R^{-1} mod MOD` (Montgomery 表現での積) を返す。
@@ -207,7 +207,7 @@ pub fn mul_mont(a: u32, b: u32) -> u32 {
 /// スカラー値を Montgomery 表現へ変換する。
 ///
 /// # Args
-/// - `x`: 変換対象の値である。
+/// - `x`: 変換対象の値
 ///
 /// # Returns
 /// `u32`: `x * R mod MOD` (Montgomery 表現) を返す。
@@ -242,7 +242,7 @@ pub fn standard_to_mont_scalar(x: u32) -> u32 {
 /// 支配的になり得るため、スカラーでの変換関数も用意する。
 ///
 /// # Args
-/// - `x_mont`: 変換対象の値 (Montgomery 表現) である。
+/// - `x_mont`: 変換対象の値 (Montgomery 表現)
 ///
 /// # Returns
 /// `u32`: `x_mont * R^{-1} mod MOD` (通常表現) を返す。
@@ -273,7 +273,7 @@ pub fn mont_to_standard_scalar(x_mont: u32) -> u32 {
 /// NTT 長が `2^lg` のときの逆元 (Montgomery 表現) を返す。
 ///
 /// # Args
-/// - `lg`: NTT 長 `2^lg` の指数である。
+/// - `lg`: NTT 長 `2^lg` の指数
 ///
 /// # Returns
 /// `u32`: `(2^lg)^{-1} mod MOD` (Montgomery 表現) を返す。
@@ -392,7 +392,7 @@ impl NttDoublingPowersMont {
     /// `n = 2^lg` に対して `ζ^i` (i = 0..n-1) の列を返す。
     ///
     /// # Args
-    /// - `n`: `2^lg` となる NTT 長である。
+    /// - `n`: `2^lg` となる NTT 長
     ///
     /// # Returns
     /// `&[u32]`: `ζ^i` (Montgomery 表現) の列を返す。
@@ -446,7 +446,7 @@ static NTT: sync::OnceLock<Ntt> = sync::OnceLock::new();
 /// NTT doubling で用いる `ζ^i` (i = 0..n-1) の列 (Montgomery 表現) を返す。
 ///
 /// # Args
-/// - `n`: `2^lg` となる NTT 長である。
+/// - `n`: `2^lg` となる NTT 長
 ///
 /// # Returns
 /// `&'static [u32]`: `ζ^i` の列 (Montgomery 表現) を返す。
@@ -527,7 +527,7 @@ impl MontgomerySimd {
     /// 値を `0..MOD` に正規化する。
     ///
     /// # Args
-    /// - `vec`: `0..2*MOD` の範囲に収まる 8 個の `u32` 値である。
+    /// - `vec`: `0..2*MOD` の範囲に収まる 8 個の `u32` 値
     ///
     /// # Returns
     /// `__m256i`: 各 lane を `0..MOD` に正規化した値を返す。
@@ -557,8 +557,8 @@ impl MontgomerySimd {
     /// `__m256i` 上で Montgomery reduction を行う。
     ///
     /// # Args
-    /// - `x0246`: 偶数番目の lane (0、2、4、6) に 64-bit 積を保持するベクターである。
-    /// - `x1357`: 奇数番目の lane (1、3、5、7) に 64-bit 積を保持するベクターである。
+    /// - `x0246`: 偶数番目の lane (0、2、4、6) に 64-bit 積を保持するベクター
+    /// - `x1357`: 奇数番目の lane (1、3、5、7) に 64-bit 積を保持するベクター
     ///
     /// # Returns
     /// `__m256i`: 各 lane に `reduce_mont` 相当の結果を格納したベクターを返す。
@@ -606,8 +606,8 @@ impl MontgomerySimd {
     /// `u32x8` に対する Montgomery 乗算を行う。
     ///
     /// # Args
-    /// - `a`: 乗数となる 8 個の `u32` 値 (Montgomery 表現) である。
-    /// - `b`: 被乗数となる 8 個の `u32` 値 (Montgomery 表現) である。
+    /// - `a`: 乗数となる 8 個の `u32` 値 (Montgomery 表現)
+    /// - `b`: 被乗数となる 8 個の `u32` 値 (Montgomery 表現)
     /// - `B_USE_ONLY_EVEN`: `b` が偶数 lane のみに有効な値を持ち、
     ///   奇数 lane も同じ値を複製済みであることを示すフラグである。
     ///   `true` の場合、`b` の 4 byte シフトを省略して命令数を削減する。
@@ -750,8 +750,8 @@ impl Ntt {
     /// 通常表現を Montgomery 表現へ変換する。
     ///
     /// # Args
-    /// - `data`: 変換対象の先頭ポインタである。
-    /// - `len`: 変換する要素数である。
+    /// - `data`: 変換対象の先頭ポインタ
+    /// - `len`: 変換する要素数
     ///
     /// # Returns
     /// `()`: `data[0..len]` を in-place で更新する。
@@ -792,8 +792,8 @@ impl Ntt {
     /// Montgomery 表現を通常表現へ変換する。
     ///
     /// # Args
-    /// - `data`: 変換対象の先頭ポインタである。
-    /// - `len`: 変換する要素数である。
+    /// - `data`: 変換対象の先頭ポインタ
+    /// - `len`: 変換する要素数
     ///
     /// # Returns
     /// `()`: `data[0..len]` を in-place で更新する。
@@ -835,9 +835,9 @@ impl Ntt {
     /// Montgomery 表現上で点ごとの積を計算する。
     ///
     /// # Args
-    /// - `a`: 結果を格納する配列の先頭ポインタである。
-    /// - `b`: 乗じる配列の先頭ポインタである。
-    /// - `len`: 要素数である。
+    /// - `a`: 結果を格納する配列の先頭ポインタ
+    /// - `b`: 乗じる配列の先頭ポインタ
+    /// - `len`: 要素数
     ///
     /// # Returns
     /// `()`: `a[i] *= b[i]` (Montgomery 乗算) を in-place で計算する。
@@ -877,9 +877,9 @@ impl Ntt {
     /// Montgomery 表現上でスカラー倍を行う。
     ///
     /// # Args
-    /// - `data`: 対象配列の先頭ポインタである。
-    /// - `len`: 要素数である。
-    /// - `sc_mont`: 乗じるスカラー値 (Montgomery 表現) である。
+    /// - `data`: 対象配列の先頭ポインタ
+    /// - `len`: 要素数
+    /// - `sc_mont`: 乗じるスカラー値 (Montgomery 表現)
     ///
     /// # Returns
     /// `()`: `data[i] *= sc_mont` (Montgomery 乗算) を in-place で計算する。
@@ -927,8 +927,8 @@ impl Ntt {
     /// それぞれに専用のシャッフル・ブレンド命令列を用意している。
     ///
     /// # Args
-    /// - `data`: 係数列 (Montgomery 表現) の先頭ポインタである。
-    /// - `len`: 係数列の長さである。
+    /// - `data`: 係数列 (Montgomery 表現) の先頭ポインタ
+    /// - `len`: 係数列の長さ
     ///
     /// # Returns
     /// `()`: `data[0..len]` を in-place で更新する。
@@ -1126,8 +1126,8 @@ impl Ntt {
     /// 「先に和・差を取ってから、差の側にだけ回転因子を掛ける」順序のみである。
     ///
     /// # Args
-    /// - `data`: NTT 値 (Montgomery 表現) の先頭ポインタである。
-    /// - `len`: 係数列の長さである。
+    /// - `data`: NTT 値 (Montgomery 表現) の先頭ポインタ
+    /// - `len`: 係数列の長さ
     ///
     /// # Returns
     /// `()`: `data[0..len]` を in-place で更新する (正規化なし)。

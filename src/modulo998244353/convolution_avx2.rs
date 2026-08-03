@@ -7,7 +7,7 @@ use super::{convolution, modulo};
 /// AVX2 + Montgomery により NTT を実行する。
 ///
 /// # Args
-/// - `a`: 係数列。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: 係数列であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。
@@ -44,7 +44,7 @@ pub(super) unsafe fn ntt_avx2(a: &mut [u32]) {
 /// AVX2 + Montgomery により逆 NTT を実行する (正規化なし)。
 ///
 /// # Args
-/// - `a`: NTT 値。`a.len()` は 0 ではない 2 の冪である。
+/// - `a`: NTT 値であり、`a.len()` は 0 ではない 2 の冪である。
 ///
 /// # Returns
 /// `()`: `a` をインプレースで更新する。
