@@ -5,16 +5,16 @@ use super::super::modulo;
 /// `P(x) / Q(x)` の `x^k` 係数を Bostan-Mori アルゴリズムで求める。
 ///
 /// # Args
-/// - `p`: 分子 `P(x)` を表す形式的べき級数。
-/// - `q`: 分母 `Q(x)` を表す形式的べき級数。
-/// - `k`: 求めたい係数の次数。
+/// - `p`: 分子 `P(x)` を表す形式的べき級数
+/// - `q`: 分母 `Q(x)` を表す形式的べき級数
+/// - `k`: 求めたい係数の次数
 ///
 /// # Returns
-/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)。
+/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)
 ///
 /// # Complexity
 /// - 時間計算量: O(d log d log k)。d は `Q(x)` の次数である。
-/// - 空間計算量: O(d)。
+/// - 空間計算量: O(d)
 ///
 /// # Examples
 /// ```rust
@@ -44,12 +44,12 @@ pub fn bostan_mori(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 /// `bostan_mori` の非 SIMD 実装である。
 ///
 /// # Args
-/// - `p`: 分子 `P(x)` を表す形式的べき級数。
-/// - `q`: 分母 `Q(x)` を表す形式的べき級数。
+/// - `p`: 分子 `P(x)` を表す形式的べき級数
+/// - `q`: 分母 `Q(x)` を表す形式的べき級数
 /// - `k`: 求めたい係数の次数。この関数は `k` をインプレースで更新する。
 ///
 /// # Returns
-/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)。
+/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)
 ///
 /// # Constraints
 /// - 制約はない。
@@ -59,7 +59,7 @@ pub fn bostan_mori(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 ///
 /// # Complexity
 /// - 時間計算量: O(d log d log k)。d は `Q(x)` の次数である。
-/// - 空間計算量: O(d)。
+/// - 空間計算量: O(d)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -110,12 +110,12 @@ fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
 /// AVX2 + Montgomery + NTT doubling によって `P(x) / Q(x)` の `x^k` 係数を計算する。
 ///
 /// # Args
-/// - `p`: 分子 `P(x)` を表す形式的べき級数。
-/// - `q`: 分母 `Q(x)` を表す形式的べき級数。
-/// - `k`: 求めたい係数の次数。
+/// - `p`: 分子 `P(x)` を表す形式的べき級数
+/// - `q`: 分母 `Q(x)` を表す形式的べき級数
+/// - `k`: 求めたい係数の次数
 ///
 /// # Returns
-/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)。
+/// `u32`: `P(x) / Q(x)` の `x^k` 係数 (mod 998244353)
 ///
 /// # Constraints
 /// - AVX2 が利用可能な環境でのみ呼び出す。
@@ -126,7 +126,7 @@ fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
 ///
 /// # Complexity
 /// - 時間計算量: O(n log n log(k / n))。n は `Q(x)` の長さを 2 冪へ切り上げた値である。
-/// - 空間計算量: O(n)。
+/// - 空間計算量: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -249,8 +249,8 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - 時間計算量: O(n)。
-/// - 空間計算量: O(n)。
+/// - 時間計算量: O(n)
+/// - 空間計算量: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -295,24 +295,24 @@ fn build_w_for_pairing(n: usize) -> Vec<u32> {
 /// `a_i = sum_{j=1..d} c_j a_{i-j} (mod 998244353), i >= d`。
 ///
 /// # Args
-/// - `initial_terms`: `a_0..a_{d-1}` の初期項。
-/// - `coefficients`: `c_1..c_d` の係数。
-/// - `k`: 求めたい項番号。
+/// - `initial_terms`: `a_0..a_{d-1}` の初期項
+/// - `coefficients`: `c_1..c_d` の係数
+/// - `k`: 求めたい項番号
 ///
 /// # Returns
-/// `u32`: `a_k (mod 998244353)`。
+/// `u32`: `a_k (mod 998244353)`
 ///
 /// # Constraints
-/// - `initial_terms.len() == coefficients.len()`。
-/// - `initial_terms.len() >= 1`。
+/// - `initial_terms.len() == coefficients.len()`
+/// - `initial_terms.len() >= 1`
 ///
 /// # Panics
-/// - `initial_terms.len() != coefficients.len()` のとき。
-/// - `initial_terms.is_empty()` のとき。
+/// - `initial_terms.len() != coefficients.len()` のとき
+/// - `initial_terms.is_empty()` のとき
 ///
 /// # Complexity
 /// - 時間計算量: O(d log d log k)。d は漸化式の次数である。
-/// - 空間計算量: O(d)。
+/// - 空間計算量: O(d)
 ///
 /// # Examples
 /// ```rust

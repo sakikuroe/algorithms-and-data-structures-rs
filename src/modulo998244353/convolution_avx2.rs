@@ -19,8 +19,9 @@ use super::{convolution, modulo};
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は `a.len()` である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n log n)
+///   - n は `a.len()` である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -56,8 +57,9 @@ pub(super) unsafe fn ntt_avx2(a: &mut [u32]) {
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は `a.len()` である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n log n)
+///   - n は `a.len()` である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -85,7 +87,7 @@ pub(super) unsafe fn intt_avx2(a: &mut [u32]) {
 /// - `b`: 法 `MOD` で還元された 2 番目の入力列。この関数は `b` を消費する。
 ///
 /// # Returns
-/// `Vec<u32>`: 法 `MOD` での畳み込み結果。
+/// `Vec<u32>`: 法 `MOD` での畳み込み結果
 ///
 /// # Constraints
 /// - この関数は AVX2 が利用可能な環境でのみ呼び出す。
@@ -96,9 +98,10 @@ pub(super) unsafe fn intt_avx2(a: &mut [u32]) {
 /// - 長さ制約に違反した場合にパニックする。
 ///
 /// # Complexity
-/// - Time complexity: O((N + M) log K)、ここで N、M は入力長で、K は
-///   `N + M - 1` を超えない最小の 2 の冪である。
-/// - Space complexity: O(K)。
+/// - Time complexity: O((N + M) log K)
+///   - N、M は入力長を表す。
+///   - K は `N + M - 1` を超えない最小の 2 の冪である。
+/// - Space complexity: O(K)
 ///
 /// # Examples
 /// ```rust,ignore

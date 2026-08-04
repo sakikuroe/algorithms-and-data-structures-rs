@@ -91,7 +91,7 @@ pub const INVS: [u32; 23] = [
 /// - `()`: 引数はない。
 ///
 /// # Returns
-/// `[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: `ω^i` テーブル。
+/// `[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: `ω^i` テーブル
 ///
 /// # Constraints
 /// - `NTT_NAIVE_THRESHOLD > 0`
@@ -100,8 +100,8 @@ pub const INVS: [u32; 23] = [
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(NTT_NAIVE_THRESHOLD)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(NTT_NAIVE_THRESHOLD)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -137,7 +137,7 @@ const fn build_naive_ntt_omega_pows() -> [[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_
 /// - `()`: 引数はない。
 ///
 /// # Returns
-/// `[u32; NTT_NAIVE_LG_MAX + 1]`: `ω^{-1}` テーブル。
+/// `[u32; NTT_NAIVE_LG_MAX + 1]`: `ω^{-1}` テーブル
 ///
 /// # Constraints
 /// - `NTT_NAIVE_THRESHOLD > 0`
@@ -146,8 +146,8 @@ const fn build_naive_ntt_omega_pows() -> [[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(NTT_NAIVE_LG_MAX)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(NTT_NAIVE_LG_MAX)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -174,7 +174,7 @@ const fn build_naive_intt_omega_inv() -> [u32; NTT_NAIVE_LG_MAX + 1] {
 ///
 /// # Returns
 /// `[[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`:
-/// `(ω^k)^j` テーブル。
+/// `(ω^k)^j` テーブル
 ///
 /// # Constraints
 /// - `NTT_NAIVE_THRESHOLD > 0`
@@ -183,8 +183,8 @@ const fn build_naive_intt_omega_inv() -> [u32; NTT_NAIVE_LG_MAX + 1] {
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(NTT_NAIVE_THRESHOLD^2)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(NTT_NAIVE_THRESHOLD^2)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -222,7 +222,7 @@ const fn build_naive_ntt_base_pows()
 ///
 /// # Returns
 /// `[[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`:
-/// `(ω^{-j})^k` テーブル。
+/// `(ω^{-j})^k` テーブル
 ///
 /// # Constraints
 /// - `NTT_NAIVE_THRESHOLD > 0`
@@ -231,8 +231,8 @@ const fn build_naive_ntt_base_pows()
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(NTT_NAIVE_THRESHOLD^2)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(NTT_NAIVE_THRESHOLD^2)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -282,7 +282,7 @@ const fn build_naive_intt_base_pows()
 /// - `()`: 引数はない。
 ///
 /// # Returns
-/// `[[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: ビット反転テーブル。
+/// `[[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_LG_MAX + 1]`: ビット反転テーブル
 ///
 /// # Constraints
 /// - `NTT_NAIVE_THRESHOLD > 0`
@@ -291,8 +291,8 @@ const fn build_naive_intt_base_pows()
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(NTT_NAIVE_THRESHOLD)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(NTT_NAIVE_THRESHOLD)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -328,11 +328,11 @@ const fn build_naive_bit_reverse() -> [[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_L
 /// そのため、愚直 NTT でも同じ並びを再現するために用いる。
 ///
 /// # Args
-/// - `x`: 変換対象の値。
-/// - `lg`: 反転する bit 数。
+/// - `x`: 変換対象の値
+/// - `lg`: 反転する bit 数
 ///
 /// # Returns
-/// `usize`: 下位 `lg` bit を反転した値。
+/// `usize`: 下位 `lg` bit を反転した値
 ///
 /// # Constraints
 /// - `lg` は `usize::BITS` 以下である。
@@ -341,8 +341,8 @@ const fn build_naive_bit_reverse() -> [[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_L
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(lg)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(lg)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -378,8 +378,9 @@ pub fn bit_reverse(mut x: usize, lg: usize) -> usize {
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n^2)、ここで n は `a.len()` である。
-/// - Space complexity: O(n)。
+/// - Time complexity: O(n^2)
+///   - n は `a.len()` である。
+/// - Space complexity: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -431,8 +432,9 @@ fn ntt_naive(a: &mut [u32]) {
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n^2)、ここで n は `a.len()` である。
-/// - Space complexity: O(n)。
+/// - Time complexity: O(n^2)
+///   - n は `a.len()` である。
+/// - Space complexity: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -484,8 +486,9 @@ fn intt_naive(a: &mut [u32]) {
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は `a.len()` である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n log n)
+///   - n は `a.len()` である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -543,8 +546,9 @@ fn ntt_butterfly(a: &mut [u32]) {
 /// - この関数はパニックしない (debug assert のみ)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は `a.len()` である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n log n)
+///   - n は `a.len()` である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -587,7 +591,7 @@ fn intt_butterfly(a: &mut [u32]) {
 /// 与えられた列に対してインプレースで number theoretic transform (NTT) を実行する。
 ///
 /// # Args
-/// - `a`: 長さが 2 の冪となる係数列。
+/// - `a`: 長さが 2 の冪となる係数列
 ///
 /// # Returns
 /// `()`: この関数は `a` をインプレースで更新する。
@@ -601,10 +605,10 @@ fn intt_butterfly(a: &mut [u32]) {
 /// - 制約に違反した場合にパニックする。
 ///
 /// # Complexity
-/// - Time complexity: O(N^2)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合。
-/// - Time complexity: O(N log N)、ただし `N > NTT_NAIVE_THRESHOLD` の場合。
-/// - Space complexity: O(N)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合。
-/// - Space complexity: O(1)、ただし `N > NTT_NAIVE_THRESHOLD` の場合。
+/// - Time complexity: O(N^2)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合
+/// - Time complexity: O(N log N)、ただし `N > NTT_NAIVE_THRESHOLD` の場合
+/// - Space complexity: O(N)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合
+/// - Space complexity: O(1)、ただし `N > NTT_NAIVE_THRESHOLD` の場合
 ///
 /// # Examples
 /// ```rust
@@ -666,7 +670,7 @@ pub fn ntt(a: &mut [u32]) {
 /// 与えられた列に対してインプレースで逆 number theoretic transform (INTT) を実行する。
 ///
 /// # Args
-/// - `a`: 長さが 2 の冪となる係数列。
+/// - `a`: 長さが 2 の冪となる係数列
 ///
 /// # Returns
 /// `()`: この関数は `a` をインプレースで更新する。
@@ -680,10 +684,10 @@ pub fn ntt(a: &mut [u32]) {
 /// - 制約に違反した場合にパニックする。
 ///
 /// # Complexity
-/// - Time complexity: O(N^2)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合。
-/// - Time complexity: O(N log N)、ただし `N > NTT_NAIVE_THRESHOLD` の場合。
-/// - Space complexity: O(N)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合。
-/// - Space complexity: O(1)、ただし `N > NTT_NAIVE_THRESHOLD` の場合。
+/// - Time complexity: O(N^2)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合
+/// - Time complexity: O(N log N)、ただし `N > NTT_NAIVE_THRESHOLD` の場合
+/// - Space complexity: O(N)、ただし `N <= NTT_NAIVE_THRESHOLD` の場合
+/// - Space complexity: O(1)、ただし `N > NTT_NAIVE_THRESHOLD` の場合
 ///
 /// # Examples
 /// ```rust
@@ -749,7 +753,7 @@ pub fn intt(a: &mut [u32]) {
 /// - `b`: 法 `MOD` で還元された 2 番目の入力列。この関数は `b` を消費する。
 ///
 /// # Returns
-/// `Vec<u32>`: 法 `MOD` での畳み込み結果。
+/// `Vec<u32>`: 法 `MOD` での畳み込み結果
 ///
 /// # Constraints
 /// - いずれかのベクターが空の場合は空のベクターを返す。
@@ -760,9 +764,10 @@ pub fn intt(a: &mut [u32]) {
 /// - 長さ制約に違反した場合にパニックする。
 ///
 /// # Complexity
-/// - Time complexity: O((N + M) log K)、ここで N、M は入力長で、K は
-///   `N + M - 1` を超えない最小の 2 の冪である。
-/// - Space complexity: O(K)。
+/// - Time complexity: O((N + M) log K)
+///   - N、M は入力長を表す。
+///   - K は `N + M - 1` を超えない最小の 2 の冪である。
+/// - Space complexity: O(K)
 ///
 /// # Examples
 /// ```rust

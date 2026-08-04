@@ -6,10 +6,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の逆元を計算する (疎密を自動選択する)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 定数項が可逆なときの逆元系列。
+    /// `Option<Self>`: 定数項が可逆なときの逆元系列
     ///
     /// # Constraints
     /// - 定数項は 0 であってはならない。
@@ -45,10 +45,10 @@ impl super::FPS {
     /// `inverse` が疎実装を選択すべきかどうかを判定する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `bool`: 疎実装を選ぶなら `true`。
+    /// `bool`: 疎実装を選ぶなら `true`
     ///
     /// # Constraints
     /// 制約はない。
@@ -58,7 +58,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(N)。N は `self.len()` である。
-    /// - 空間計算量: O(1)。
+    /// - 空間計算量: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -84,10 +84,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の逆元を計算する (密な実装)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 定数項が可逆なときの逆元系列。
+    /// `Option<Self>`: 定数項が可逆なときの逆元系列
     ///
     /// # Constraints
     /// - 定数項は 0 であってはならない。
@@ -125,10 +125,10 @@ impl super::FPS {
     /// AVX2 + Montgomery によって `x^degree` まで (含む) の逆元を計算する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 定数項が可逆なときの逆元系列。
+    /// `Option<Self>`: 定数項が可逆なときの逆元系列
     ///
     /// # Constraints
     /// - AVX2 が利用可能な環境でのみ呼び出す。
@@ -246,10 +246,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の逆元を計算する (非 SIMD 実装)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 定数項が可逆なときの逆元系列。
+    /// `Option<Self>`: 定数項が可逆なときの逆元系列
     ///
     /// # Constraints
     /// - 定数項は 0 であってはならない。
@@ -358,10 +358,10 @@ impl super::FPS {
     /// `f_0 g_n = -\sum_{1 \le i \le n} f_i g_{n-i}` を用いて次数の小さい順に係数を求める。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 定数項が可逆なときの逆元系列。
+    /// `Option<Self>`: 定数項が可逆なときの逆元系列
     ///
     /// # Constraints
     /// - 定数項は 0 であってはならない。
@@ -371,7 +371,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(K * (degree + 1))。K は非ゼロ係数の個数である。
-    /// - 空間計算量: O(K + degree)。
+    /// - 空間計算量: O(K + degree)
     ///
     /// # Examples
     /// ```rust

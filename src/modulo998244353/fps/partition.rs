@@ -18,11 +18,11 @@ enum LogSeriesKind {
 /// `LogSeriesKind` と `j` に応じて、対象の項を加算するか減算するかを返す。
 ///
 /// # Args
-/// - `kind`: 対応する生成関数の種類。
+/// - `kind`: 対応する生成関数の種類
 /// - `j`: `x^(k*j)` の `j` を表す (1 以上)。
 ///
 /// # Returns
-/// `bool`: 加算なら `true`、減算なら `false`。
+/// `bool`: 加算なら `true`、減算なら `false`
 ///
 /// # Constraints
 /// - `j >= 1` を満たす。
@@ -31,8 +31,8 @@ enum LogSeriesKind {
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(1)。
-/// - 空間計算量: O(1)。
+/// - 時間計算量: O(1)
+/// - 空間計算量: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -53,8 +53,8 @@ fn should_add_term(kind: LogSeriesKind, j: usize) -> bool {
 ///
 /// # Args
 /// - `exponents`: `x` の指数列であり、`a[i]` は `(1 ± x^{a[i]})` の指数に対応する。
-/// - `degree`: 計算する最高次数 (含む)。
-/// - `kind`: 構築する対数級数の種類。
+/// - `degree`: 計算する最高次数 (含む)
+/// - `kind`: 構築する対数級数の種類
 ///
 /// # Returns
 /// `Option<(super::FPS, usize)>`: 対数級数と、`a[i] = 0` の個数を返す。
@@ -67,9 +67,9 @@ fn should_add_term(kind: LogSeriesKind, j: usize) -> bool {
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(N + (degree + 1) log(degree + 1))。
-///   N は `exponents.len()` である。
-/// - 空間計算量: O(degree + 1)。
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1))
+///   - N は `exponents.len()` である。
+/// - 空間計算量: O(degree + 1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -132,11 +132,11 @@ fn build_log_series(
 /// `Π(1 + x^{a[i]})` を `x^degree` まで (含む) 計算する。
 ///
 /// # Args
-/// - `exponents`: `x` の指数列。
-/// - `degree`: 計算する最高次数 (含む)。
+/// - `exponents`: `x` の指数列
+/// - `degree`: 計算する最高次数 (含む)
 ///
 /// # Returns
-/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数。
+/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数
 ///
 /// # Constraints
 /// - `degree + 1 < 998244353` を満たす。
@@ -146,9 +146,9 @@ fn build_log_series(
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(N + (degree + 1) log(degree + 1))。
-///   N は `exponents.len()` である。
-/// - 空間計算量: O(degree + 1)。
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1))
+///   - N は `exponents.len()` である。
+/// - 空間計算量: O(degree + 1)
 ///
 /// # Examples
 /// ```rust
@@ -179,11 +179,11 @@ pub fn product_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option<sup
 /// `Π(1 - x^{a[i]})` を `x^degree` まで (含む) 計算する。
 ///
 /// # Args
-/// - `exponents`: `x` の指数列。
-/// - `degree`: 計算する最高次数 (含む)。
+/// - `exponents`: `x` の指数列
+/// - `degree`: 計算する最高次数 (含む)
 ///
 /// # Returns
-/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数。
+/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数
 ///
 /// # Constraints
 /// - `degree + 1 < 998244353` を満たす。
@@ -193,9 +193,9 @@ pub fn product_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option<sup
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(N + (degree + 1) log(degree + 1))。
-///   N は `exponents.len()` である。
-/// - 空間計算量: O(degree + 1)。
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1))
+///   - N は `exponents.len()` である。
+/// - 空間計算量: O(degree + 1)
 ///
 /// # Examples
 /// ```rust
@@ -219,11 +219,11 @@ pub fn product_one_minus_x_powers(exponents: &[u32], degree: usize) -> Option<su
 /// `Π(1/(1 + x^{a[i]}))` を `x^degree` まで (含む) 計算する。
 ///
 /// # Args
-/// - `exponents`: `x` の指数列。
-/// - `degree`: 計算する最高次数 (含む)。
+/// - `exponents`: `x` の指数列
+/// - `degree`: 計算する最高次数 (含む)
 ///
 /// # Returns
-/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数。
+/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数
 ///
 /// # Constraints
 /// - `degree + 1 < 998244353` を満たす。
@@ -233,9 +233,9 @@ pub fn product_one_minus_x_powers(exponents: &[u32], degree: usize) -> Option<su
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(N + (degree + 1) log(degree + 1))。
-///   N は `exponents.len()` である。
-/// - 空間計算量: O(degree + 1)。
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1))
+///   - N は `exponents.len()` である。
+/// - 空間計算量: O(degree + 1)
 ///
 /// # Examples
 /// ```rust
@@ -266,11 +266,11 @@ pub fn product_inv_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option
 /// `Π(1/(1 - x^{a[i]}))` を `x^degree` まで (含む) 計算する。
 ///
 /// # Args
-/// - `exponents`: `x` の指数列。
-/// - `degree`: 計算する最高次数 (含む)。
+/// - `exponents`: `x` の指数列
+/// - `degree`: 計算する最高次数 (含む)
 ///
 /// # Returns
-/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数。
+/// `Option<super::FPS>`: 制約を満たすときの切り詰められた生成関数
 ///
 /// # Constraints
 /// - `degree + 1 < 998244353` を満たす。
@@ -281,9 +281,9 @@ pub fn product_inv_one_plus_x_powers(exponents: &[u32], degree: usize) -> Option
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - 時間計算量: O(N + (degree + 1) log(degree + 1))。
-///   N は `exponents.len()` である。
-/// - 空間計算量: O(degree + 1)。
+/// - 時間計算量: O(N + (degree + 1) log(degree + 1))
+///   - N は `exponents.len()` である。
+/// - 空間計算量: O(degree + 1)
 ///
 /// # Examples
 /// ```rust
@@ -390,7 +390,7 @@ mod tests {
     /// 素朴に計算する。
     ///
     /// # Panics
-    /// - `exponents` に 0 が含まれる場合 (1/(1 - x^0) が未定義であるため)。
+    /// - `exponents` に 0 が含まれる場合 (1/(1 - x^0) が未定義であるため)
     fn brute_product_inv_one_minus(exponents: &[u32], degree: usize) -> super::super::FPS {
         let mut acc = fps(vec![1]);
         for &a in exponents {

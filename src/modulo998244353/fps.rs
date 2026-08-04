@@ -42,7 +42,7 @@ static FACTORIAL_TABLES: sync::OnceLock<FactorialTables> = sync::OnceLock::new()
 /// 引数はない。
 ///
 /// # Returns
-/// `&'static FactorialTables`: `0..=MAX_NTT_LEN` の階乗テーブルと逆階乗テーブル。
+/// `&'static FactorialTables`: `0..=MAX_NTT_LEN` の階乗テーブルと逆階乗テーブル
 ///
 /// # Constraints
 /// - `convolution::MAX_NTT_LEN < 998244353` を満たす。
@@ -51,8 +51,8 @@ static FACTORIAL_TABLES: sync::OnceLock<FactorialTables> = sync::OnceLock::new()
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)。
-/// - Space complexity: O(MAX_NTT_LEN)。
+/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)
+/// - Space complexity: O(MAX_NTT_LEN)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -89,7 +89,7 @@ impl FPS {
     /// 形式的べき級数が保持できる項数の上限を検証する。
     ///
     /// # Args
-    /// - `len`: 検証する項数。
+    /// - `len`: 検証する項数
     ///
     /// # Returns
     /// `()`: 検証するだけで値は返さない。
@@ -101,8 +101,8 @@ impl FPS {
     /// - `len > MAX_NTT_LEN` のときパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(1)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -118,20 +118,21 @@ impl FPS {
     /// 係数列から形式的べき級数を生成する。
     ///
     /// # Args
-    /// - `coefficients`: 次数が小さい順に並んだ係数列。
+    /// - `coefficients`: 次数が小さい順に並んだ係数列
     ///
     /// # Returns
-    /// `Self`: 末尾のゼロ項を除去した形式的べき級数。
+    /// `Self`: 末尾のゼロ項を除去した形式的べき級数
     ///
     /// # Constraints
     /// 制約はない。
     ///
     /// # Panics
-    /// - 係数が法 998244353 以上のとき。
-    /// - 末尾のゼロ係数を除去した後の項数が `MAX_NTT_LEN` を超えるとき。
+    /// - 係数が法 998244353 以上のとき
+    /// - 末尾のゼロ係数を除去した後の項数が `MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。ここで N は `coefficients.len()`。
+    /// - Time complexity: O(N)
+    ///   - N は `coefficients.len()` である。
     ///
     /// # Examples
     /// ```rust
@@ -158,7 +159,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `usize`: ゼロを取り除いた後の項数 (最高次数 + 1)。
+    /// `usize`: ゼロを取り除いた後の項数 (最高次数 + 1)
     ///
     /// # Constraints
     /// - `value != 0` のとき、`index + 1` は `MAX_NTT_LEN` 以下でなければならない。
@@ -167,7 +168,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
+    /// - Time complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -186,7 +187,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `Option<usize>`: 非ゼロ多項式では `Some(degree)`、ゼロでは `None`。
+    /// `Option<usize>`: 非ゼロ多項式では `Some(degree)`、ゼロでは `None`
     ///
     /// # Constraints
     /// 制約はない。
@@ -195,7 +196,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
+    /// - Time complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -218,7 +219,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `bool`: すべての係数がゼロかどうか。
+    /// `bool`: すべての係数がゼロかどうか
     ///
     /// # Constraints
     /// 制約はない。
@@ -227,7 +228,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
+    /// - Time complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -243,10 +244,10 @@ impl FPS {
     /// `x^index` の係数を返す。対応する項が無い場合は 0 を返す。
     ///
     /// # Args
-    /// - `index`: 取り出す次数。
+    /// - `index`: 取り出す次数
     ///
     /// # Returns
-    /// `u32`: 指定した次数の係数 (法 998244353 での値)。
+    /// `u32`: 指定した次数の係数 (法 998244353 での値)
     ///
     /// # Constraints
     /// 制約はない。
@@ -255,7 +256,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
+    /// - Time complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -272,8 +273,8 @@ impl FPS {
     /// 必要に応じて拡張し、`x^index` の係数を設定する。
     ///
     /// # Args
-    /// - `index`: 上書きする次数。
-    /// - `value`: 設定する新しい係数。
+    /// - `index`: 上書きする次数
+    /// - `value`: 設定する新しい係数
     ///
     /// # Returns
     /// `()`: インプレースで更新する。
@@ -282,8 +283,8 @@ impl FPS {
     /// 制約はない。
     ///
     /// # Panics
-    /// - `value >= 998244353` のとき。
-    /// - `value != 0` かつ `index + 1 > MAX_NTT_LEN` のとき。
+    /// - `value >= 998244353` のとき
+    /// - `value != 0` かつ `index + 1 > MAX_NTT_LEN` のとき
     ///
     /// # Complexity
     /// - Time complexity: O(N)。N は `index` になりうる。
@@ -318,7 +319,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `&[u32]`: 係数への参照。
+    /// `&[u32]`: 係数への参照
     ///
     /// # Constraints
     /// 制約はない。
@@ -327,7 +328,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
+    /// - Time complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -355,8 +356,9 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。ここで N は `self.len()`。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(N)
+    ///   - N は `self.len()` である。
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust
@@ -388,8 +390,10 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。ここで N は `self.len()`。
-    /// - Space complexity: O(K)。ここで K は非ゼロ項の個数。
+    /// - Time complexity: O(N)
+    ///   - N は `self.len()` である。
+    /// - Space complexity: O(K)
+    ///   - K は非ゼロ項の個数である。
     ///
     /// # Examples
     /// ```rust
@@ -405,7 +409,7 @@ impl FPS {
     /// 指定した項数に切り詰める。
     ///
     /// # Args
-    /// - `len`: 新しい項数 (最高次数 + 1)。
+    /// - `len`: 新しい項数 (最高次数 + 1)
     ///
     /// # Returns
     /// `()`: インプレースで更新する。
@@ -417,7 +421,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。N は `self.len()`。
+    /// - Time complexity: O(N)。N は `self.len()`
     ///
     /// # Examples
     /// ```rust
@@ -440,7 +444,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `&mut Self`: 微分後の系列への参照。
+    /// `&mut Self`: 微分後の系列への参照
     ///
     /// # Constraints
     /// 制約はない。
@@ -449,7 +453,7 @@ impl FPS {
     /// - この関数はパニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。
+    /// - Time complexity: O(N)
     ///
     /// # Examples
     /// ```rust
@@ -479,7 +483,7 @@ impl FPS {
     /// 引数はない。
     ///
     /// # Returns
-    /// `&mut Self`: 定数項を 0 とした積分系列への参照。
+    /// `&mut Self`: 定数項を 0 とした積分系列への参照
     ///
     /// # Constraints
     /// - 各分母 (1、2、...) が 998244353 上で逆元を持つ。
@@ -491,7 +495,7 @@ impl FPS {
     /// - `self.len() + 1 > MAX_NTT_LEN` のときパニックする。
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。
+    /// - Time complexity: O(N)
     ///
     /// # Examples
     /// ```rust
@@ -534,7 +538,7 @@ impl FPS {
     /// 末尾のゼロ係数を除去して正規形にする。
     ///
     /// # Args
-    /// - `self`: 正規化対象となる系列。
+    /// - `self`: 正規化対象となる系列
     ///
     /// # Returns
     /// `()`: 自身をインプレースで更新する。
@@ -543,11 +547,11 @@ impl FPS {
     /// 制約はない。
     ///
     /// # Panics
-    /// - 項数が `MAX_NTT_LEN` を超えるとき。
+    /// - 項数が `MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
     /// - Time complexity: O(N)。N は末尾のゼロの個数である。
-    /// - Space complexity: O(1)。
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -570,20 +574,20 @@ impl fmt::Display for FPS {
     /// 表示用の文字列表現を生成する。
     ///
     /// # Args
-    /// - `self`: 出力対象の系列。
-    /// - `f`: 出力先フォーマッタ。
+    /// - `self`: 出力対象の系列
+    /// - `f`: 出力先フォーマッタ
     ///
     /// # Returns
-    /// `fmt::Result`: フォーマット結果。
+    /// `fmt::Result`: フォーマット結果
     ///
     /// # Constraints
     /// 制約はない。
     ///
     /// # Panics
-    /// - フォーマット先がエラーを返したとき。
+    /// - フォーマット先がエラーを返したとき
     ///
     /// # Complexity
-    /// - Time complexity: O(N)。N は項数。
+    /// - Time complexity: O(N)。N は項数
     ///
     /// # Examples
     /// ```rust

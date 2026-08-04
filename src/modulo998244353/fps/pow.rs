@@ -7,17 +7,17 @@ impl super::FPS {
     /// (疎密を自動選択する)。
     ///
     /// # Args
-    /// - `exponent`: 非負整数冪指数。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `exponent`: 非負整数冪指数
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数。
+    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数
     ///
     /// # Constraints
-    /// - `exponent > 0` のとき `degree + 1 < 998244353`。
+    /// - `exponent > 0` のとき `degree + 1 < 998244353`
     ///
     /// # Panics
-    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき。
+    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき
     ///
     /// # Complexity
     /// - 時間計算量: 実行時に疎実装または密実装を選択する。
@@ -53,11 +53,11 @@ impl super::FPS {
     /// `pow` が疎実装を選択すべきかどうかを判定する。
     ///
     /// # Args
-    /// - `exponent`: 非負整数冪指数。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `exponent`: 非負整数冪指数
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `bool`: 疎実装を選ぶなら `true`。
+    /// `bool`: 疎実装を選ぶなら `true`
     ///
     /// # Constraints
     /// 制約はない。
@@ -67,7 +67,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(N)。N は `self.len()` である。
-    /// - 空間計算量: O(1)。
+    /// - 空間計算量: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -113,17 +113,17 @@ impl super::FPS {
     /// (密な実装)。
     ///
     /// # Args
-    /// - `exponent`: 非負整数冪指数。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `exponent`: 非負整数冪指数
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数。
+    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数
     ///
     /// # Constraints
-    /// - `exponent > 0` のとき `degree + 1 < 998244353`。
+    /// - `exponent > 0` のとき `degree + 1 < 998244353`
     ///
     /// # Panics
-    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき。
+    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき
     ///
     /// # Complexity
     /// - 時間計算量: O(N log N)。N は `degree + 1` である。
@@ -205,23 +205,23 @@ impl super::FPS {
     /// `f(x) F'(x) = M F(x) f'(x)` に基づく漸化式で次数の低い順に計算する。
     ///
     /// # Args
-    /// - `exponent`: 非負整数冪指数 `M`。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `exponent`: 非負整数冪指数 `M`
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数。
+    /// `Self`: `self(x)^exponent` を `degree` 次まで切り詰めた形式的べき級数
     ///
     /// # Constraints
-    /// - `exponent > 0` のとき `degree + 1 < 998244353`。
+    /// - `exponent > 0` のとき `degree + 1 < 998244353`
     /// - `degree` より高い非ゼロ係数は結果に影響しないものとして扱う。
     ///
     /// # Panics
-    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき。
+    /// - `exponent > 0` かつ `degree + 1 >= 998244353` のとき
     ///
     /// # Complexity
     /// - 時間計算量: O((N - M t) * K)。ここで
     ///   N = degree + 1、t は最小の非ゼロ係数の添字、K は非ゼロ係数の個数である。
-    /// - 空間計算量: O(N + K)。
+    /// - 空間計算量: O(N + K)
     ///
     /// # Examples
     /// ```rust

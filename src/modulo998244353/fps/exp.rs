@@ -6,10 +6,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の形式的指数を計算する (疎密を自動選択する)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列
     ///
     /// # Constraints
     /// - 定数項は 0 でなければならない。
@@ -50,10 +50,10 @@ impl super::FPS {
     /// `exp` が疎実装を選択すべきかどうかを判定する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `bool`: 疎実装を選ぶなら `true`。
+    /// `bool`: 疎実装を選ぶなら `true`
     ///
     /// # Constraints
     /// 制約はない。
@@ -63,7 +63,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(N)。N は `self.len()` である。
-    /// - 空間計算量: O(1)。
+    /// - 空間計算量: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -101,10 +101,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の形式的指数を計算する (密な実装)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列
     ///
     /// # Constraints
     /// - 定数項は 0 でなければならない。
@@ -144,10 +144,10 @@ impl super::FPS {
     /// 具体的には `res <- res * (1 + self - log(res))` を繰り返し適用する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列
     ///
     /// # Constraints
     /// - 定数項は 0 でなければならない。
@@ -217,10 +217,10 @@ impl super::FPS {
     /// AVX2 + Montgomery により、`x^degree` まで (含む) の形式的指数を計算する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列
     ///
     /// # Constraints
     /// - AVX2 が利用可能な環境でのみ呼び出す。
@@ -474,10 +474,10 @@ impl super::FPS {
     /// 低い順に計算する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた指数系列
     ///
     /// # Constraints
     /// - 定数項は 0 でなければならない。
@@ -488,7 +488,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(K * degree)。K は非ゼロ係数の個数である。
-    /// - 空間計算量: O(K + degree)。
+    /// - 空間計算量: O(K + degree)
     ///
     /// # Examples
     /// ```rust

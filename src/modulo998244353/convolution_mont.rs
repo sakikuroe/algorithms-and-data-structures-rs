@@ -43,7 +43,7 @@ static INV_NUM_MONT_TABLE: sync::OnceLock<Box<[u32]>> = sync::OnceLock::new();
 /// 引数はない。
 ///
 /// # Returns
-/// `&'static [u32]`: `i` 番目が `i` (Montgomery 表現) となるテーブル。
+/// `&'static [u32]`: `i` 番目が `i` (Montgomery 表現) となるテーブル
 ///
 /// # Constraints
 /// - `convolution::MAX_NTT_LEN < 998244353` を満たす。
@@ -52,8 +52,8 @@ static INV_NUM_MONT_TABLE: sync::OnceLock<Box<[u32]>> = sync::OnceLock::new();
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)。
-/// - Space complexity: O(MAX_NTT_LEN)。
+/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)
+/// - Space complexity: O(MAX_NTT_LEN)
 ///
 /// # Examples
 /// ```rust
@@ -93,8 +93,8 @@ pub fn num_mont_table() -> &'static [u32] {
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)。
-/// - Space complexity: O(MAX_NTT_LEN)。
+/// - Time complexity: 初回のみ O(MAX_NTT_LEN)、2 回目以降は O(1)
+/// - Space complexity: O(MAX_NTT_LEN)
 ///
 /// # Examples
 /// ```rust
@@ -142,8 +142,8 @@ const AVX2_U32_LANES: usize = 8;
 /// パニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(1)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(1)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -184,8 +184,8 @@ pub fn reduce_mont(val: u64) -> u32 {
 /// パニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(1)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(1)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -219,8 +219,8 @@ pub fn mul_mont(a: u32, b: u32) -> u32 {
 /// パニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(1)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(1)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -254,8 +254,8 @@ pub fn standard_to_mont_scalar(x: u32) -> u32 {
 /// パニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(1)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(1)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -285,8 +285,8 @@ pub fn mont_to_standard_scalar(x_mont: u32) -> u32 {
 /// - `lg` が範囲外の場合にパニックする。
 ///
 /// # Complexity
-/// - Time complexity: O(1)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(1)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -317,7 +317,7 @@ const NTT_DOUBLING_ZETA: [u32; NTT_DOUBLING_LG_MAX + 1] = build_ntt_doubling_zet
 /// - `()`: 引数はない。
 ///
 /// # Returns
-/// `[u32; NTT_DOUBLING_LG_MAX + 1]`: `ζ` テーブル。
+/// `[u32; NTT_DOUBLING_LG_MAX + 1]`: `ζ` テーブル
 ///
 /// # Constraints
 /// - `convolution::MAX_NTT_LEN` は 2 の冪である。
@@ -326,8 +326,8 @@ const NTT_DOUBLING_ZETA: [u32; NTT_DOUBLING_LG_MAX + 1] = build_ntt_doubling_zet
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(log MAX_NTT_LEN)。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(log MAX_NTT_LEN)
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -372,8 +372,8 @@ impl NttDoublingPowersMont {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(NTT_DOUBLING_LG_MAX)。
-    /// - Space complexity: O(NTT_DOUBLING_LG_MAX)。
+    /// - Time complexity: O(NTT_DOUBLING_LG_MAX)
+    /// - Space complexity: O(NTT_DOUBLING_LG_MAX)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -405,8 +405,8 @@ impl NttDoublingPowersMont {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: 初回のみ O(n)、2 回目以降は O(1)。
-    /// - Space complexity: O(n)。
+    /// - Time complexity: 初回のみ O(n)、2 回目以降は O(1)
+    /// - Space complexity: O(n)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -459,8 +459,8 @@ static NTT: sync::OnceLock<Ntt> = sync::OnceLock::new();
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: 初回のみ O(n)、2 回目以降は O(1)。
-/// - Space complexity: O(n)。
+/// - Time complexity: 初回のみ O(n)、2 回目以降は O(1)
+/// - Space complexity: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -508,8 +508,8 @@ impl MontgomerySimd {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(1)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -539,8 +539,8 @@ impl MontgomerySimd {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(1)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -571,8 +571,8 @@ impl MontgomerySimd {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(1)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -624,8 +624,8 @@ impl MontgomerySimd {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(1)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(1)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -683,8 +683,10 @@ impl Ntt {
     ///   パニックし得る。
     ///
     /// # Complexity
-    /// - Time complexity: O(2^chunks_lg)、ここで `chunks_lg` は引数である。
-    /// - Space complexity: O(2^chunks_lg)、ここで `chunks_lg` は引数である。
+    /// - Time complexity: O(2^chunks_lg)
+    ///   - `chunks_lg` は引数である。
+    /// - Space complexity: O(2^chunks_lg)
+    ///   - `chunks_lg` は引数である。
     ///
     /// # Examples
     /// ```rust,ignore
@@ -722,8 +724,8 @@ impl Ntt {
     /// パニックしない。
     ///
     /// # Complexity
-    /// - Time complexity: O(MAX_NTT_LEN)。
-    /// - Space complexity: O(MAX_NTT_LEN)。
+    /// - Time complexity: O(MAX_NTT_LEN)
+    /// - Space complexity: O(MAX_NTT_LEN)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -764,8 +766,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -806,8 +808,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -850,8 +852,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -892,8 +894,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -941,8 +943,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len log len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len log len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -1140,8 +1142,8 @@ impl Ntt {
     /// - この関数はパニックし得る (デバッグアサート)。
     ///
     /// # Complexity
-    /// - Time complexity: O(len log len)。
-    /// - Space complexity: O(1)。
+    /// - Time complexity: O(len log len)
+    /// - Space complexity: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -1332,8 +1334,8 @@ impl Ntt {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1390,8 +1392,8 @@ pub unsafe fn standard_to_mont(a: &mut [u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1434,7 +1436,7 @@ pub unsafe fn mont_to_standard(a: &mut [u32]) {
 ///
 /// # Args
 /// - `a`: 結果を格納する配列 (Montgomery 表現)。この関数は `a` を in-place で更新する。
-/// - `b`: 乗じる配列 (Montgomery 表現)。
+/// - `b`: 乗じる配列 (Montgomery 表現)
 ///
 /// # Returns
 /// `()`: `a[i] *= b[i]` (Montgomery 乗算) を in-place で計算する。
@@ -1448,8 +1450,8 @@ pub unsafe fn mont_to_standard(a: &mut [u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1492,7 +1494,7 @@ pub unsafe fn mul_pointwise_mont(a: &mut [u32], b: &[u32]) {
 ///
 /// # Args
 /// - `a`: 対象の配列 (Montgomery 表現)。この関数は `a` を in-place で更新する。
-/// - `sc_mont`: 乗じるスカラー値 (Montgomery 表現)。
+/// - `sc_mont`: 乗じるスカラー値 (Montgomery 表現)
 ///
 /// # Returns
 /// `()`: `a[i] *= sc_mont` (Montgomery 乗算) を in-place で計算する。
@@ -1505,8 +1507,8 @@ pub unsafe fn mul_pointwise_mont(a: &mut [u32], b: &[u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1564,8 +1566,9 @@ pub unsafe fn mul_scalar_mont(a: &mut [u32], sc_mont: u32) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(n)、ここで n は配列長である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n)
+///   - n は配列長である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1618,8 +1621,9 @@ pub unsafe fn add_assign_mont(a: &mut [u32], b: &[u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(n)、ここで n は配列長である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n)
+///   - n は配列長である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1671,8 +1675,9 @@ pub unsafe fn sub_assign_mont(a: &mut [u32], b: &[u32]) {
 /// - この関数はパニックしない。
 ///
 /// # Complexity
-/// - Time complexity: O(n)、ここで n は配列長である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n)
+///   - n は配列長である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1720,8 +1725,9 @@ pub unsafe fn double_mont(a: &mut [u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(n)、ここで n は配列長である。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(n)
+///   - n は配列長である。
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1773,8 +1779,8 @@ pub unsafe fn rev_sub_assign_mont(a: &mut [u32], b: &[u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len() log a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len() log a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust
@@ -1849,8 +1855,8 @@ pub unsafe fn ntt_mont(a: &mut [u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(a.len() log a.len())。
-/// - Space complexity: O(1)。
+/// - Time complexity: O(a.len() log a.len())
+/// - Space complexity: O(1)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -1925,8 +1931,9 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は入力長である。
-/// - Space complexity: O(n)。
+/// - Time complexity: O(n log n)
+///   - n は入力長である。
+/// - Space complexity: O(n)
 ///
 /// # Examples
 /// ```rust,ignore
@@ -1963,8 +1970,9 @@ pub unsafe fn ntt_doubling(a_ntt: &mut Vec<u32>) {
 /// - この関数はパニックし得る (デバッグアサート)。
 ///
 /// # Complexity
-/// - Time complexity: O(n log n)、ここで n は入力長である。
-/// - Space complexity: O(n)。
+/// - Time complexity: O(n log n)
+///   - n は入力長である。
+/// - Space complexity: O(n)
 ///
 /// # Examples
 /// ```rust,ignore

@@ -6,10 +6,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の形式的対数を計算する (疎密を自動選択する)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列
     ///
     /// # Constraints
     /// - 定数項は 1 でなければならない。
@@ -41,10 +41,10 @@ impl super::FPS {
     /// `log` が疎実装を選択すべきかどうかを判定する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `bool`: 疎実装を選ぶなら `true`。
+    /// `bool`: 疎実装を選ぶなら `true`
     ///
     /// # Constraints
     /// 制約はない。
@@ -54,7 +54,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(N)。N は `self.len()` である。
-    /// - 空間計算量: O(1)。
+    /// - 空間計算量: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -85,10 +85,10 @@ impl super::FPS {
     /// `x^degree` まで (含む) の形式的対数を計算する (密な実装)。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列
     ///
     /// # Constraints
     /// - 定数項は 1 でなければならない。
@@ -140,10 +140,10 @@ impl super::FPS {
     /// `(log f)' = f'/f` を用い、`inverse_sparse` と同様の疎な漸化式で商を求めてから積分する。
     ///
     /// # Args
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列。
+    /// `Option<Self>`: 制約を満たすときの切り詰められた対数系列
     ///
     /// # Constraints
     /// - 定数項は 1 でなければならない。
@@ -153,7 +153,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(K * degree)。K は非ゼロ係数の個数である。
-    /// - 空間計算量: O(K + degree)。
+    /// - 空間計算量: O(K + degree)
     ///
     /// # Examples
     /// ```rust

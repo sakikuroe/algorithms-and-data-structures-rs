@@ -10,23 +10,24 @@ impl super::FPS {
     /// 実装を選択し、それ以外の環境では通常表現のままの実装を選択する。
     ///
     /// # Args
-    /// - `polynomials`: 総積を求める形式的べき級数の列。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `polynomials`: 総積を求める形式的べき級数の列
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列。
+    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列
     ///
     /// # Constraints
     /// - `degree + 1` は `convolution::MAX_NTT_LEN` 以下でなければならない。
     ///
     /// # Panics
-    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき。
+    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
     /// - 時間計算量: AVX2 が利用可能な場合 O(L log L)、それ以外は
     ///   `convolution::convolution` の呼び出し回数に依存する。ここで
     ///   L = min(degree + 1, 総積の項数) である。
-    /// - 空間計算量: O(L)。ここで L は戻り値の項数である。
+    /// - 空間計算量: O(L)
+    ///   - L は戻り値の項数である。
     ///
     /// # Examples
     /// ```rust
@@ -57,16 +58,16 @@ impl super::FPS {
     /// `x^k` を掛ける。
     ///
     /// # Args
-    /// - `k`: 掛け合わせる `x` の指数。
+    /// - `k`: 掛け合わせる `x` の指数
     ///
     /// # Returns
-    /// `Self`: シフト後の系列。
+    /// `Self`: シフト後の系列
     ///
     /// # Constraints
     /// 制約はない。
     ///
     /// # Panics
-    /// - 結果の項数が `convolution::MAX_NTT_LEN` を超えるとき。
+    /// - 結果の項数が `convolution::MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
     /// - 時間計算量: O(N + k)。N は元の項数である。
@@ -105,21 +106,22 @@ impl super::FPS {
     /// 形式的べき級数の列の総積を計算する (非 SIMD 実装)。
     ///
     /// # Args
-    /// - `polynomials`: 総積を求める形式的べき級数の列。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `polynomials`: 総積を求める形式的べき級数の列
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列。
+    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列
     ///
     /// # Constraints
     /// - `degree + 1` は `convolution::MAX_NTT_LEN` 以下でなければならない。
     ///
     /// # Panics
-    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき。
+    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
     /// - 時間計算量: `convolution::convolution` の呼び出し回数に依存する。
-    /// - 空間計算量: O(L)。ここで L は戻り値の項数である。
+    /// - 空間計算量: O(L)
+    ///   - L は戻り値の項数である。
     ///
     /// # Examples
     /// ```rust,ignore
@@ -178,7 +180,7 @@ impl super::FPS {
     /// 末尾のゼロ係数を削除する。
     ///
     /// # Args
-    /// - `coeffs`: 末尾のゼロ係数を削除する係数列。
+    /// - `coeffs`: 末尾のゼロ係数を削除する係数列
     ///
     /// # Returns
     /// `()`: `coeffs` をインプレースで更新する。
@@ -191,7 +193,7 @@ impl super::FPS {
     ///
     /// # Complexity
     /// - 時間計算量: O(K)。K は末尾の連続するゼロ係数の個数である。
-    /// - 空間計算量: O(1)。
+    /// - 空間計算量: O(1)
     ///
     /// # Examples
     /// ```rust,ignore
@@ -207,22 +209,23 @@ impl super::FPS {
     /// 形式的べき級数の列の総積を計算する (AVX2 + Montgomery 実装)。
     ///
     /// # Args
-    /// - `polynomials`: 総積を求める形式的べき級数の列。
-    /// - `degree`: 計算する最高次数 (含む)。
+    /// - `polynomials`: 総積を求める形式的べき級数の列
+    /// - `degree`: 計算する最高次数 (含む)
     ///
     /// # Returns
-    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列。
+    /// `Self`: `polynomials` の総積のうち、`x^degree` まで (含む) の係数列
     ///
     /// # Constraints
     /// - AVX2 が利用可能な環境でのみ呼び出す。
     /// - `degree + 1` は `convolution::MAX_NTT_LEN` 以下でなければならない。
     ///
     /// # Panics
-    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき。
+    /// - `degree + 1` が `convolution::MAX_NTT_LEN` を超えるとき
     ///
     /// # Complexity
     /// - 時間計算量: `convolution_avx2::convolution_avx2` の呼び出し回数に依存する。
-    /// - 空間計算量: O(L)。ここで L は戻り値の項数である。
+    /// - 空間計算量: O(L)
+    ///   - L は戻り値の項数である。
     ///
     /// # Examples
     /// ```rust,ignore
@@ -288,11 +291,11 @@ impl ops::Mul for super::FPS {
     /// 2 つの形式的べき級数を畳み込みで乗算する。
     ///
     /// # Args
-    /// - `self`: 左辺の系列。
-    /// - `rhs`: 右辺の系列。
+    /// - `self`: 左辺の系列
+    /// - `rhs`: 右辺の系列
     ///
     /// # Returns
-    /// `Self::Output`: 法 998244353 上での積を表す形式的べき級数。
+    /// `Self::Output`: 法 998244353 上での積を表す形式的べき級数
     ///
     /// # Constraints
     /// 制約はない。
@@ -326,8 +329,8 @@ impl ops::MulAssign for super::FPS {
     /// 右辺の系列を掛け、自身を更新する。
     ///
     /// # Args
-    /// - `self`: 更新対象となる系列。
-    /// - `rhs`: 乗算する系列。
+    /// - `self`: 更新対象となる系列
+    /// - `rhs`: 乗算する系列
     ///
     /// # Returns
     /// `()`: 自身を更新するだけで値は返さない。
