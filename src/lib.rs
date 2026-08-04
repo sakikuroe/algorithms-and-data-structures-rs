@@ -35,6 +35,7 @@ pub mod graph {
     pub mod flow_graph;
     pub mod graph;
     pub mod johnson;
+    pub mod lca;
     pub mod low_link;
     pub mod max_flow;
     pub mod min_cost_flow;
