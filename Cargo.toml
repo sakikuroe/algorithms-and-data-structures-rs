@@ -103,6 +103,15 @@ path = "src/bin/library_checker/bundled/lca_by_euler_tour.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-vertex-add-path-sum"
+path = "src/bin/library_checker/vertex_add_path_sum.rs"
+
+[[bin]]
+name = "lc-vertex-add-path-sum-bundled"
+path = "src/bin/library_checker/bundled/vertex_add_path_sum.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
