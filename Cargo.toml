@@ -3,5 +3,230 @@ name = "anmitsu"
 version = "0.1.0"
 edition = "2024"
 
+# bundled 版は tools/bundle.py が生成する成果物であり、リポジトリーには含めない。
+# 通常のビルドで解決されると生成前のクリーンチェックアウトで失敗するため、
+# この feature を有効にしたときだけビルド対象になるようにしている。
+[features]
+bundled = []
+
 [dependencies]
 rand = "0.9.1"
+
+[[bin]]
+name = "lc-convolution-mod"
+path = "src/bin/library_checker/convolution_mod.rs"
+
+[[bin]]
+name = "lc-convolution-mod-bundled"
+path = "src/bin/library_checker/bundled/convolution_mod.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-inv-of-formal-power-series"
+path = "src/bin/library_checker/inv_of_formal_power_series.rs"
+
+[[bin]]
+name = "lc-inv-of-formal-power-series-bundled"
+path = "src/bin/library_checker/bundled/inv_of_formal_power_series.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-exp-of-formal-power-series"
+path = "src/bin/library_checker/exp_of_formal_power_series.rs"
+
+[[bin]]
+name = "lc-exp-of-formal-power-series-bundled"
+path = "src/bin/library_checker/bundled/exp_of_formal_power_series.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-log-of-formal-power-series"
+path = "src/bin/library_checker/log_of_formal_power_series.rs"
+
+[[bin]]
+name = "lc-log-of-formal-power-series-bundled"
+path = "src/bin/library_checker/bundled/log_of_formal_power_series.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-pow-of-formal-power-series"
+path = "src/bin/library_checker/pow_of_formal_power_series.rs"
+
+[[bin]]
+name = "lc-pow-of-formal-power-series-bundled"
+path = "src/bin/library_checker/bundled/pow_of_formal_power_series.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-inv-of-formal-power-series-sparse"
+path = "src/bin/library_checker/inv_of_formal_power_series_sparse.rs"
+
+[[bin]]
+name = "lc-inv-of-formal-power-series-sparse-bundled"
+path = "src/bin/library_checker/bundled/inv_of_formal_power_series_sparse.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-exp-of-formal-power-series-sparse"
+path = "src/bin/library_checker/exp_of_formal_power_series_sparse.rs"
+
+[[bin]]
+name = "lc-exp-of-formal-power-series-sparse-bundled"
+path = "src/bin/library_checker/bundled/exp_of_formal_power_series_sparse.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-log-of-formal-power-series-sparse"
+path = "src/bin/library_checker/log_of_formal_power_series_sparse.rs"
+
+[[bin]]
+name = "lc-log-of-formal-power-series-sparse-bundled"
+path = "src/bin/library_checker/bundled/log_of_formal_power_series_sparse.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-pow-of-formal-power-series-sparse"
+path = "src/bin/library_checker/pow_of_formal_power_series_sparse.rs"
+
+[[bin]]
+name = "lc-pow-of-formal-power-series-sparse-bundled"
+path = "src/bin/library_checker/bundled/pow_of_formal_power_series_sparse.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-kth-term-of-linearly-recurrent-sequence"
+path = "src/bin/library_checker/kth_term_of_linearly_recurrent_sequence.rs"
+
+[[bin]]
+name = "lc-kth-term-of-linearly-recurrent-sequence-bundled"
+path = "src/bin/library_checker/bundled/kth_term_of_linearly_recurrent_sequence.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-partition-function"
+path = "src/bin/library_checker/partition_function.rs"
+
+[[bin]]
+name = "lc-partition-function-bundled"
+path = "src/bin/library_checker/bundled/partition_function.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-sharp-p-subset-sum"
+path = "src/bin/library_checker/sharp_p_subset_sum.rs"
+
+[[bin]]
+name = "lc-sharp-p-subset-sum-bundled"
+path = "src/bin/library_checker/bundled/sharp_p_subset_sum.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-product-of-polynomial-sequence"
+path = "src/bin/library_checker/product_of_polynomial_sequence.rs"
+
+[[bin]]
+name = "lc-product-of-polynomial-sequence-bundled"
+path = "src/bin/library_checker/bundled/product_of_polynomial_sequence.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-k-permutation"
+path = "src/bin/atcoder/fps24_k_permutation.rs"
+
+[[bin]]
+name = "ac-fps24-k-permutation-bundled"
+path = "src/bin/atcoder/bundled/fps24_k_permutation.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-l-permutation2"
+path = "src/bin/atcoder/fps24_l_permutation2.rs"
+
+[[bin]]
+name = "ac-fps24-l-permutation2-bundled"
+path = "src/bin/atcoder/bundled/fps24_l_permutation2.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-m-connected-graph"
+path = "src/bin/atcoder/fps24_m_connected_graph.rs"
+
+[[bin]]
+name = "ac-fps24-m-connected-graph-bundled"
+path = "src/bin/atcoder/bundled/fps24_m_connected_graph.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-c-sequence"
+path = "src/bin/atcoder/fps24_c_sequence.rs"
+
+[[bin]]
+name = "ac-fps24-c-sequence-bundled"
+path = "src/bin/atcoder/bundled/fps24_c_sequence.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-i-score"
+path = "src/bin/atcoder/fps24_i_score.rs"
+
+[[bin]]
+name = "ac-fps24-i-score-bundled"
+path = "src/bin/atcoder/bundled/fps24_i_score.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-a-snack"
+path = "src/bin/atcoder/fps24_a_snack.rs"
+
+[[bin]]
+name = "ac-fps24-a-snack-bundled"
+path = "src/bin/atcoder/bundled/fps24_a_snack.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-b-tuple-of-integers"
+path = "src/bin/atcoder/fps24_b_tuple_of_integers.rs"
+
+[[bin]]
+name = "ac-fps24-b-tuple-of-integers-bundled"
+path = "src/bin/atcoder/bundled/fps24_b_tuple_of_integers.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-d-sequence2"
+path = "src/bin/atcoder/fps24_d_sequence2.rs"
+
+[[bin]]
+name = "ac-fps24-d-sequence2-bundled"
+path = "src/bin/atcoder/bundled/fps24_d_sequence2.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-e-sequence3"
+path = "src/bin/atcoder/fps24_e_sequence3.rs"
+
+[[bin]]
+name = "ac-fps24-e-sequence3-bundled"
+path = "src/bin/atcoder/bundled/fps24_e_sequence3.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-fps24-n-coin2"
+path = "src/bin/atcoder/fps24_n_coin2.rs"
+
+[[bin]]
+name = "ac-fps24-n-coin2-bundled"
+path = "src/bin/atcoder/bundled/fps24_n_coin2.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc422-g-balls-and-boxes"
+path = "src/bin/atcoder/abc422_g_balls_and_boxes.rs"
+
+[[bin]]
+name = "ac-abc422-g-balls-and-boxes-bundled"
+path = "src/bin/atcoder/bundled/abc422_g_balls_and_boxes.rs"
+required-features = ["bundled"]
+
+[dev-dependencies]
+rstest = "0.26.1"
