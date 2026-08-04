@@ -344,7 +344,14 @@ TYPE_DEF_RE = re.compile(
 TRAIT_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+([A-Za-z_]\w*)"
 )
+# バンドル後のファイルでは、モジュールは render_module により常に
+# `mod X { ... }` というブロック形式で出力される (`mod X;` のファイル参照形式には
+# ならない) ため、ブロック形式のみを対象とすればよい。
+MODULE_DEF_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)\s*\{\s*$"
+)
 USE_SINGLE_RE = re.compile(r"^\s*use\s+[\w:]+::([A-Za-z_]\w*)\s*;")
+USE_GROUP_RE = re.compile(r"^(\s*use\s+[\w:]+::)\{([^{}]*)\}(\s*;\s*)$")
 
 # 丸ごと削除してよい dead_code 診断だけを選ぶ。rustc は enum のバリアントや
 # 構造体のフィールドについても dead_code を報告するが、それらの primary span は
@@ -523,10 +530,10 @@ def find_item_range(lines, sig_line_1indexed):
 
 
 def collect_definitions(lines):
-    """ファイル内で定義されている型とトレイトの名前を集める。"""
+    """ファイル内で定義されている型・トレイト・モジュールの名前を集める。"""
     names = set()
     for line in lines:
-        for pattern in (TYPE_DEF_RE, TRAIT_DEF_RE):
+        for pattern in (TYPE_DEF_RE, TRAIT_DEF_RE, MODULE_DEF_RE):
             match = pattern.match(line)
             if match:
                 names.add(match.group(1))
@@ -574,6 +581,44 @@ def find_orphaned_lines(lines, removed_names):
         if match and match.group(1) in removed_names:
             orphaned.append(idx + 1)
     return orphaned
+
+
+def heal_use_groups(path, removed_names):
+    """`use path::{a, b};` のように複数名をまとめた import から、定義が消えた
+    名前だけを取り除く。
+
+    `find_orphaned_lines` が扱う `USE_SINGLE_RE` は `use path::Name;` という単数形の
+    import にしか一致しない。複数形の import (例: `use super::{convolution, modulo};`)
+    では、一部の名前だけが枝刈りで消えても、他の名前は依然として使われている
+    可能性がある。行ごと削除すると、生き残っている名前まで道連れにしてコンパイル
+    エラーを起こしかねないため、消えた名前だけを import 一覧から除く。全滅した
+    場合に限り、行ごと削除する (`self` はここで定義される名前ではないため、
+    誤って除かれることはない)。
+    """
+    lines = path.read_text(encoding="utf-8").split("\n")
+    changed = 0
+    result = []
+    for line in lines:
+        match = USE_GROUP_RE.match(line)
+        if not match:
+            result.append(line)
+            continue
+        prefix, names_part, suffix = match.groups()
+        names = [name.strip() for name in names_part.split(",") if name.strip()]
+        survivors = [name for name in names if name not in removed_names]
+        if len(survivors) == len(names):
+            result.append(line)
+            continue
+        changed += 1
+        if not survivors:
+            continue
+        if len(survivors) == 1:
+            result.append(f"{prefix}{survivors[0]}{suffix}")
+        else:
+            result.append(f"{prefix}{{{', '.join(survivors)}}}{suffix}")
+    if changed:
+        path.write_text("\n".join(result), encoding="utf-8")
+    return changed
 
 
 def find_unused_impl_lines(lines, mono_pairs):
@@ -629,11 +674,13 @@ def prune_orphans(path, original_names):
     removed_names = original_names - collect_definitions(lines)
     if not removed_names:
         return 0
+    removed = 0
     orphaned_lines = find_orphaned_lines(lines, removed_names)
-    if not orphaned_lines:
-        return 0
-    ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
-    return remove_ranges(path, ranges)
+    if orphaned_lines:
+        ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
+        removed += remove_ranges(path, ranges)
+    removed += heal_use_groups(path, removed_names)
+    return removed
 
 
 def prune_unused_impls(path, rel_path):
@@ -728,6 +775,10 @@ def prune(out_path, bin_name):
         snapshot = path.read_text(encoding="utf-8")
 
         removed = prune_dead_items(path, dead_lines)
+        # 空になった mod ブロックは、この時点ではまだ「モジュール名を持つ殻」として
+        # 残っている。prune_orphans がモジュール名の消滅を検知できるよう、
+        # 殻を畳んでから孤立 import の検出を行う。
+        removed += strip_empty_blocks(path)
         removed += prune_orphans(path, original_names)
         removed += prune_unused_impls(path, rel_path)
         removed += strip_empty_blocks(path)
