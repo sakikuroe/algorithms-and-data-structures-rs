@@ -52,6 +52,7 @@ pub mod bin {
 
     pub mod library_checker {
         pub mod assignment;
+        pub mod bipartitematching;
         pub mod convolution_mod;
         pub mod cycle_detection;
         pub mod eulerian_trail_directed;

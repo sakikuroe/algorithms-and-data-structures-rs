@@ -76,6 +76,15 @@ path = "src/bin/library_checker/bundled/assignment.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-bipartitematching"
+path = "src/bin/library_checker/bipartitematching.rs"
+
+[[bin]]
+name = "lc-bipartitematching-bundled"
+path = "src/bin/library_checker/bundled/bipartitematching.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
