@@ -28,6 +28,7 @@ pub mod graph {
     pub mod bipartite;
     pub mod bipartite_matching;
     pub mod builder;
+    pub mod centroid_decomposition;
     pub mod dfs;
     pub mod dijkstra;
     pub mod eulerian_path;
