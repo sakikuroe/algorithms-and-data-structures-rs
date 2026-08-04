@@ -34,6 +34,7 @@ pub mod graph {
     pub mod graph;
     pub mod johnson;
     pub mod low_link;
+    pub mod mst;
     pub mod scc;
     pub mod topological_sort;
     pub mod two_sat;
