@@ -123,3 +123,136 @@ where
         res
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // run_length_encode のテスト: 戻り値を検証する。
+    mod run_length_encode {
+        use super::*;
+
+        /// Scenario: 典型的な文字列パターン (空, 単一要素, 全同一要素, 交互要素,
+        /// 混合パターン) に対して、 期待通りに run-length encoding される
+        /// (正常系 + 境界値)。
+        /// - Given: 要素数や並び方が異なる複数の `Vec<char>` がある。
+        /// - When: 各列に対して `run_length_encode` を呼ぶ。
+        /// - Then: 各ケースで、 要素とその出現回数のタプル列が期待通りに返る。
+        #[test]
+        fn encodes_various_char_sequences() {
+            // Given
+            let cases = [
+                (vec![], vec![]),
+                (vec!['x'], vec![('x', 1)]),
+                (vec!['z', 'z', 'z', 'z'], vec![('z', 4)]),
+                (
+                    vec!['a', 'b', 'a', 'b'],
+                    vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)],
+                ),
+                (
+                    vec!['a', 'a', 'b', 'b', 'b', 'a'],
+                    vec![('a', 2), ('b', 3), ('a', 1)],
+                ),
+                (
+                    vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'],
+                    vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)],
+                ),
+            ];
+            // When, Then
+            for (input, expected) in cases {
+                let sut = input;
+                let result = sut.run_length_encode();
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: 要素の型が整数であっても同様に encoding される (正常系)。
+        /// - Given: 連続する整数の並びを持つ `Vec<i32>` がある。
+        /// - When: `run_length_encode` を呼ぶ。
+        /// - Then: 要素とその出現回数のタプル列が期待通りに返る。
+        #[test]
+        fn encodes_int_sequence() {
+            // Given
+            let sut = vec![1, 1, 1, 2, 2, 2, 2, 3];
+            // When
+            let result = sut.run_length_encode();
+            // Then
+            assert_eq!(vec![(1, 3), (2, 4), (3, 1)], result);
+        }
+    }
+
+    // run_length_decode のテスト: 戻り値を検証する。
+    mod run_length_decode {
+        use super::*;
+
+        /// Scenario: 典型的なタプル列パターン (空, 単一要素, 全同一要素, 交互要素,
+        /// 混合パターン) に対して、 期待通りに run-length decoding される
+        /// (正常系 + 境界値)。
+        /// - Given: 要素数や並び方が異なる複数の `Vec<(char, usize)>` がある。
+        /// - When: 各列に対して `run_length_decode` を呼ぶ。
+        /// - Then: 各ケースで、 復元された要素列が期待通りに返る。
+        #[test]
+        fn decodes_various_char_sequences() {
+            // Given
+            let cases = [
+                (vec![], vec![]),
+                (vec![('x', 1)], vec!['x']),
+                (vec![('z', 3)], vec!['z', 'z', 'z']),
+                (
+                    vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)],
+                    vec!['a', 'b', 'a', 'b'],
+                ),
+                (
+                    vec![('a', 2), ('b', 3), ('a', 1)],
+                    vec!['a', 'a', 'b', 'b', 'b', 'a'],
+                ),
+                (
+                    vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)],
+                    vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'],
+                ),
+            ];
+            // When, Then
+            for (input, expected) in cases {
+                let sut = input;
+                let result = sut.run_length_decode();
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: カウントが `0` のタプルは、 その区間を出力しない (境界値)。
+        /// - Given: カウント `0` のタプルを含む `Vec<(char, usize)>` がある。
+        /// - When: `run_length_decode` を呼ぶ。
+        /// - Then: カウント `0` の要素が含まれない、 復元された要素列が返る。
+        #[test]
+        fn skips_segment_with_zero_count() {
+            // Given
+            let sut = vec![('a', 2), ('b', 0), ('c', 1)];
+            // When
+            let result = sut.run_length_decode();
+            // Then
+            assert_eq!(vec!['a', 'a', 'c'], result);
+        }
+
+        /// Scenario: 要素の型が整数であっても同様に decoding される
+        /// (正常系 + 境界値)。
+        /// - Given: 要素数が異なる複数の `Vec<(i32, usize)>` がある。
+        /// - When: 各列に対して `run_length_decode` を呼ぶ。
+        /// - Then: 各ケースで、 復元された要素列が期待通りに返る。
+        #[test]
+        fn decodes_int_sequences() {
+            // Given
+            let cases = [
+                (vec![(1, 3), (2, 4), (3, 1)], vec![1, 1, 1, 2, 2, 2, 2, 3]),
+                (vec![], vec![]),
+                (vec![(99, 1)], vec![99]),
+                (vec![(10, 5)], vec![10, 10, 10, 10, 10]),
+            ];
+            // When, Then
+            for (input, expected) in cases {
+                let sut = input;
+                let result = sut.run_length_decode();
+                assert_eq!(expected, result);
+            }
+        }
+    }
+}
