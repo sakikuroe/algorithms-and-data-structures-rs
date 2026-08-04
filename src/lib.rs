@@ -22,6 +22,13 @@ pub mod ds {
     pub mod wavelet_matrix;
 }
 
+pub mod graph {
+    pub mod bfs;
+    pub mod builder;
+    pub mod dfs;
+    pub mod graph;
+}
+
 pub mod io {
     pub mod fastio;
 }
