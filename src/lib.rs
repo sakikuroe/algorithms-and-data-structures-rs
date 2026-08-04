@@ -31,9 +31,11 @@ pub mod graph {
     pub mod dijkstra;
     pub mod eulerian_path;
     pub mod floyd_warshall;
+    pub mod flow_graph;
     pub mod graph;
     pub mod johnson;
     pub mod low_link;
+    pub mod max_flow;
     pub mod mst;
     pub mod scc;
     pub mod topological_sort;
