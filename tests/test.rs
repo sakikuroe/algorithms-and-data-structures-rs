@@ -18,6 +18,7 @@ pub mod bin {
 
     pub mod library_checker {
         pub mod convolution_mod;
+        pub mod cycle_detection;
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
         pub mod inv_of_formal_power_series;

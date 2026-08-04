@@ -13,6 +13,15 @@ bundled = []
 rand = "0.9.1"
 
 [[bin]]
+name = "lc-cycle-detection"
+path = "src/bin/library_checker/cycle_detection.rs"
+
+[[bin]]
+name = "lc-cycle-detection-bundled"
+path = "src/bin/library_checker/bundled/cycle_detection.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
