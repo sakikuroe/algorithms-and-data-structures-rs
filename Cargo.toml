@@ -112,6 +112,15 @@ path = "src/bin/library_checker/bundled/partition_function.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-sharp-p-subset-sum"
+path = "src/bin/library_checker/sharp_p_subset_sum.rs"
+
+[[bin]]
+name = "lc-sharp-p-subset-sum-bundled"
+path = "src/bin/library_checker/bundled/sharp_p_subset_sum.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-product-of-polynomial-sequence"
 path = "src/bin/library_checker/product_of_polynomial_sequence.rs"
 
