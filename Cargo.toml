@@ -22,6 +22,15 @@ path = "src/bin/library_checker/bundled/cycle_detection.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-shortest-path"
+path = "src/bin/library_checker/shortest_path.rs"
+
+[[bin]]
+name = "lc-shortest-path-bundled"
+path = "src/bin/library_checker/bundled/shortest_path.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 

@@ -36,5 +36,6 @@ pub mod bin {
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
         pub mod product_of_polynomial_sequence;
+        pub mod shortest_path;
     }
 }
