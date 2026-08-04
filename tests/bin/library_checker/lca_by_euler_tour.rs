@@ -1,15 +1,15 @@
 use super::super::common;
 
-/// `lc-lca` バイナリへのパス。
-const BIN: &str = env!("CARGO_BIN_EXE_lc-lca");
+/// `lc-lca-by-euler-tour` バイナリへのパス。
+const BIN: &str = env!("CARGO_BIN_EXE_lc-lca-by-euler-tour");
 
-// lc-lca のテスト: 標準入力にサンプルを与えたときの標準出力を検証する
-mod lc_lca {
+// lc-lca-by-euler-tour のテスト: 標準入力にサンプルを与えたときの標準出力を検証する
+mod lc_lca_by_euler_tour {
     use super::*;
 
     /// Scenario: 問題文の公式サンプルを解いたときの標準出力を検証する
     /// - Given: 問題文の公式サンプルである
-    /// - When: lc-lca バイナリへ標準入力として渡す
+    /// - When: lc-lca-by-euler-tour バイナリへ標準入力として渡す
     /// - Then: 各クエリの LCA が期待値と一致する
     #[test]
     fn matches_official_sample() {

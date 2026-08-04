@@ -62,6 +62,7 @@ pub mod bin {
         pub mod inv_of_formal_power_series_sparse;
         pub mod kth_term_of_linearly_recurrent_sequence;
         pub mod lca;
+        pub mod lca_by_euler_tour;
         pub mod log_of_formal_power_series;
         pub mod log_of_formal_power_series_sparse;
         pub mod minimum_spanning_tree;
