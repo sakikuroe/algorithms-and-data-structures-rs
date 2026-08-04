@@ -67,6 +67,15 @@ path = "src/bin/library_checker/bundled/minimum_spanning_tree.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-assignment"
+path = "src/bin/library_checker/assignment.rs"
+
+[[bin]]
+name = "lc-assignment-bundled"
+path = "src/bin/library_checker/bundled/assignment.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
