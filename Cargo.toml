@@ -31,6 +31,33 @@ path = "src/bin/library_checker/bundled/shortest_path.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-scc"
+path = "src/bin/library_checker/scc.rs"
+
+[[bin]]
+name = "lc-scc-bundled"
+path = "src/bin/library_checker/bundled/scc.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-two-sat"
+path = "src/bin/library_checker/two_sat.rs"
+
+[[bin]]
+name = "lc-two-sat-bundled"
+path = "src/bin/library_checker/bundled/two_sat.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-eulerian-trail-directed"
+path = "src/bin/library_checker/eulerian_trail_directed.rs"
+
+[[bin]]
+name = "lc-eulerian-trail-directed-bundled"
+path = "src/bin/library_checker/bundled/eulerian_trail_directed.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
@@ -307,6 +334,24 @@ path = "src/bin/atcoder/abc176_d_wizard_in_maze.rs"
 [[bin]]
 name = "ac-abc176-d-wizard-in-maze-bundled"
 path = "src/bin/atcoder/bundled/abc176_d_wizard_in_maze.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc075-c-bridge"
+path = "src/bin/atcoder/abc075_c_bridge.rs"
+
+[[bin]]
+name = "ac-abc075-c-bridge-bundled"
+path = "src/bin/atcoder/bundled/abc075_c_bridge.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc209-d-collision"
+path = "src/bin/atcoder/abc209_d_collision.rs"
+
+[[bin]]
+name = "ac-abc209-d-collision-bundled"
+path = "src/bin/atcoder/bundled/abc209_d_collision.rs"
 required-features = ["bundled"]
 
 [dev-dependencies]
