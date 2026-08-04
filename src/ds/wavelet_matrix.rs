@@ -275,3 +275,154 @@ impl WaveletMatrix {
         self.count_less_than(l, r, upper) - self.count_less_than(l, r, lower)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Background: [5, 4, 8, 6, 0, 7, 2, 5] を格納した `WaveletMatrix`。
+    fn create_wavelet_matrix() -> WaveletMatrix {
+        WaveletMatrix::new(&[5, 4, 8, 6, 0, 7, 2, 5])
+    }
+
+    /// Background: `usize::MAX` を含む [0, usize::MAX, 1, 100, usize::MAX] を
+    /// 格納した `WaveletMatrix`。
+    fn create_wavelet_matrix_with_max_value() -> WaveletMatrix {
+        WaveletMatrix::new(&[0, usize::MAX, 1, 100, usize::MAX])
+    }
+
+    // new のテスト: パニックしないことを検証する。
+    mod new {
+        use super::*;
+
+        /// Scenario: 境界的な入力データに対しても、パニックせずに構築できる (境界値)。
+        /// - Given: 空、要素数 1、全要素が同一、`usize::MAX` を含むなど、
+        ///   境界的なスライスがある。
+        /// - When: 各データから `WaveletMatrix::new` を呼ぶ。
+        /// - Then: いずれのケースでもパニックせずに構築が完了する。
+        #[test]
+        fn builds_without_panicking_for_boundary_slices() {
+            // Given
+            let cases: Vec<Vec<usize>> = vec![
+                vec![],
+                vec![100],
+                vec![3, 3, 3, 3, 3],
+                vec![0, 1, usize::MAX, 5],
+            ];
+            // When, Then
+            for data in &cases {
+                let _sut = WaveletMatrix::new(data);
+            }
+        }
+    }
+
+    // count_less_than のテスト: 戻り値を検証する。
+    mod count_less_than {
+        use super::*;
+
+        /// Scenario: 典型的な範囲と閾値に対して、閾値未満の要素数を返す。
+        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
+        /// - When: 複数の `(l, r, upper)` の組で `count_less_than` を求める。
+        /// - Then: 各ケースで期待する個数が返る。
+        #[test]
+        fn matches_expected_values_for_typical_ranges() {
+            // Given
+            let sut = create_wavelet_matrix();
+            let cases = [
+                // (l, r, upper, expected)
+                (0_usize, 8_usize, 5_usize, 3_usize), // 全体: 5 未満は [4, 0, 2]
+                (2, 6, 7, 2),                         // v[2..6] = [8, 6, 0, 7]; 7 未満は [6, 0]
+                (3, 3, 5, 0),                         // 空区間
+            ];
+            // When, Then
+            for (l, r, upper, expected) in cases {
+                let result = sut.count_less_than(l, r, upper);
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: `usize::MAX` を含むデータでも、閾値未満の要素数を正しく返す (境界値)。
+        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
+        /// - When: `upper` に通常値および `usize::MAX` を指定して `count_less_than` を求める。
+        /// - Then: 各ケースで期待する個数が返る。
+        #[test]
+        fn handles_usize_max_value() {
+            // Given
+            let sut = create_wavelet_matrix_with_max_value();
+            // When, Then
+            assert_eq!(2, sut.count_less_than(0, 5, 100));
+            assert_eq!(3, sut.count_less_than(0, 5, usize::MAX));
+        }
+    }
+
+    // count_more_than のテスト: 戻り値を検証する。
+    mod count_more_than {
+        use super::*;
+
+        /// Scenario: `usize::MAX` を含むデータでも、下限値以上の要素数を正しく返す (境界値)。
+        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
+        /// - When: `lower` に通常値および `usize::MAX` を指定して `count_more_than` を求める。
+        /// - Then: 各ケースで期待する個数が返る。
+        #[test]
+        fn handles_usize_max_value() {
+            // Given
+            let sut = create_wavelet_matrix_with_max_value();
+            // When, Then
+            assert_eq!(3, sut.count_more_than(0, 5, 100));
+            assert_eq!(2, sut.count_more_than(0, 5, usize::MAX));
+        }
+    }
+
+    // count のテスト: 戻り値を検証する。
+    mod count {
+        use super::*;
+
+        /// Scenario: 典型的な範囲と値の区間に対して、区間内の要素数を返す。
+        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
+        /// - When: 複数の `(l, r, lower, upper)` の組で `count` を求める。
+        /// - Then: 各ケースで期待する個数が返る。
+        #[test]
+        fn matches_expected_values_for_typical_ranges() {
+            // Given
+            let sut = create_wavelet_matrix();
+            let cases = [
+                // (l, r, lower, upper, expected)
+                (0_usize, 8_usize, 4_usize, 7_usize, 4_usize), // 全体: [4,7) は [5,4,6,5]
+                (2, 7, 5, 9, 3), // v[2..7] = [8,6,0,7,2]; [5,9) は [8,6,7]
+            ];
+            // When, Then
+            for (l, r, lower, upper, expected) in cases {
+                let result = sut.count(l, r, lower, upper);
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: `lower >= upper` のとき、値の区間が空であるため `0` を返す (境界値)。
+        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
+        /// - When: `lower = 8`, `upper = 7` で `count` を求める。
+        /// - Then: `0` が返る。
+        #[test]
+        fn returns_zero_when_lower_is_at_least_upper() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When
+            let result = sut.count(0, 8, 8, 7);
+            // Then
+            assert_eq!(0, result);
+        }
+
+        /// Scenario: `usize::MAX` を含むデータでも、区間内の要素数を正しく返す (境界値)。
+        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
+        /// - When: `usize::MAX` を境界に含む複数の区間で `count` を求める。
+        /// - Then: 各ケースで期待する個数が返る。
+        #[test]
+        fn handles_usize_max_value() {
+            // Given
+            let sut = create_wavelet_matrix_with_max_value();
+            // When, Then
+            assert_eq!(2, sut.count(0, 5, 1, usize::MAX));
+            assert_eq!(1, sut.count(0, 5, 100, usize::MAX));
+            assert_eq!(2, sut.count(1, 4, 0, usize::MAX));
+        }
+    }
+}
