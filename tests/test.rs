@@ -21,6 +21,7 @@ pub mod bin {
         pub mod fps24_l_permutation2;
         pub mod fps24_m_connected_graph;
         pub mod fps24_n_coin2;
+        pub mod practice2_d_maxflow;
     }
 
     pub mod aoj {
