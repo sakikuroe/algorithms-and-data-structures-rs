@@ -26,6 +26,7 @@ pub mod graph {
     pub mod bellman_ford;
     pub mod bfs;
     pub mod bipartite;
+    pub mod bipartite_matching;
     pub mod builder;
     pub mod dfs;
     pub mod dijkstra;
