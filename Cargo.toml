@@ -58,6 +58,15 @@ path = "src/bin/library_checker/bundled/eulerian_trail_directed.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-minimum-spanning-tree"
+path = "src/bin/library_checker/minimum_spanning_tree.rs"
+
+[[bin]]
+name = "lc-minimum-spanning-tree-bundled"
+path = "src/bin/library_checker/bundled/minimum_spanning_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
