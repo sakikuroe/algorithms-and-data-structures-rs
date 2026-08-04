@@ -34,6 +34,7 @@ pub mod graph {
     pub mod floyd_warshall;
     pub mod flow_graph;
     pub mod graph;
+    pub mod hld;
     pub mod johnson;
     pub mod lca;
     pub mod low_link;
