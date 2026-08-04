@@ -36,6 +36,8 @@ pub mod graph {
     pub mod johnson;
     pub mod low_link;
     pub mod max_flow;
+    pub mod min_cost_flow;
+    pub mod min_cost_flow_graph;
     pub mod mst;
     pub mod scc;
     pub mod topological_sort;
