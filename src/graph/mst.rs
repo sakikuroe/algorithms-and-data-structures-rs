@@ -25,7 +25,7 @@ impl<'a, T> MinimumSpanningForest<'a, T> {
     ///
     /// # Returns
     /// `impl Iterator<Item = (usize, usize, &T)>`: 採用された各辺の
-    /// `(始点, 終点, ペイロード)`。合計重みが必要な場合は、この列を辿って
+    /// `(始点, 終点, ペイロード)` であり、合計重みが必要な場合は、この列を辿って
     /// 呼び出し側で加算すればよい。
     ///
     /// # Complexity
@@ -38,7 +38,7 @@ impl<'a, T> MinimumSpanningForest<'a, T> {
     /// 連結成分の個数を返す。
     ///
     /// # Returns
-    /// `usize`: 連結成分の個数。
+    /// `usize`: 連結成分の個数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -49,7 +49,7 @@ impl<'a, T> MinimumSpanningForest<'a, T> {
     /// グラフ全体が単一の木として連結であるかどうかを返す。
     ///
     /// # Returns
-    /// `bool`: 連結成分がちょうど1つであれば `true`。
+    /// `bool`: 連結成分がちょうど1つであれば `true`
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -67,7 +67,7 @@ impl<T: Copy + Ord> graph::Graph<T> {
     /// [`minimum_spanning_forest_by`](Self::minimum_spanning_forest_by) を使う。
     ///
     /// # Returns
-    /// `MinimumSpanningForest<T>`: 採用された辺と連結成分数。
+    /// `MinimumSpanningForest<T>`: 採用された辺と連結成分数
     ///
     /// # Complexity
     /// - 時間計算量: O(E log E)
@@ -106,10 +106,10 @@ impl<T> graph::Graph<T> {
     /// 書ける。
     ///
     /// # Args
-    /// - `weight_of`: 辺のペイロードから、比較可能な重みを取り出す関数。
+    /// - `weight_of`: 辺のペイロードから、比較可能な重みを取り出す関数
     ///
     /// # Returns
-    /// `MinimumSpanningForest<T>`: 採用された辺と連結成分数。返される辺の
+    /// `MinimumSpanningForest<T>`: 採用された辺と連結成分数であり、返される辺の
     /// ペイロードは射影前の `T` そのものであり、元の辺番号などの情報を
     /// そのまま辿れる。
     ///
