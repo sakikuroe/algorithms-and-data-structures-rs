@@ -3,6 +3,7 @@ pub mod bin {
     pub mod common;
 
     pub mod atcoder {
+        pub mod abc176_d_wizard_in_maze;
         pub mod abc422_g_balls_and_boxes;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
@@ -19,6 +20,9 @@ pub mod bin {
     pub mod aoj {
         pub mod alds1_11_b_depth_first_search;
         pub mod alds1_11_c_breadth_first_search;
+        pub mod grl_1_b_single_source_shortest_path;
+        pub mod grl_1_c_all_pairs_shortest_path;
+        pub mod grl_1_c_all_pairs_shortest_path_johnson;
     }
 
     pub mod library_checker {

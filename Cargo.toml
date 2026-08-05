@@ -273,5 +273,41 @@ name = "aoj-alds1-11-c-breadth-first-search-bundled"
 path = "src/bin/aoj/bundled/alds1_11_c_breadth_first_search.rs"
 required-features = ["bundled"]
 
+[[bin]]
+name = "aoj-grl-1-b-single-source-shortest-path"
+path = "src/bin/aoj/grl_1_b_single_source_shortest_path.rs"
+
+[[bin]]
+name = "aoj-grl-1-b-single-source-shortest-path-bundled"
+path = "src/bin/aoj/bundled/grl_1_b_single_source_shortest_path.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "aoj-grl-1-c-all-pairs-shortest-path"
+path = "src/bin/aoj/grl_1_c_all_pairs_shortest_path.rs"
+
+[[bin]]
+name = "aoj-grl-1-c-all-pairs-shortest-path-bundled"
+path = "src/bin/aoj/bundled/grl_1_c_all_pairs_shortest_path.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "aoj-grl-1-c-all-pairs-shortest-path-johnson"
+path = "src/bin/aoj/grl_1_c_all_pairs_shortest_path_johnson.rs"
+
+[[bin]]
+name = "aoj-grl-1-c-all-pairs-shortest-path-johnson-bundled"
+path = "src/bin/aoj/bundled/grl_1_c_all_pairs_shortest_path_johnson.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc176-d-wizard-in-maze"
+path = "src/bin/atcoder/abc176_d_wizard_in_maze.rs"
+
+[[bin]]
+name = "ac-abc176-d-wizard-in-maze-bundled"
+path = "src/bin/atcoder/bundled/abc176_d_wizard_in_maze.rs"
+required-features = ["bundled"]
+
 [dev-dependencies]
 rstest = "0.26.1"
