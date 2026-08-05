@@ -52,6 +52,241 @@ impl CentroidDecomposition {
     pub fn level(&self, v: usize) -> usize {
         self.level[v]
     }
+
+    /// 重心ごとに、その時点でまだ取り除かれていない部分問題を、辺数を
+    /// 距離として巡り、コールバック `f` へ渡す。
+    ///
+    /// 重心分解を使うアルゴリズムの多くは、各重心について「すでに重心として
+    /// 取り除かれた頂点 (祖先) を避けて部分問題内を探索し、重心を含む部分問題
+    /// 全体の集計から、各枝だけの集計を差し引く」という手順を必要とする。この
+    /// メソッドは、その祖先の判定・探索・集計対象を効率よく使い回すための
+    /// リセット処理をすべて内部で肩代わりし、利用者には「重心・部分問題全体の
+    /// 距離の列・枝ごとの距離の列」だけを渡す。
+    ///
+    /// # Args
+    /// - `g`: 重心分解の元になったグラフ。
+    /// - `f`: 各重心について1回ずつ呼び出されるコールバック。引数は
+    ///   `(重心, 部分問題全体の頂点の距離の列 (重心自身の距離0を含む),
+    ///   枝ごとの頂点の距離の列)`。距離の順序は規定しない。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(V log V)
+    ///   - V は頂点数である。重心を1つ取り除くたびに、残る連結成分の頂点数は
+    ///     半分以下になるため、ある頂点が部分問題に含まれる回数は
+    ///     O(log V) 回に抑えられる。
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::graph::graph::Graph;
+    ///
+    /// // 0-1-2-3-4 の単純パス。全頂点対の距離の総和を求める。
+    /// let mut g = Graph::new(5);
+    /// for i in 0..4 {
+    ///     g.add_undirected_edge(i, i + 1, ());
+    /// }
+    /// let cd = g.try_centroid_decomposition().unwrap();
+    ///
+    /// let mut total = 0_i64;
+    /// cd.for_each_component(&g, |_centroid, whole, branches| {
+    ///     let whole_sum = whole.iter().map(|&d| d as i64).sum::<i64>();
+    ///     total += (whole.len() as i64 - 1) * whole_sum;
+    ///     for branch in branches {
+    ///         let branch_sum = branch.iter().map(|&d| d as i64).sum::<i64>();
+    ///         total -= (branch.len() as i64 - 1) * branch_sum;
+    ///     }
+    /// });
+    /// assert_eq!(20, total); // 0-1,0-2,...,3-4 の距離の総和
+    /// ```
+    pub fn for_each_component<T>(
+        &self,
+        g: &graph::Graph<T>,
+        mut f: impl FnMut(usize, &[usize], &[Vec<usize>]),
+    ) {
+        let n = g.vertex_count();
+        let mut blocked = vec![false; n];
+        let mut dist: Vec<usize> = vec![usize::MAX; n];
+        let mut branch_of: Vec<usize> = vec![usize::MAX; n];
+
+        for c in 0..n {
+            let mut ancestors = Vec::new();
+            let mut cur = self.parent(c);
+            while let Some(p) = cur {
+                blocked[p] = true;
+                ancestors.push(p);
+                cur = self.parent(p);
+            }
+
+            let mut component = vec![c];
+            dist[c] = 0;
+            let mut queue = collections::VecDeque::new();
+            queue.push_back(c);
+            while let Some(u) = queue.pop_front() {
+                for (v, _) in g.edges(u) {
+                    if !blocked[v] && dist[v] == usize::MAX {
+                        dist[v] = dist[u] + 1;
+                        branch_of[v] = if u == c { v } else { branch_of[u] };
+                        component.push(v);
+                        queue.push_back(v);
+                    }
+                }
+            }
+
+            let whole = component.iter().map(|&v| dist[v]).collect::<Vec<usize>>();
+
+            let mut branch_index: collections::HashMap<usize, usize> = collections::HashMap::new();
+            let mut branches: Vec<Vec<usize>> = Vec::new();
+            for &v in &component {
+                if v != c {
+                    let idx = *branch_index
+                        .entry(branch_of[v])
+                        .or_insert_with(|| {
+                            branches.push(Vec::new());
+                            branches.len() - 1
+                        });
+                    branches[idx].push(dist[v]);
+                }
+            }
+
+            f(c, &whole, &branches);
+
+            for v in component {
+                dist[v] = usize::MAX;
+                branch_of[v] = usize::MAX;
+            }
+            for p in ancestors {
+                blocked[p] = false;
+            }
+        }
+    }
+
+    /// 辺のペイロードから重みを射影する関数 `weight_of` を与えて、重心ごとに
+    /// その時点でまだ取り除かれていない部分問題を巡り、コールバック `f` へ
+    /// 渡す。
+    ///
+    /// 挙動は [`for_each_component`](Self::for_each_component) と同様であり、
+    /// 辺数の代わりに `weight_of` が返す重みの総和を距離として扱う。
+    ///
+    /// # Args
+    /// - `g`: 重心分解の元になったグラフ。
+    /// - `weight_of`: 辺のペイロードから、加算・比較可能な重みを取り出す関数。
+    /// - `f`: 各重心について1回ずつ呼び出されるコールバック。引数は
+    ///   `(重心, 部分問題全体の頂点の距離の列 (重心自身の距離0を含む),
+    ///   枝ごとの頂点の距離の列)`。距離の順序は規定しない。
+    ///
+    /// # Constraints
+    /// - `weight_of` はすべての辺に対して非負の値を返さなければならない。
+    /// - `W::default()` が加法の単位元 (0 に相当する値) でなければならない。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(V log V)
+    ///   - V は頂点数である。
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::graph::graph::Graph;
+    ///
+    /// // 0-1 (重み3), 1-2 (重み1), 1-3 (重み2), 3-4 (重み1) の木。
+    /// // 距離が4以下となる頂点対の個数を求める。
+    /// let mut g = Graph::new(5);
+    /// g.add_undirected_edge(0, 1, 3_u32);
+    /// g.add_undirected_edge(1, 2, 1_u32);
+    /// g.add_undirected_edge(1, 3, 2_u32);
+    /// g.add_undirected_edge(3, 4, 1_u32);
+    /// let cd = g.try_centroid_decomposition().unwrap();
+    ///
+    /// let k = 4_u32;
+    /// let mut count = 0_i64;
+    /// let count_pairs = |depths: &[u32]| -> i64 {
+    ///     let mut sorted = depths.to_vec();
+    ///     sorted.sort_unstable();
+    ///     let (mut lo, mut hi) = (0, sorted.len().saturating_sub(1));
+    ///     let mut c = 0_i64;
+    ///     while lo < hi {
+    ///         if sorted[lo] + sorted[hi] <= k {
+    ///             c += (hi - lo) as i64;
+    ///             lo += 1;
+    ///         } else {
+    ///             hi -= 1;
+    ///         }
+    ///     }
+    ///     c
+    /// };
+    /// cd.for_each_component_by(&g, |&w| w, |_centroid, whole, branches| {
+    ///     count += count_pairs(whole);
+    ///     for branch in branches {
+    ///         count -= count_pairs(branch);
+    ///     }
+    /// });
+    /// assert_eq!(8, count);
+    /// ```
+    pub fn for_each_component_by<T, W, WF>(
+        &self,
+        g: &graph::Graph<T>,
+        weight_of: WF,
+        mut f: impl FnMut(usize, &[W], &[Vec<W>]),
+    ) where
+        W: Copy + Ord + std::ops::Add<Output = W> + Default,
+        WF: Fn(&T) -> W,
+    {
+        let n = g.vertex_count();
+        let mut blocked = vec![false; n];
+        let mut dist: Vec<Option<W>> = vec![None; n];
+        let mut branch_of: Vec<usize> = vec![usize::MAX; n];
+
+        for c in 0..n {
+            let mut ancestors = Vec::new();
+            let mut cur = self.parent(c);
+            while let Some(p) = cur {
+                blocked[p] = true;
+                ancestors.push(p);
+                cur = self.parent(p);
+            }
+
+            let mut component = vec![c];
+            dist[c] = Some(W::default());
+            let mut queue = collections::VecDeque::new();
+            queue.push_back(c);
+            while let Some(u) = queue.pop_front() {
+                for (v, payload) in g.edges(u) {
+                    if !blocked[v] && dist[v].is_none() {
+                        dist[v] = Some(dist[u].expect("u was already visited") + weight_of(payload));
+                        branch_of[v] = if u == c { v } else { branch_of[u] };
+                        component.push(v);
+                        queue.push_back(v);
+                    }
+                }
+            }
+
+            let whole = component
+                .iter()
+                .map(|&v| dist[v].expect("every vertex in component has a distance"))
+                .collect::<Vec<W>>();
+
+            let mut branch_index: collections::HashMap<usize, usize> = collections::HashMap::new();
+            let mut branches: Vec<Vec<W>> = Vec::new();
+            for &v in &component {
+                if v != c {
+                    let idx = *branch_index
+                        .entry(branch_of[v])
+                        .or_insert_with(|| {
+                            branches.push(Vec::new());
+                            branches.len() - 1
+                        });
+                    branches[idx].push(dist[v].expect("every vertex in component has a distance"));
+                }
+            }
+
+            f(c, &whole, &branches);
+
+            for v in component {
+                dist[v] = None;
+                branch_of[v] = usize::MAX;
+            }
+            for p in ancestors {
+                blocked[p] = false;
+            }
+        }
+    }
 }
 
 /// スタック上で処理待ちの頂点を表す。`Enter` は初訪問時、`Leave` はその頂点の
@@ -334,6 +569,137 @@ mod tests {
             let result = sut.try_centroid_decomposition();
             // Then
             assert!(matches!(result, Err(NotATreeError::HasCycle)));
+        }
+    }
+
+    // for_each_component のテスト: コールバックへ渡される内容 (依存先との
+    // 相互作用) を検証する。
+    mod for_each_component {
+        use super::*;
+
+        /// Scenario: すべての頂点が、いずれかの重心の部分問題全体に
+        /// ちょうど1回含まれる (自分自身を重心とする回)。
+        /// - Given: 0-1-2-3-4 の単純パス (5頂点) がある。
+        /// - When: 重心分解を行い、`for_each_component` を呼ぶ。
+        /// - Then: 各頂点 v について、v を重心とする回の部分問題全体に
+        ///   v 自身 (距離0) が含まれる。
+        #[test]
+        fn includes_centroid_itself_at_distance_zero_in_its_own_component() {
+            // Given
+            let mut g = graph::Graph::new(5);
+            for i in 0..4 {
+                g.add_undirected_edge(i, i + 1, ());
+            }
+            let sut = g.try_centroid_decomposition().unwrap();
+            // When
+            let mut seen_self_at_zero = [false; 5];
+            sut.for_each_component(&g, |centroid, whole, _branches| {
+                seen_self_at_zero[centroid] = whole.contains(&0);
+            });
+            // Then
+            assert!(seen_self_at_zero.iter().all(|&seen| seen));
+        }
+
+        /// Scenario: 頂点対の距離の総和を、枝ごとの二重計上を差し引く
+        /// 標準的な手順で正しく求められる。
+        /// - Given: 0-1-2-3-4 の単純パス (5頂点、辺の重みはすべて1) が
+        ///   ある。
+        /// - When: 重心分解の各重心について、部分問題全体の距離の和から
+        ///   各枝だけの距離の和を差し引いて集計する。
+        /// - Then: 全頂点対の距離の総和 (20) になる。
+        #[test]
+        fn computes_sum_of_all_pairwise_distances_via_branch_subtraction() {
+            // Given
+            let mut g = graph::Graph::new(5);
+            for i in 0..4 {
+                g.add_undirected_edge(i, i + 1, ());
+            }
+            let sut = g.try_centroid_decomposition().unwrap();
+            // When
+            let mut total = 0_i64;
+            sut.for_each_component(&g, |_centroid, whole, branches| {
+                let whole_sum = whole.iter().map(|&d| d as i64).sum::<i64>();
+                total += (whole.len() as i64 - 1) * whole_sum;
+                for branch in branches {
+                    let branch_sum = branch.iter().map(|&d| d as i64).sum::<i64>();
+                    total -= (branch.len() as i64 - 1) * branch_sum;
+                }
+            });
+            // Then
+            assert_eq!(20, total);
+        }
+
+        /// Scenario: 頂点が1つだけの木では、唯一の重心の部分問題は
+        /// その頂点自身のみからなり、枝は存在しない (境界値)。
+        /// - Given: 頂点数1、辺を持たない木がある。
+        /// - When: `for_each_component` を呼ぶ。
+        /// - Then: 部分問題全体は距離0の1頂点のみからなり、枝は空になる。
+        #[test]
+        fn handles_single_vertex_tree_with_no_branches() {
+            // Given
+            let g = graph::Graph::<()>::new(1);
+            let sut = g.try_centroid_decomposition().unwrap();
+            // When
+            let mut whole_snapshot = Vec::new();
+            let mut branch_count = 0;
+            sut.for_each_component(&g, |_centroid, whole, branches| {
+                whole_snapshot = whole.to_vec();
+                branch_count = branches.len();
+            });
+            // Then
+            assert_eq!(vec![0], whole_snapshot);
+            assert_eq!(0, branch_count);
+        }
+    }
+
+    // for_each_component_by のテスト: コールバックへ渡される内容を検証する。
+    mod for_each_component_by {
+        use super::*;
+
+        /// Scenario: 辺の重みを反映した距離が渡され、距離がK以下となる
+        /// 頂点対の個数を、枝ごとの二重計上を差し引く標準的な手順で
+        /// 正しく求められる。
+        /// - Given: 0-1 (重み3), 1-2 (重み1), 1-3 (重み2), 3-4 (重み1) の
+        ///   木がある。
+        /// - When: 重心分解の各重心について、部分問題全体で距離の和が
+        ///   K=4以下となるペア数から、各枝だけでのペア数を差し引いて
+        ///   集計する。
+        /// - Then: 距離が4以下となる頂点対の個数 (8) になる。
+        #[test]
+        fn computes_pairs_within_distance_threshold_via_branch_subtraction() {
+            // Given
+            let mut g = graph::Graph::new(5);
+            g.add_undirected_edge(0, 1, 3_u32);
+            g.add_undirected_edge(1, 2, 1_u32);
+            g.add_undirected_edge(1, 3, 2_u32);
+            g.add_undirected_edge(3, 4, 1_u32);
+            let sut = g.try_centroid_decomposition().unwrap();
+            let k = 4_u32;
+            let count_pairs = |depths: &[u32]| -> i64 {
+                let mut sorted = depths.to_vec();
+                sorted.sort_unstable();
+                let (mut lo, mut hi) = (0, sorted.len().saturating_sub(1));
+                let mut c = 0_i64;
+                while lo < hi {
+                    if sorted[lo] + sorted[hi] <= k {
+                        c += (hi - lo) as i64;
+                        lo += 1;
+                    } else {
+                        hi -= 1;
+                    }
+                }
+                c
+            };
+            // When
+            let mut count = 0_i64;
+            sut.for_each_component_by(&g, |&w| w, |_centroid, whole, branches| {
+                count += count_pairs(whole);
+                for branch in branches {
+                    count -= count_pairs(branch);
+                }
+            });
+            // Then
+            assert_eq!(8, count);
         }
     }
 }

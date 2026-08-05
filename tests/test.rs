@@ -10,6 +10,10 @@ pub mod bin {
         pub mod bj15480_lca_and_query;
     }
 
+    pub mod poj {
+        pub mod poj1741_tree;
+    }
+
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;

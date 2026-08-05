@@ -598,6 +598,15 @@ path = "src/bin/baekjoon/bundled/bj15480_lca_and_query.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "poj-poj1741-tree"
+path = "src/bin/poj/poj1741_tree.rs"
+
+[[bin]]
+name = "poj-poj1741-tree-bundled"
+path = "src/bin/poj/bundled/poj1741_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "cc-talca"
 path = "src/bin/codechef/talca.rs"
 
