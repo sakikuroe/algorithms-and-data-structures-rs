@@ -24,11 +24,12 @@ impl<W: Copy + Ord + std::ops::Add<Output = W> + std::ops::Sub<Output = W>> John
     /// 頂点 `u` から頂点 `v` までの最短コストを返す。
     ///
     /// # Args
-    /// - `u`: 経路の始点。
-    /// - `v`: 経路の終点。
+    /// - `u`: 経路の始点
+    /// - `v`: 経路の終点
     ///
     /// # Returns
-    /// `Option<W>`: `u` から `v` までの最短コスト。到達できない場合は `None`。
+    /// `Option<W>`: `u` から `v` までの最短コストであり、到達できない場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -47,12 +48,12 @@ impl<W: Copy + Ord + std::ops::Add<Output = W> + std::ops::Sub<Output = W>> John
     /// そのまま使える。
     ///
     /// # Args
-    /// - `u`: 経路の始点。
-    /// - `v`: 経路の終点。
+    /// - `u`: 経路の始点
+    /// - `v`: 経路の終点
     ///
     /// # Returns
-    /// `Option<Vec<usize>>`: `u` から `v` に至る頂点列。到達できない場合は
-    /// `None`。
+    /// `Option<Vec<usize>>`: `u` から `v` に至る頂点列であり、到達できない場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(経路長)
@@ -65,10 +66,11 @@ impl<T: Copy + Ord + std::ops::Add<Output = T> + std::ops::Sub<Output = T>> grap
     /// 辺のペイロード自体を重みとして扱い、Johnson 法で全点対最短路を求める。
     ///
     /// # Args
-    /// - `zero`: 重みの加法単位元 (通常は `0`)。
+    /// - `zero`: 重みの加法単位元 (通常は `0`)
     ///
     /// # Returns
-    /// `Option<Johnson<T>>`: 全点対最短路。負閉路が存在する場合は `None`。
+    /// `Option<Johnson<T>>`: 全点対最短路であり、負閉路が存在する場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(VE + V(V+E) log V)
@@ -97,12 +99,13 @@ impl<T> graph::Graph<T> {
     /// 全点対最短路を求める。
     ///
     /// # Args
-    /// - `zero`: 重みの加法単位元 (通常は `0`)。
+    /// - `zero`: 重みの加法単位元 (通常は `0`)
     /// - `weight_of`: 辺のペイロードから、加算・減算・比較可能な重みを取り出す
     ///   関数。
     ///
     /// # Returns
-    /// `Option<Johnson<W>>`: 全点対最短路。負閉路が存在する場合は `None`。
+    /// `Option<Johnson<W>>`: 全点対最短路であり、負閉路が存在する場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(VE + V(V+E) log V)
