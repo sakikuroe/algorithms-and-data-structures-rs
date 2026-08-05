@@ -9,10 +9,12 @@ pub mod bin {
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
+        pub mod abc187_e_through_path;
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
         pub mod abc225_g_x;
         pub mod abc326_g_unlock_achievement;
+        pub mod abc406_f_compare_tree_weights;
         pub mod arc085_e_mul;
         pub mod typical90_an_get_more_money;
         pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
@@ -31,6 +33,7 @@ pub mod bin {
         pub mod fps24_m_connected_graph;
         pub mod fps24_n_coin2;
         pub mod practice2_d_maxflow;
+        pub mod typical90_am_tree_distance;
     }
 
     pub mod aoj {

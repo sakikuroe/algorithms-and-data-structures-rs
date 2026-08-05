@@ -526,6 +526,33 @@ path = "src/bin/atcoder/bundled/practice2_d_maxflow.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "ac-abc406-f-compare-tree-weights"
+path = "src/bin/atcoder/abc406_f_compare_tree_weights.rs"
+
+[[bin]]
+name = "ac-abc406-f-compare-tree-weights-bundled"
+path = "src/bin/atcoder/bundled/abc406_f_compare_tree_weights.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc187-e-through-path"
+path = "src/bin/atcoder/abc187_e_through_path.rs"
+
+[[bin]]
+name = "ac-abc187-e-through-path-bundled"
+path = "src/bin/atcoder/bundled/abc187_e_through_path.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-am-tree-distance"
+path = "src/bin/atcoder/typical90_am_tree_distance.rs"
+
+[[bin]]
+name = "ac-typical90-am-tree-distance-bundled"
+path = "src/bin/atcoder/bundled/typical90_am_tree_distance.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "cc-talca"
 path = "src/bin/codechef/talca.rs"
 
