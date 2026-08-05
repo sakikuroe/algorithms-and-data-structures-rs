@@ -16,6 +16,11 @@ pub mod bin {
         pub mod fps24_n_coin2;
     }
 
+    pub mod aoj {
+        pub mod alds1_11_b_depth_first_search;
+        pub mod alds1_11_c_breadth_first_search;
+    }
+
     pub mod library_checker {
         pub mod convolution_mod;
         pub mod cycle_detection;
@@ -24,6 +29,7 @@ pub mod bin {
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod kth_term_of_linearly_recurrent_sequence;
+        pub mod lca;
         pub mod log_of_formal_power_series;
         pub mod log_of_formal_power_series_sparse;
         pub mod partition_function;

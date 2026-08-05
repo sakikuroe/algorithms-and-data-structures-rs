@@ -237,5 +237,32 @@ name = "ac-abc422-g-balls-and-boxes-bundled"
 path = "src/bin/atcoder/bundled/abc422_g_balls_and_boxes.rs"
 required-features = ["bundled"]
 
+[[bin]]
+name = "lc-lca"
+path = "src/bin/library_checker/lca.rs"
+
+[[bin]]
+name = "lc-lca-bundled"
+path = "src/bin/library_checker/bundled/lca.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "aoj-alds1-11-b-depth-first-search"
+path = "src/bin/aoj/alds1_11_b_depth_first_search.rs"
+
+[[bin]]
+name = "aoj-alds1-11-b-depth-first-search-bundled"
+path = "src/bin/aoj/bundled/alds1_11_b_depth_first_search.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "aoj-alds1-11-c-breadth-first-search"
+path = "src/bin/aoj/alds1_11_c_breadth_first_search.rs"
+
+[[bin]]
+name = "aoj-alds1-11-c-breadth-first-search-bundled"
+path = "src/bin/aoj/bundled/alds1_11_c_breadth_first_search.rs"
+required-features = ["bundled"]
+
 [dev-dependencies]
 rstest = "0.26.1"
