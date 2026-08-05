@@ -553,6 +553,15 @@ path = "src/bin/atcoder/bundled/typical90_am_tree_distance.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "aoj-grl-5-a-diameter-of-a-tree"
+path = "src/bin/aoj/grl_5_a_diameter_of_a_tree.rs"
+
+[[bin]]
+name = "aoj-grl-5-a-diameter-of-a-tree-bundled"
+path = "src/bin/aoj/bundled/grl_5_a_diameter_of_a_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "cc-talca"
 path = "src/bin/codechef/talca.rs"
 
