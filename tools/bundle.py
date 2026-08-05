@@ -1,5 +1,6 @@
 """
-Library Checker / AtCoder 提出用に、src/bin/{library_checker,atcoder}/<slug>.rs を
+Library Checker / AtCoder / CodeChef / AOJ / Baekjoon / POJ 提出用に、
+src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj}/<slug>.rs を
 単一ファイルへバンドルし、続けて不要コードを枝刈りするスクリプトである。
 
 使い方:
@@ -7,11 +8,14 @@ Library Checker / AtCoder 提出用に、src/bin/{library_checker,atcoder}/<slug
     python3 tools/bundle.py --all                  # src/bin 以下の全問題
     python3 tools/bundle.py --prune <path> <bin>   # 既存ファイルの枝刈りのみ行う
 
-新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs または
-src/bin/atcoder/<slug>.rs を作成し (先頭 2 行が `// Library Checker: <題名>` /
-`// AtCoder: <題名>` と `// <URL>` になっている前提)、Cargo.toml にバンドル後の
-バイナリーを登録したうえで `python3 tools/bundle.py <slug>` を実行するだけでよい。
-どのモジュールを取り込むかを手で指定する必要はない。
+新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs、
+src/bin/atcoder/<slug>.rs、src/bin/codechef/<slug>.rs、src/bin/aoj/<slug>.rs、
+src/bin/baekjoon/<slug>.rs、または src/bin/poj/<slug>.rs を作成し (先頭 2 行が
+`// Library Checker: <題名>` / `// AtCoder: <題名>` / `// CodeChef: <題名>` /
+`// AOJ: <題名>` / `// Baekjoon: <題名>` / `// POJ: <題名>` と `// <URL>`
+になっている前提)、Cargo.toml にバンドル後のバイナリーを登録したうえで
+`python3 tools/bundle.py <slug>` を実行するだけでよい。どのモジュールを
+取り込むかを手で指定する必要はない。
 
 バンドル後のバイナリーは生成物であってリポジトリーには含めないため、Cargo.toml へは
 `required-features = ["bundled"]` を添えて登録する。こうしておかないと、生成前の
@@ -45,8 +49,19 @@ REPO = Path(__file__).resolve().parent.parent
 SRC_DIRS = {
     "Library Checker": REPO / "src/bin/library_checker",
     "AtCoder": REPO / "src/bin/atcoder",
+    "CodeChef": REPO / "src/bin/codechef",
+    "AOJ": REPO / "src/bin/aoj",
+    "Baekjoon": REPO / "src/bin/baekjoon",
+    "POJ": REPO / "src/bin/poj",
 }
-BIN_PREFIX = {"Library Checker": "lc", "AtCoder": "ac"}
+BIN_PREFIX = {
+    "Library Checker": "lc",
+    "AtCoder": "ac",
+    "CodeChef": "cc",
+    "AOJ": "aoj",
+    "Baekjoon": "bj",
+    "POJ": "poj",
+}
 
 # 枝刈りを繰り返す上限。トレイト実装の除去が新たな dead_code を生むため、
 # 何も削れなくなるまで数回の往復が必要になる。
@@ -143,10 +158,34 @@ def discover_module_tree():
 # =============================================================================
 
 
+def find_cfg_test_mod_marker(text):
+    """`#[cfg(test)]` に直接続けて `mod tests` が現れる位置 (文字オフセット) を探す。
+
+    単純な部分文字列検索では、この属性をコメント中で言及している行
+    (`segment_tree_dense.rs` の `` `#[cfg(test)]` で分離する。`` など) に
+    誤って反応してしまう。そこから実際の `mod tests` ブロックの終わりまでを
+    除去範囲とみなすと、その間にある本体コードを丸ごと削除してしまう
+    (実際に、この誤判定でファイルの大部分が消える不具合が過去にあった)。
+    そこで、属性行そのもの (前後の空白を除いた行全体が完全に一致する行) で
+    あり、かつ直後の非空行が `mod tests` から始まっている場合に限って
+    マーカーとみなす。同じファイルに `#[cfg(test)] use ...;` のような他の
+    属性があっても、直後が `mod tests` でなければ読み飛ばす。
+    """
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if line.strip() != "#[cfg(test)]":
+            continue
+        j = i + 1
+        while j < len(lines) and not lines[j].strip():
+            j += 1
+        if j < len(lines) and lines[j].lstrip().startswith("mod tests"):
+            return sum(len(prev) + 1 for prev in lines[:i])
+    return -1
+
+
 def strip_cfg_test_mod(text):
     # `#[cfg(test)]` に続く `mod tests { ... }` ブロックを、波括弧の対応を数えながら除去する。
-    marker = "#[cfg(test)]"
-    idx = text.find(marker)
+    idx = find_cfg_test_mod_marker(text)
     if idx == -1:
         return text
     mod_idx = text.find("mod tests", idx)
@@ -246,9 +285,15 @@ def extract_source(src_path):
     text = src_path.read_text(encoding="utf-8")
     lines = text.split("\n")
 
-    title_match = re.match(r"^// (Library Checker|AtCoder): (.+)$", lines[0])
+    title_match = re.match(
+        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ): (.+)$", lines[0]
+    )
     if not title_match:
-        raise RuntimeError(f"{src_path}: 1 行目が '// Library Checker: ...' / '// AtCoder: ...' 形式ではない")
+        raise RuntimeError(
+            f"{src_path}: 1 行目が '// Library Checker: ...' / '// AtCoder: ...' / "
+            "'// CodeChef: ...' / '// AOJ: ...' / '// Baekjoon: ...' / '// POJ: ...' "
+            "形式ではない"
+        )
     source, title = title_match.groups()
 
     url_match = re.match(r"^// (https?://\S+)$", lines[1])
@@ -337,14 +382,23 @@ IMPL_FOR_RE = re.compile(
 
 # 孤立した impl と use を見つけるための定義。impl のヘッダーは `where` 節が続いて
 # `{` が次行以降に来ることがあるため、`{` の存在を前提にしない。
-IMPL_LINE_RE = re.compile(r"^\s*impl\s*(?:<[^>]*>)?\s*(.+)$")
+# ジェネリクスパラメータ一覧の除去は正規表現ではなく `strip_leading_generic_params`
+# に委ね、ここでは `impl` の直後の文字列をそのまま捕捉するだけにとどめる。
+IMPL_LINE_RE = re.compile(r"^\s*impl\b(.*)$")
 TYPE_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)"
 )
 TRAIT_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+([A-Za-z_]\w*)"
 )
+# バンドル後のファイルでは、モジュールは render_module により常に
+# `mod X { ... }` というブロック形式で出力される (`mod X;` のファイル参照形式には
+# ならない) ため、ブロック形式のみを対象とすればよい。
+MODULE_DEF_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)\s*\{\s*$"
+)
 USE_SINGLE_RE = re.compile(r"^\s*use\s+[\w:]+::([A-Za-z_]\w*)\s*;")
+USE_GROUP_RE = re.compile(r"^(\s*use\s+[\w:]+::)\{([^{}]*)\}(\s*;\s*)$")
 
 # 丸ごと削除してよい dead_code 診断だけを選ぶ。rustc は enum のバリアントや
 # 構造体のフィールドについても dead_code を報告するが、それらの primary span は
@@ -523,10 +577,10 @@ def find_item_range(lines, sig_line_1indexed):
 
 
 def collect_definitions(lines):
-    """ファイル内で定義されている型とトレイトの名前を集める。"""
+    """ファイル内で定義されている型・トレイト・モジュールの名前を集める。"""
     names = set()
     for line in lines:
-        for pattern in (TYPE_DEF_RE, TRAIT_DEF_RE):
+        for pattern in (TYPE_DEF_RE, TRAIT_DEF_RE, MODULE_DEF_RE):
             match = pattern.match(line)
             if match:
                 names.add(match.group(1))
@@ -538,10 +592,38 @@ def base_ident(expr):
     return expr.split("<", 1)[0].strip().rsplit("::", 1)[-1].strip()
 
 
+def strip_leading_generic_params(text):
+    """`impl` の直後にある `<...>` のジェネリクスパラメータ一覧を、内部の
+    ネストした `<...>` (`Add<Output = T>` のような関連型束縛など) を数えながら
+    読み飛ばす。
+
+    単純な正規表現 `<[^>]*>` は最初に現れた `>` で止まってしまうため、
+    `impl<T: std::ops::Add<Output = T>> Foo<T>` のような行を正しく扱えない。
+    このような束縛は本リポジトリの数値ジェネリクスで頻出するため、深さを
+    数える形で正しく対応する。
+    """
+    text = text.lstrip()
+    if not text.startswith("<"):
+        return text
+    depth = 0
+    for i, c in enumerate(text):
+        if c == "<":
+            depth += 1
+        elif c == ">":
+            depth -= 1
+            if depth == 0:
+                return text[i + 1 :].lstrip()
+    # 閉じ括弧が見つからない場合 (通常は起きない) は、安全側に倒して
+    # 元の文字列をそのまま返す。
+    return text
+
+
 def impl_targets(head):
     """impl のヘッダーから、実装するトレイト名と自己型名を取り出す。
 
-    トレイト実装でない場合、トレイト名は None である。
+    トレイト実装でない場合、トレイト名は None である。呼び出し側で、先頭の
+    ジェネリクスパラメータ一覧は [`strip_leading_generic_params`] により
+    除去済みであることを前提とする。
     """
     head = head.split("{", 1)[0].split(" where ", 1)[0].strip()
     if " for " in head:
@@ -566,7 +648,8 @@ def find_orphaned_lines(lines, removed_names):
     for idx, line in enumerate(lines):
         match = IMPL_LINE_RE.match(line)
         if match:
-            trait_name, type_name = impl_targets(match.group(1))
+            head = strip_leading_generic_params(match.group(1))
+            trait_name, type_name = impl_targets(head)
             if type_name in removed_names or (trait_name and trait_name in removed_names):
                 orphaned.append(idx + 1)
                 continue
@@ -574,6 +657,44 @@ def find_orphaned_lines(lines, removed_names):
         if match and match.group(1) in removed_names:
             orphaned.append(idx + 1)
     return orphaned
+
+
+def heal_use_groups(path, removed_names):
+    """`use path::{a, b};` のように複数名をまとめた import から、定義が消えた
+    名前だけを取り除く。
+
+    `find_orphaned_lines` が扱う `USE_SINGLE_RE` は `use path::Name;` という単数形の
+    import にしか一致しない。複数形の import (例: `use super::{convolution, modulo};`)
+    では、一部の名前だけが枝刈りで消えても、他の名前は依然として使われている
+    可能性がある。行ごと削除すると、生き残っている名前まで道連れにしてコンパイル
+    エラーを起こしかねないため、消えた名前だけを import 一覧から除く。全滅した
+    場合に限り、行ごと削除する (`self` はここで定義される名前ではないため、
+    誤って除かれることはない)。
+    """
+    lines = path.read_text(encoding="utf-8").split("\n")
+    changed = 0
+    result = []
+    for line in lines:
+        match = USE_GROUP_RE.match(line)
+        if not match:
+            result.append(line)
+            continue
+        prefix, names_part, suffix = match.groups()
+        names = [name.strip() for name in names_part.split(",") if name.strip()]
+        survivors = [name for name in names if name not in removed_names]
+        if len(survivors) == len(names):
+            result.append(line)
+            continue
+        changed += 1
+        if not survivors:
+            continue
+        if len(survivors) == 1:
+            result.append(f"{prefix}{survivors[0]}{suffix}")
+        else:
+            result.append(f"{prefix}{{{', '.join(survivors)}}}{suffix}")
+    if changed:
+        path.write_text("\n".join(result), encoding="utf-8")
+    return changed
 
 
 def find_unused_impl_lines(lines, mono_pairs):
@@ -616,11 +737,80 @@ def strip_doc_comments(path):
     return removed
 
 
+def collapse_blank_lines(path):
+    """連続する空行を1行にまとめる。
+
+    アイテムは find_item_range/remove_ranges によって1つずつ正確な行範囲で
+    削除されるが、元のソースでそのアイテムを他のアイテムと区切っていた空行
+    自体は削除対象に含まれない。そのため、同じモジュール内の複数のアイテムが
+    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る
+    (strip_empty_blocks は中身が完全に空になったブロックそのものを畳むだけで、
+    一部の中身が残ったブロック内の空行の積み重なりは対象外である)。
+    """
+    lines = path.read_text(encoding="utf-8").split("\n")
+    kept = []
+    removed = 0
+    for line in lines:
+        if line.strip() == "" and kept and kept[-1].strip() == "":
+            removed += 1
+            continue
+        kept.append(line)
+    if removed:
+        path.write_text("\n".join(kept), encoding="utf-8")
+    return removed
+
+
+TRAIT_OPEN_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+[A-Za-z_]\w*.*\{\s*$"
+)
+
+
+def is_inside_trait_definition_or_impl(lines, line_idx):
+    """line_idx (0-indexed) を包む直近のブロックが、トレイト定義、または
+    トレイトを実装する impl のいずれかであれば True を返す。
+
+    現在の行よりインデントが浅い直近の行を、開いているブロックの見出しとみなす
+    (バンドル後のファイルは `indent()` により深さに比例した空白で揃っている)。
+    """
+    indent = len(lines[line_idx]) - len(lines[line_idx].lstrip())
+    for i in range(line_idx - 1, -1, -1):
+        line = lines[i]
+        if not line.strip():
+            continue
+        cur_indent = len(line) - len(line.lstrip())
+        if cur_indent < indent:
+            if TRAIT_OPEN_RE.match(line):
+                return True
+            match = IMPL_LINE_RE.match(line)
+            if not match:
+                return False
+            head = strip_leading_generic_params(match.group(1))
+            trait_name, _ = impl_targets(head)
+            return trait_name is not None
+    return False
+
+
 def prune_dead_items(path, dead_lines):
+    """dead_code 診断のあった行を削除する。
+
+    ただし、トレイト定義そのもの、およびトレイトを実装する impl 内のメソッドは
+    対象から除く。トレイトのメソッドに既定の本体が無い場合、そのメソッドだけを
+    個別に消すと、他のメソッド (例えば `write_to`) がまだ使われていてトレイト
+    定義や impl 自体は残るときに、トレイトへの適合が壊れてコンパイルが通らなく
+    なる。トレイトや impl 全体が丸ごと不要かどうかは `prune_unused_impls` の
+    役割とし、ここでは個々のメソッド単位の削除に留める。
+    """
     if not dead_lines:
         return 0
     lines = path.read_text(encoding="utf-8").split("\n")
-    ranges = [find_item_range(lines, ln) for ln in dead_lines]
+    safe_lines = [
+        ln
+        for ln in dead_lines
+        if not is_inside_trait_definition_or_impl(lines, ln - 1)
+    ]
+    if not safe_lines:
+        return 0
+    ranges = [find_item_range(lines, ln) for ln in safe_lines]
     return remove_ranges(path, ranges)
 
 
@@ -629,11 +819,13 @@ def prune_orphans(path, original_names):
     removed_names = original_names - collect_definitions(lines)
     if not removed_names:
         return 0
+    removed = 0
     orphaned_lines = find_orphaned_lines(lines, removed_names)
-    if not orphaned_lines:
-        return 0
-    ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
-    return remove_ranges(path, ranges)
+    if orphaned_lines:
+        ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
+        removed += remove_ranges(path, ranges)
+    removed += heal_use_groups(path, removed_names)
+    return removed
 
 
 def prune_unused_impls(path, rel_path):
@@ -728,6 +920,10 @@ def prune(out_path, bin_name):
         snapshot = path.read_text(encoding="utf-8")
 
         removed = prune_dead_items(path, dead_lines)
+        # 空になった mod ブロックは、この時点ではまだ「モジュール名を持つ殻」として
+        # 残っている。prune_orphans がモジュール名の消滅を検知できるよう、
+        # 殻を畳んでから孤立 import の検出を行う。
+        removed += strip_empty_blocks(path)
         removed += prune_orphans(path, original_names)
         removed += prune_unused_impls(path, rel_path)
         removed += strip_empty_blocks(path)
@@ -739,11 +935,13 @@ def prune(out_path, bin_name):
         print("  stopped after max iterations")
 
     doc_lines_removed = strip_doc_comments(path)
+    blank_lines_removed = collapse_blank_lines(path)
     compiled, _ = build_diagnostics(rel_path, bin_name)
     if not compiled:
         raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
 
     print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
+    print(f"  collapsed {blank_lines_removed} redundant blank lines")
     print(f"  total items removed: {total_removed}")
     print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
 

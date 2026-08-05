@@ -3,6 +3,7 @@ pub mod bin {
     pub mod common;
 
     pub mod atcoder {
+        pub mod abc176_d_wizard_in_maze;
         pub mod abc422_g_balls_and_boxes;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
@@ -16,18 +17,29 @@ pub mod bin {
         pub mod fps24_n_coin2;
     }
 
+    pub mod aoj {
+        pub mod alds1_11_b_depth_first_search;
+        pub mod alds1_11_c_breadth_first_search;
+        pub mod grl_1_b_single_source_shortest_path;
+        pub mod grl_1_c_all_pairs_shortest_path;
+        pub mod grl_1_c_all_pairs_shortest_path_johnson;
+    }
+
     pub mod library_checker {
         pub mod convolution_mod;
+        pub mod cycle_detection;
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod kth_term_of_linearly_recurrent_sequence;
+        pub mod lca;
         pub mod log_of_formal_power_series;
         pub mod log_of_formal_power_series_sparse;
         pub mod partition_function;
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
         pub mod product_of_polynomial_sequence;
+        pub mod shortest_path;
     }
 }
