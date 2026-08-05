@@ -553,6 +553,15 @@ path = "src/bin/atcoder/bundled/typical90_am_tree_distance.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-jump-on-tree"
+path = "src/bin/library_checker/jump_on_tree.rs"
+
+[[bin]]
+name = "lc-jump-on-tree-bundled"
+path = "src/bin/library_checker/bundled/jump_on_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "aoj-grl-5-a-diameter-of-a-tree"
 path = "src/bin/aoj/grl_5_a_diameter_of_a_tree.rs"
 
