@@ -24,7 +24,7 @@ fn main() {
     // HLD で頂点を並べ替え、各頂点の値をその番号の位置に置いたセグメント木で
     // 管理する。パス上の頂点の値の総和は、HLD が返す区間ごとに fold した
     // 結果を足し合わせれば求まる (総和は可換であるため、区間の順序は問わない)。
-    let hld = g.hld(0);
+    let hld = g.try_hld(0).unwrap();
     let mut seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(n);
     for (v, &value) in a.iter().enumerate() {
         seg.set(hld.vertex_id(v), value);

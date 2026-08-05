@@ -10,7 +10,7 @@
 
 use std::collections;
 
-use super::graph;
+use super::graph::{self, NotATreeError};
 
 /// 重心分解の結果を保持する。
 pub struct CentroidDecomposition {
@@ -63,21 +63,18 @@ enum Frame {
 }
 
 impl<T> graph::Graph<T> {
-    /// 木を重心分解する。
+    /// グラフが木であることを検証したうえで、木を重心分解する。
     ///
     /// # Returns
-    /// `CentroidDecomposition`: 各頂点が重心分解においてどの階層に属し、
-    /// どの重心から取り除かれたかを保持する。
-    ///
-    /// # Constraints
-    /// - グラフは連結な木でなければならない。無向辺は
-    ///   [`Graph::add_undirected_edge`] で張ったものを想定する。
+    /// `Result<CentroidDecomposition, NotATreeError>`: 木であれば、各頂点が
+    /// 重心分解においてどの階層に属し、どの重心から取り除かれたかを保持
+    /// する。木でなければ、その理由を表すエラー。
     ///
     /// # Complexity
     /// - 時間計算量: O(V log V)
-    ///   - V は頂点数である。重心を1つ取り除くたびに、残る連結成分の頂点数は
-    ///     半分以下になるため、ある頂点が部分問題に含まれる回数は
-    ///     O(log V) 回に抑えられる。
+    ///   - V は頂点数である。木であることの検証は O(V) で収まる。重心を
+    ///     1つ取り除くたびに、残る連結成分の頂点数は半分以下になるため、
+    ///     ある頂点が部分問題に含まれる回数は O(log V) 回に抑えられる。
     /// - 空間計算量: O(V)
     ///
     /// # Examples
@@ -92,12 +89,14 @@ impl<T> graph::Graph<T> {
     /// g.add_undirected_edge(0, 3, ());
     /// g.add_undirected_edge(0, 4, ());
     ///
-    /// let cd = g.centroid_decomposition();
+    /// let cd = g.try_centroid_decomposition().unwrap();
     /// assert_eq!(0, cd.level(0));
     /// assert_eq!(None, cd.parent(0));
     /// assert_eq!(Some(0), cd.parent(1));
     /// ```
-    pub fn centroid_decomposition(&self) -> CentroidDecomposition {
+    pub fn try_centroid_decomposition(&self) -> Result<CentroidDecomposition, NotATreeError> {
+        graph::validate_tree(self, 0)?;
+
         let n = self.vertex_count();
         let mut removed = vec![false; n];
         // 部分木サイズの一時置き場。呼び出しのたびに、書き込んだ分だけ0へ
@@ -123,7 +122,7 @@ impl<T> graph::Graph<T> {
             }
         }
 
-        CentroidDecomposition { parent, level }
+        Ok(CentroidDecomposition { parent, level })
     }
 
     /// `removed` で取り除かれた頂点を無視した残りの連結成分のうち、`start` を
@@ -192,9 +191,9 @@ impl<T> graph::Graph<T> {
 mod tests {
     use super::*;
 
-    // centroid_decomposition のテスト: 戻り値 (CentroidDecomposition) が
+    // try_centroid_decomposition のテスト: 戻り値 (CentroidDecomposition) が
     // 保持する重心・階層関係を検証する。
-    mod centroid_decomposition {
+    mod try_centroid_decomposition {
         use super::*;
 
         /// Scenario: 星グラフでは、中心のみが唯一の重心になる。
@@ -212,7 +211,7 @@ mod tests {
             sut.add_undirected_edge(0, 3, ());
             sut.add_undirected_edge(0, 4, ());
             // When
-            let result = sut.centroid_decomposition();
+            let result = sut.try_centroid_decomposition().unwrap();
             // Then
             assert_eq!(0, result.level(0));
             assert_eq!(None, result.parent(0));
@@ -237,7 +236,7 @@ mod tests {
             sut.add_undirected_edge(2, 3, ());
             sut.add_undirected_edge(3, 4, ());
             // When
-            let result = sut.centroid_decomposition();
+            let result = sut.try_centroid_decomposition().unwrap();
             // Then
             assert_eq!(0, result.level(2));
             assert_eq!(None, result.parent(2));
@@ -257,7 +256,7 @@ mod tests {
                 sut.add_undirected_edge(i, i + 1, ());
             }
             // When
-            let result = sut.centroid_decomposition();
+            let result = sut.try_centroid_decomposition().unwrap();
             // Then
             let max_level = (0..7).map(|v| result.level(v)).max().unwrap();
             assert!(
@@ -276,7 +275,7 @@ mod tests {
             // Given
             let sut = graph::Graph::<()>::new(1);
             // When
-            let result = sut.centroid_decomposition();
+            let result = sut.try_centroid_decomposition().unwrap();
             // Then
             assert_eq!(0, result.level(0));
             assert_eq!(None, result.parent(0));
@@ -293,7 +292,7 @@ mod tests {
             let mut sut = graph::Graph::new(2);
             sut.add_undirected_edge(0, 1, ());
             // When
-            let result = sut.centroid_decomposition();
+            let result = sut.try_centroid_decomposition().unwrap();
             // Then
             let levels = [result.level(0), result.level(1)];
             assert!(levels.contains(&0));
@@ -302,6 +301,39 @@ mod tests {
             let leaf = 1 - root;
             assert_eq!(None, result.parent(root));
             assert_eq!(Some(root), result.parent(leaf));
+        }
+
+        /// Scenario: 非連結なグラフを渡すと、`Disconnected` が返る。
+        /// - Given: 孤立した頂点を含む、非連結なグラフがある。
+        /// - When: 重心分解を行う。
+        /// - Then: `Err(NotATreeError::Disconnected)` が返る。
+        #[test]
+        fn returns_disconnected_error_for_disconnected_graph() {
+            // Given
+            let mut sut = graph::Graph::new(3);
+            sut.add_undirected_edge(0, 1, ());
+            // 頂点2は孤立している。
+            // When
+            let result = sut.try_centroid_decomposition();
+            // Then
+            assert!(matches!(result, Err(NotATreeError::Disconnected)));
+        }
+
+        /// Scenario: 閉路を含むグラフを渡すと、`HasCycle` が返る。
+        /// - Given: 0-1-2-0 の閉路を含むグラフがある。
+        /// - When: 重心分解を行う。
+        /// - Then: `Err(NotATreeError::HasCycle)` が返る。
+        #[test]
+        fn returns_has_cycle_error_for_graph_with_cycle() {
+            // Given
+            let mut sut = graph::Graph::new(3);
+            sut.add_undirected_edge(0, 1, ());
+            sut.add_undirected_edge(1, 2, ());
+            sut.add_undirected_edge(2, 0, ());
+            // When
+            let result = sut.try_centroid_decomposition();
+            // Then
+            assert!(matches!(result, Err(NotATreeError::HasCycle)));
         }
     }
 }

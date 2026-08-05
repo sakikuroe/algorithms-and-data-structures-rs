@@ -16,12 +16,12 @@ fn main() {
         g.add_undirected_edge(p, i, ());
     }
 
-    let lca = g.lca(0);
+    let hld = g.try_hld(0).unwrap();
 
     for _ in 0..q {
         let u = io.u32() as usize;
         let v = io.u32() as usize;
-        io.writeln(lca.lca(u, v) as u32);
+        io.writeln(hld.lca(0, u, v) as u32);
     }
 
     io.flush();

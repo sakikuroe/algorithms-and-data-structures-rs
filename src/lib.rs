@@ -37,7 +37,6 @@ pub mod graph {
     pub mod graph;
     pub mod hld;
     pub mod johnson;
-    pub mod lca;
     pub mod low_link;
     pub mod max_flow;
     pub mod min_cost_flow;
@@ -46,6 +45,7 @@ pub mod graph {
     pub mod project_selection;
     pub mod scc;
     pub mod topological_sort;
+    pub mod tree_diameter;
     pub mod two_sat;
     pub mod zero_one_bfs;
 }
