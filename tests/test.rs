@@ -81,6 +81,7 @@ pub mod bin {
         pub mod product_of_polynomial_sequence;
         pub mod scc;
         pub mod shortest_path;
+        pub mod tree_diameter;
         pub mod two_sat;
         pub mod vertex_add_path_sum;
     }
