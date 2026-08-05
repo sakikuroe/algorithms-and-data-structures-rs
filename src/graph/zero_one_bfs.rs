@@ -99,10 +99,14 @@ impl<T> graph::Graph<T> {
     where
         F: Fn(&T) -> bool,
     {
+        // dist[v] は、v までの最短コストのうちこれまでに見つかった最小値である
+        // (まだ見つかっていなければ None)。prev[v] は、その最短路上で v の直前に
+        // 訪れた頂点であり、後で path_to から経路を復元するために使う。
         let mut dist = vec![None; self.vertex_count()];
         let mut prev = vec![None; self.vertex_count()];
         let mut deque = collections::VecDeque::new();
 
+        // すべての始点をコスト0としてキューに積んでおく。
         for &s in starts {
             if dist[s].is_none() {
                 dist[s] = Some(0);
@@ -110,8 +114,14 @@ impl<T> graph::Graph<T> {
             }
         }
 
+        // 重みが0か1しか無いため、deque の先頭から取り出す限り、取り出す頂点の
+        // コストは常に非減少 (Dijkstra 法の優先度キューと同じ役割を、深さの浅い
+        // 挿入だけで代用できる)。
         while let Some(u) = deque.pop_front() {
             let du = dist[u].unwrap();
+            // 頂点 u から出る各辺について、その辺を使うことで隣接頂点 v までの
+            // コストがこれまでより小さくできるなら更新する (「緩和」と呼ばれる
+            // 操作)。
             for (v, payload) in self.edges(u) {
                 let weight = if is_one(payload) { 1 } else { 0 };
                 let nd = du + weight;

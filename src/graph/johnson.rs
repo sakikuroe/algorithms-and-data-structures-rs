@@ -120,8 +120,12 @@ impl<T> graph::Graph<T> {
 
         // 全頂点へ重み0の辺を張った仮想始点からの最短距離は、全頂点を初期
         // コスト zero の始点とする多始点 Bellman-Ford 法と一致する。
+        // potential[v] を、この仮想始点から v までの最短コストとして求める
+        // (これを「ポテンシャル」と呼ぶ)。
         let starts = (0..n).map(|v| (v, zero)).collect::<Vec<(usize, W)>>();
         let bf = self.bellman_ford_by(&starts, &weight_of);
+        // 負閉路があると、ポテンシャルそのものが定義できない
+        // (Bellman-Ford 法の distance が None になる) ため、失敗として返す。
         if (0..n).any(|v| bf.is_affected_by_negative_cycle(v)) {
             return None;
         }
@@ -129,6 +133,7 @@ impl<T> graph::Graph<T> {
 
         // 辺の重みを w'(u,v) = w(u,v) + h(u) - h(v) と付け替える。負閉路が
         // 無ければ、この付け替えにより w' は必ず非負になる (Johnson 法の要点)。
+        // 非負になれば、以降は Dijkstra 法がそのまま使える。
         let mut reweighted = graph::Graph::new(n);
         for u in 0..n {
             for (v, payload) in self.edges(u) {
@@ -136,6 +141,9 @@ impl<T> graph::Graph<T> {
             }
         }
 
+        // 補正後のグラフに対し、全頂点それぞれを始点とする Dijkstra 法を行い、
+        // 全点対の最短路を求める。実際の重みに基づく距離への戻し方は
+        // [`Johnson::distance`] を参照。
         let per_source = (0..n)
             .map(|s| reweighted.dijkstra(&[(s, zero)]))
             .collect::<Vec<dijkstra::Dijkstra<W>>>();

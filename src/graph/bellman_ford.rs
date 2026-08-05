@@ -143,9 +143,14 @@ impl<T> graph::Graph<T> {
         F: Fn(&T) -> W,
     {
         let n = self.vertex_count();
+        // dist[v] は、v までの最短コストのうちこれまでに見つかった最小値である
+        // (まだ見つかっていなければ None)。prev[v] は、その最短路上で v の直前に
+        // 訪れた頂点であり、後で path_to から経路を復元するために使う。
         let mut dist: Vec<Option<W>> = vec![None; n];
         let mut prev = vec![None; n];
 
+        // すべての始点に、それぞれの初期コストを設定する。同じ頂点が複数回
+        // 渡された場合は、より小さい初期コストの方だけを採用する。
         for &(s, cost) in starts {
             let is_better = match dist[s] {
                 Some(d) => cost < d,
@@ -160,8 +165,13 @@ impl<T> graph::Graph<T> {
         // 負閉路が無い限り確定する。緩和が起きなくなった時点で早期終了する。
         for _ in 0..n.saturating_sub(1) {
             let mut updated = false;
+            // まだコストが確定していない頂点 (dist[u] が None) からは、
+            // どの辺を辿っても意味のある更新にならないため読み飛ばす。
             for u in 0..n {
                 let Some(du) = dist[u] else { continue };
+                // 頂点 u から出る各辺について、その辺を使うことで隣接頂点 v
+                // までのコストがこれまでより小さくできるなら更新する
+                // (「緩和」と呼ばれる操作)。
                 for (v, payload) in self.edges(u) {
                     let nd = du + weight_of(payload);
                     let is_better = match dist[v] {
@@ -183,6 +193,8 @@ impl<T> graph::Graph<T> {
         // もう1回だけ緩和を試み、まだ更新できる頂点を負閉路の起点とする。
         // n-1 回で確定するのは負閉路が無い場合のみであるため、ここでまだ更新
         // できる頂点があれば、それは負閉路上、またはそこから到達可能である。
+        // 見つかった頂点はいったんキューに積み、後段でそこから到達可能な
+        // 頂点全体へ影響を広げる (幅優先探索)。
         let mut affected = vec![false; n];
         let mut queue = collections::VecDeque::new();
         for u in 0..n {
@@ -208,6 +220,8 @@ impl<T> graph::Graph<T> {
                 }
             }
         }
+        // 負閉路の影響を受ける頂点は、最短コストそのものが定義できない
+        // (負閉路を回るたびにいくらでも小さくできる) ため、None に戻す。
         for v in 0..n {
             if affected[v] {
                 dist[v] = None;

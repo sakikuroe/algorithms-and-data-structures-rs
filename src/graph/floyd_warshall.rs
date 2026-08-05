@@ -105,12 +105,17 @@ impl<T> graph::Graph<T> {
         F: Fn(&T) -> W,
     {
         let n = self.vertex_count();
+        // dist[i][j] は、i から j までの最短コストのうちこれまでに見つかった
+        // 最小値である (まだ見つかっていなければ None)。まずは辺が1本もない
+        // 状態 (すべて None) から出発する。
         let mut dist = vec![vec![None; n]; n];
         for (u, row) in dist.iter_mut().enumerate() {
             // 自分自身への距離は単位元 (0 に相当する値) とする。自己ループの
             // 重みが負であっても、後段の負閉路検出で拾われる。
             row[u] = Some(zero);
         }
+        // グラフに実際に存在する辺 u -> v を、dist[u][v] の初期値として反映する。
+        // 同じ頂点対に複数の辺 (多重辺) があれば、最も小さい重みを採用する。
         for u in 0..n {
             for (v, payload) in self.edges(u) {
                 let w = weight_of(payload);
@@ -124,11 +129,19 @@ impl<T> graph::Graph<T> {
             }
         }
 
+        // 中継点として使う頂点 k を1つずつ増やしながら、すべての頂点対 (i, j)
+        // について「k 以下の頂点だけを中継点として使ってよい」という制約の下
+        // での最短コストを更新していく (動的計画法)。k を 0..n まで一巡させた
+        // 時点で、制約が外れてすべての頂点を中継点として使った場合の最短コスト
+        // (= 本来求めたい最短コスト) に一致する。
         for k in 0..n {
             for i in 0..n {
+                // i から k へ到達できなければ、k を経由する経路も考えられない。
                 let Some(dik) = dist[i][k] else { continue };
                 for j in 0..n {
                     let Some(dkj) = dist[k][j] else { continue };
+                    // i -> k -> j という、k を経由する経路のコスト。これが
+                    // これまでの dist[i][j] より小さければ更新する。
                     let via_k = dik + dkj;
                     let is_better = match dist[i][j] {
                         Some(cur) => via_k < cur,
@@ -166,6 +179,9 @@ impl<T> graph::Graph<T> {
                 }
             }
         }
+        // 負閉路の影響を受ける頂点対の最短コストは定義できない
+        // (負閉路を回るたびにいくらでも小さくできる) ため、None に戻す。
+        // i, j のどちらかが影響を受けていれば、その経路も影響を受ける。
         for i in 0..n {
             for j in 0..n {
                 if on_negative_cycle[i] || on_negative_cycle[j] {

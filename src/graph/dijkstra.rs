@@ -149,12 +149,17 @@ impl<T> graph::Graph<T> {
         W: Copy + Ord + std::ops::Add<Output = W>,
         F: Fn(&T) -> W,
     {
+        // dist[v] は、v までの最短コストのうちこれまでに見つかった最小値である
+        // (まだ見つかっていなければ None)。prev[v] は、その最短路上で v の直前に
+        // 訪れた頂点であり、後で path_to から経路を復元するために使う。
         let mut dist: Vec<Option<W>> = vec![None; self.vertex_count()];
         let mut prev = vec![None; self.vertex_count()];
         // (コスト, 頂点) の組を、コストが小さい順に取り出すための優先度キュー。
         // `BinaryHeap` は最大値を先頭に取るため、`Reverse` で反転させる。
         let mut heap = collections::BinaryHeap::new();
 
+        // すべての始点を、それぞれの初期コストでキューに積んでおく。同じ頂点が
+        // 複数回渡された場合は、より小さい初期コストの方だけを採用する。
         for &(s, cost) in starts {
             let is_better = match dist[s] {
                 Some(d) => cost < d,
@@ -166,13 +171,23 @@ impl<T> graph::Graph<T> {
             }
         }
 
+        // キューからコストが最小の頂点を1つずつ取り出し、確定させていく。
+        // 非負の重みしか無いため、一度取り出した頂点のコストはそれ以上小さく
+        // なることがなく、以降変化しない (確定する)。
         while let Some(cmp::Reverse((d, u))) = heap.pop() {
             let u = u as usize;
-            // 確定済みの最短コストより大きい古いエントリは読み捨てる。
+            // このキューには、同じ頂点について古いコストのエントリが複数
+            // 積まれていることがある (下の更新のたびに新しいエントリを追加で
+            // 積んでいるだけで、古いエントリを取り除いていないため)。
+            // dist[u] と一致しない (= 既により良いコストで確定済みの) エントリは
+            // 読み捨てる。
             if dist[u] != Some(d) {
                 continue;
             }
 
+            // 確定した頂点 u から出る各辺について、その辺を使うことで隣接頂点
+            // v までのコストがこれまでより小さくできるなら更新する
+            // (「緩和」と呼ばれる操作)。
             for (v, payload) in self.edges(u) {
                 let nd = d + weight_of(payload);
                 let is_better = match dist[v] {
