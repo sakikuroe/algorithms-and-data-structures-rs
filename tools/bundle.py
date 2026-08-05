@@ -737,6 +737,29 @@ def strip_doc_comments(path):
     return removed
 
 
+def collapse_blank_lines(path):
+    """連続する空行を1行にまとめる。
+
+    アイテムは find_item_range/remove_ranges によって1つずつ正確な行範囲で
+    削除されるが、元のソースでそのアイテムを他のアイテムと区切っていた空行
+    自体は削除対象に含まれない。そのため、同じモジュール内の複数のアイテムが
+    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る
+    (strip_empty_blocks は中身が完全に空になったブロックそのものを畳むだけで、
+    一部の中身が残ったブロック内の空行の積み重なりは対象外である)。
+    """
+    lines = path.read_text(encoding="utf-8").split("\n")
+    kept = []
+    removed = 0
+    for line in lines:
+        if line.strip() == "" and kept and kept[-1].strip() == "":
+            removed += 1
+            continue
+        kept.append(line)
+    if removed:
+        path.write_text("\n".join(kept), encoding="utf-8")
+    return removed
+
+
 TRAIT_OPEN_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+[A-Za-z_]\w*.*\{\s*$"
 )
@@ -912,11 +935,13 @@ def prune(out_path, bin_name):
         print("  stopped after max iterations")
 
     doc_lines_removed = strip_doc_comments(path)
+    blank_lines_removed = collapse_blank_lines(path)
     compiled, _ = build_diagnostics(rel_path, bin_name)
     if not compiled:
         raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
 
     print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
+    print(f"  collapsed {blank_lines_removed} redundant blank lines")
     print(f"  total items removed: {total_removed}")
     print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
 
