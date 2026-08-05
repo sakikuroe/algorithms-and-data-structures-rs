@@ -176,6 +176,110 @@ impl<T: Clone> Graph<T> {
     }
 }
 
+/// DFS における頂点の訪問状態。
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum State {
+    /// 未訪問。
+    Unvisited,
+    /// 現在の DFS スタック上にある (訪問中)。
+    InStack,
+    /// 子孫をすべて訪れ終えた (訪問完了)。
+    Done,
+}
+
+impl<T: Copy> Graph<T> {
+    /// 有向グラフから、辺素な閉路を1つ探す。
+    ///
+    /// 明示的なスタックを用いた非再帰の DFS であり、各頂点を Unvisited/InStack/Done
+    /// の3状態で管理する。DFS スタック上にある頂点への辺 (後退辺) を見つけた時点で、
+    /// その辺と、行き先から現在の頂点までの木上のパスを合わせて閉路とみなす。
+    ///
+    /// # Returns
+    /// `Option<Vec<T>>`: 閉路が存在する場合、それを構成する辺のペイロードを、閉路を
+    /// 辿る順に並べた列であり、閉路が存在しない場合は `None` である。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(V + E)
+    ///   - V は頂点数、E は辺数である。
+    /// - 空間計算量: O(V + E)
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::graph::graph::Graph;
+    ///
+    /// let mut g = Graph::new(3);
+    /// g.add_edge(0, 1, 10_u32);
+    /// g.add_edge(1, 2, 20_u32);
+    /// g.add_edge(2, 0, 30_u32);
+    ///
+    /// assert_eq!(Some(vec![10, 20, 30]), g.find_cycle());
+    /// ```
+    pub fn find_cycle(&self) -> Option<Vec<T>> {
+        let n = self.vertex_count();
+        let mut state = vec![State::Unvisited; n];
+        // parent_edge[v] は、v に最初に訪れた際に使った辺のペイロードである。
+        let mut parent_edge = vec![None; n];
+        // parent_vertex[v] は、v に最初に訪れた際の親頂点である。後退辺を見つけた
+        // 際、この配列だけで木上のパスを遡れるため、呼び出し側が別途始点情報を
+        // 用意する必要がなくなる。
+        let mut parent_vertex = vec![None; n];
+
+        for start in 0..n {
+            if state[start] != State::Unvisited {
+                continue;
+            }
+
+            // (頂点, 隣接辺のスナップショット, 次に見るインデックス) を1フレームとする
+            // 非再帰の DFS を行う。隣接辺を頂点ごとに1度だけ収集しておくことで、
+            // 各フレームでの添字アクセスを O(1) にする。
+            let neighbors = self
+                .edges(start)
+                .map(|(v, &payload)| (v, payload))
+                .collect::<Vec<(usize, T)>>();
+            let mut stack = vec![(start, neighbors, 0_usize)];
+            state[start] = State::InStack;
+
+            while let Some(&mut (u, ref neighbors, ref mut idx)) = stack.last_mut() {
+                if *idx < neighbors.len() {
+                    let (v, payload) = neighbors[*idx];
+                    *idx += 1;
+
+                    match state[v] {
+                        State::Unvisited => {
+                            state[v] = State::InStack;
+                            parent_edge[v] = Some(payload);
+                            parent_vertex[v] = Some(u);
+                            let next_neighbors = self
+                                .edges(v)
+                                .map(|(w, &payload)| (w, payload))
+                                .collect::<Vec<(usize, T)>>();
+                            stack.push((v, next_neighbors, 0));
+                        }
+                        State::InStack => {
+                            // v はまだスタック上にあるため、u -> v は後退辺であり、
+                            // v から u への木上のパスと合わせて閉路をなす。
+                            let mut cycle = vec![payload];
+                            let mut cur = u;
+                            while cur != v {
+                                cycle.push(parent_edge[cur].unwrap());
+                                cur = parent_vertex[cur].unwrap();
+                            }
+                            cycle.reverse();
+                            return Some(cycle);
+                        }
+                        State::Done => {}
+                    }
+                } else {
+                    state[u] = State::Done;
+                    stack.pop();
+                }
+            }
+        }
+
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,6 +436,59 @@ mod tests {
             let result = sut.out_degree(0);
             // Then
             assert_eq!(0, result);
+        }
+    }
+
+    // find_cycle のテスト: 戻り値そのものを検証する。
+    mod find_cycle {
+        use super::*;
+
+        /// Scenario: 閉路を含むグラフでは、その閉路を辿る順に辺のペイロードが返る。
+        /// - Given: `0 -> 1 -> 2 -> 0` の閉路からなる有向グラフがある。
+        /// - When: 閉路を探す。
+        /// - Then: 閉路を辿る順のペイロード `[10, 20, 30]` が返る。
+        #[test]
+        fn finds_cycle_when_present() {
+            // Given
+            let mut sut = Graph::new(3);
+            sut.add_edge(0, 1, 10_u32);
+            sut.add_edge(1, 2, 20_u32);
+            sut.add_edge(2, 0, 30_u32);
+            // When
+            let result = sut.find_cycle();
+            // Then
+            assert_eq!(Some(vec![10, 20, 30]), result);
+        }
+
+        /// Scenario: 閉路を含まないグラフでは None が返る。
+        /// - Given: `0 -> 1 -> 2` の単純パスからなる有向グラフがある。
+        /// - When: 閉路を探す。
+        /// - Then: None が返る。
+        #[test]
+        fn returns_none_when_absent() {
+            // Given
+            let mut sut = Graph::new(3);
+            sut.add_edge(0, 1, 10_u32);
+            sut.add_edge(1, 2, 20_u32);
+            // When
+            let result = sut.find_cycle();
+            // Then
+            assert!(result.is_none());
+        }
+
+        /// Scenario: 自己ループも閉路として検出される (境界値)。
+        /// - Given: 頂点 `0` への自己ループのみを持つ有向グラフがある。
+        /// - When: 閉路を探す。
+        /// - Then: 自己ループのペイロードのみからなる閉路 `[99]` が返る。
+        #[test]
+        fn detects_self_loop_as_cycle() {
+            // Given
+            let mut sut = Graph::new(1);
+            sut.add_edge(0, 0, 99_u32);
+            // When
+            let result = sut.find_cycle();
+            // Then
+            assert_eq!(Some(vec![99]), result);
         }
     }
 }
