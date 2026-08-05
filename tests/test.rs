@@ -6,6 +6,10 @@ pub mod bin {
         pub mod talca;
     }
 
+    pub mod baekjoon {
+        pub mod bj15480_lca_and_query;
+    }
+
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;

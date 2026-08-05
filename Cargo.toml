@@ -580,6 +580,15 @@ path = "src/bin/aoj/bundled/grl_5_a_diameter_of_a_tree.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "bj-bj15480-lca-and-query"
+path = "src/bin/baekjoon/bj15480_lca_and_query.rs"
+
+[[bin]]
+name = "bj-bj15480-lca-and-query-bundled"
+path = "src/bin/baekjoon/bundled/bj15480_lca_and_query.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "cc-talca"
 path = "src/bin/codechef/talca.rs"
 
