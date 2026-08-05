@@ -2,6 +2,10 @@ pub mod bin {
     // bin/ 配下の統合テストが共有するヘルパー (run_binary) を定義する。
     pub mod common;
 
+    pub mod codechef {
+        pub mod talca;
+    }
+
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;

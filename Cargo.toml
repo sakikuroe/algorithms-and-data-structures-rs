@@ -525,5 +525,14 @@ name = "ac-practice2-d-maxflow-bundled"
 path = "src/bin/atcoder/bundled/practice2_d_maxflow.rs"
 required-features = ["bundled"]
 
+[[bin]]
+name = "cc-talca"
+path = "src/bin/codechef/talca.rs"
+
+[[bin]]
+name = "cc-talca-bundled"
+path = "src/bin/codechef/bundled/talca.rs"
+required-features = ["bundled"]
+
 [dev-dependencies]
 rstest = "0.26.1"
