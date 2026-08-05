@@ -114,15 +114,28 @@ impl UnionFind {
             );
         }
 
-        if self.is_root(x) {
-            x
-        } else {
-            // Path compression: Set the parent of `x` directly to the root.
-            // This flattens the tree structure, speeding up future `find` operations.
-            let root = self.find(self.parent[x]);
-            self.parent[x] = root;
-            root
+        // First pass: walk up the tree (without recursion, to avoid both the
+        // function-call overhead and the risk of stack overflow on a deep,
+        // not-yet-compressed tree) until the root is found.
+        // 第1パス: (関数呼び出しのオーバーヘッドと、経路圧縮前の深い木での
+        // スタックオーバーフローの両方を避けるため) 再帰を使わずに根まで
+        // たどる.
+        let mut root = x;
+        while self.parent[root] != root {
+            root = self.parent[root];
         }
+
+        // Second pass: path compression. Point every node on the path
+        // directly to the root.
+        // 第2パス: 経路圧縮. 経路上の全ノードを根へ直接つなぎ変える.
+        let mut current = x;
+        while self.parent[current] != root {
+            let next = self.parent[current];
+            self.parent[current] = root;
+            current = next;
+        }
+
+        root
     }
 
     /// Merges the sets containing elements `x` and `y`.
