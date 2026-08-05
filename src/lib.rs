@@ -36,6 +36,7 @@ pub mod graph {
     pub mod flow_graph;
     pub mod graph;
     pub mod hld;
+    pub mod hld_path_query;
     pub mod johnson;
     pub mod low_link;
     pub mod max_flow;

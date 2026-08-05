@@ -14,12 +14,31 @@
 //! 組) になるという利点がある。
 //!
 //! 区間分解 ([`vertex_path_ranges`](Hld::vertex_path_ranges) /
-//! [`edge_path_ranges`](Hld::edge_path_ranges)) は、区間同士および区間内部の
-//! 結合順序を区別しない。そのため、可換なモノイド (総和・最小値・最大値・xor
-//! など) によるパスクエリを想定しており、非可換な演算 (行列積など、経路の
-//! 向きによって結果が変わる演算) には対応しない。
+//! [`edge_path_ranges`](Hld::edge_path_ranges)) は、`u` から `v` へ向かう
+//! 経路上の順序を保ったまま区間の列を返す。各区間には、対応する番号の列を
+//! 昇順・降順のどちら向きに読むべきかを示す [`PathDirection`] が付与される
+//! ため、行列積のような非可換な演算によるパスクエリにも対応できる。
+//!
+//! 非可換な演算で使う場合、呼び出し側は同じ値の列に対して、通常の (番号の
+//! 昇順に対応する) セグメント木と、番号を反転させて構築した (降順に対応
+//! する) セグメント木の、2本を用意する必要がある。可換な演算 (総和など)
+//! で使う場合は [`PathDirection`] を無視し、セグメント木を1本だけ使えばよい。
 
 use super::graph::{self, NotATreeError};
+
+/// [`Hld::vertex_path_ranges`] / [`Hld::edge_path_ranges`] が返す各区間を、
+/// どちら向きに読むべきかを示す。
+///
+/// 経路が非可換な演算によるものである場合、`Forward` の区間は番号の昇順に
+/// 対応する通常のセグメント木で、`Reversed` の区間は番号を反転させて構築
+/// した (降順に対応する) セグメント木で、それぞれ畳み込む必要がある。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathDirection {
+    /// 区間 `[l, r)` を、番号の昇順 (`l, l+1, ..., r-1`) に読む。
+    Forward,
+    /// 区間 `[l, r)` を、番号の降順 (`r-1, r-2, ..., l`) に読む。
+    Reversed,
+}
 
 /// スタック上で処理待ちの頂点を表す。`Enter` は初訪問時、`Leave` はその頂点の
 /// 子をすべて訪れ終えた後の処理を表す。いずれも、木を辿る際に元の頂点へ
@@ -329,18 +348,23 @@ impl Hld {
         }
     }
 
-    /// 頂点 `u` から `v` へのパス上にある、すべての頂点の番号を、
-    /// 半開区間の列として返す。
+    /// 頂点 `u` から `v` へのパス上にある、すべての頂点の番号を、向きの
+    /// 情報を付けた半開区間の列として返す。
     ///
-    /// 頂点に値を持たせたパスクエリ (可換なモノイドに限る) で使う。
+    /// 列は `u` から `v` へ向かう順に並んでおり、可換なモノイド (総和など)
+    /// によるパスクエリであれば向きを無視して1本のセグメント木で畳み込め
+    /// ばよい。行列積のような非可換な演算で使う場合は、[`PathDirection`]
+    /// の説明に従い、通常のセグメント木と、番号を反転させたセグメント木の
+    /// 2本を使い分ける。
     ///
     /// # Args
-    /// - `u`: パスの一方の端点。
-    /// - `v`: パスのもう一方の端点。
+    /// - `u`: パスの起点。
+    /// - `v`: パスの終点。
     ///
     /// # Returns
-    /// `Vec<(usize, usize)>`: パス上の頂点の番号をちょうど覆う、半開区間
-    /// `[start, end)` の列。区間の個数は O(log V) 本になる。
+    /// `Vec<(usize, usize, PathDirection)>`: パス上の頂点の番号をちょうど
+    /// 覆う、向き付きの半開区間 `[start, end)` の列。区間の個数は O(log V)
+    /// 本になる。
     ///
     /// # Complexity
     /// - 時間計算量: O(log V) (ならし)
@@ -358,73 +382,103 @@ impl Hld {
     /// let total_length: usize = hld
     ///     .vertex_path_ranges(0, 2)
     ///     .iter()
-    ///     .map(|&(l, r)| r - l)
+    ///     .map(|&(l, r, _)| r - l)
     ///     .sum();
     /// assert_eq!(3, total_length);
     /// ```
-    pub fn vertex_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize)> {
+    pub fn vertex_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
         self.path_ranges(u, v, false)
     }
 
     /// 頂点 `u` から `v` へのパス上にある、すべての辺に対応する番号を、
-    /// 半開区間の列として返す。
+    /// 向きの情報を付けた半開区間の列として返す。各辺は、その子側の頂点の
+    /// 番号で表す。
     ///
-    /// 辺に値を持たせたパスクエリ (可換なモノイドに限る) で使う。各辺は、
-    /// その子側の頂点の番号で表す。
+    /// 列は `u` から `v` へ向かう順に並んでいる。向きの扱いは
+    /// [`vertex_path_ranges`](Self::vertex_path_ranges) と同様である。
     ///
     /// # Args
-    /// - `u`: パスの一方の端点。
-    /// - `v`: パスのもう一方の端点。
+    /// - `u`: パスの起点。
+    /// - `v`: パスの終点。
     ///
     /// # Returns
-    /// `Vec<(usize, usize)>`: パス上の辺に対応する番号をちょうど覆う、
-    /// 半開区間 `[start, end)` の列。区間の個数は O(log V) 本になる。
+    /// `Vec<(usize, usize, PathDirection)>`: パス上の辺に対応する番号を
+    /// ちょうど覆う、向き付きの半開区間 `[start, end)` の列。区間の個数は
+    /// O(log V) 本になる。
     ///
     /// # Complexity
     /// - 時間計算量: O(log V) (ならし)
     ///   - V は頂点数である。
-    pub fn edge_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize)> {
+    pub fn edge_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
         self.path_ranges(u, v, true)
     }
 
     /// [`vertex_path_ranges`](Self::vertex_path_ranges) と
     /// [`edge_path_ranges`](Self::edge_path_ranges) の共通部分を担う。
     ///
+    /// `u` を登る側の区間と `v` を登る側の区間を別々の列に集めたうえで、
+    /// 最後に `u` 側をそのままの順序で、`v` 側を逆順にして連結する。
+    /// こうすることで、全体として `u` から `v` へ向かう順序を保ったまま、
+    /// 各区間が「登る (番号の降順)」か「下る (番号の昇順)」かを正しく
+    /// 区別できる。
+    ///
     /// # Args
     /// - `u`/`v`: パスの両端点。
-    /// - `exclude_lca`: `true` の場合、最後にまとめる同一パス上の区間から
-    ///   LCA 自身の番号を除く (辺クエリ用)。
+    /// - `exclude_lca`: `true` の場合、両者が合流する区間から LCA 自身の
+    ///   番号を除く (辺クエリ用)。
     ///
     /// # Returns
-    /// `Vec<(usize, usize)>`: パスを覆う半開区間の列。
-    fn path_ranges(&self, mut u: usize, mut v: usize, exclude_lca: bool) -> Vec<(usize, usize)> {
-        let mut ranges = Vec::new();
+    /// `Vec<(usize, usize, PathDirection)>`: パスを覆う、向き付きの半開
+    /// 区間の列。
+    fn path_ranges(
+        &self,
+        mut u: usize,
+        mut v: usize,
+        exclude_lca: bool,
+    ) -> Vec<(usize, usize, PathDirection)> {
+        // u_ranges/v_ranges は、それぞれ u/v が LCA に向かって登る際に
+        // 通過する区間を、登った順に集めたものである。いずれも「番号の
+        // 降順に読む」区間として扱う。
+        let mut u_ranges = Vec::new();
+        let mut v_ranges = Vec::new();
 
         // 異なるパスに属する間は、パスの根元がより深い側の区間を切り出し、
-        // その親へ引き上げる。
+        // その親へ引き上げる。u と v の値そのものは入れ替えず、どちら側の
+        // 登りとして記録するかだけを、そのつど判定する。
         while self.head[u] != self.head[v] {
-            if self.depth[self.head[u]] < self.depth[self.head[v]] {
-                std::mem::swap(&mut u, &mut v);
+            if self.depth[self.head[u]] >= self.depth[self.head[v]] {
+                u_ranges.push((self.id[self.head[u]], self.id[u] + 1));
+                u = self.parent[self.head[u]].unwrap();
+            } else {
+                v_ranges.push((self.id[self.head[v]], self.id[v] + 1));
+                v = self.parent[self.head[v]].unwrap();
             }
-            ranges.push((self.id[self.head[u]], self.id[u] + 1));
-            u = self.parent[self.head[u]].unwrap();
         }
 
-        // 同じパスに入った時点で、浅い方が LCA になる。
-        let (lca, deeper) = if self.id[u] <= self.id[v] {
-            (u, v)
+        // 同じパスに入った時点で、浅い方が LCA になる。深い方の登りの列に、
+        // LCA までの最後の区間を追加する。
+        let (deeper_ranges, lca_id, deep_id) = if self.id[u] <= self.id[v] {
+            (&mut v_ranges, self.id[u], self.id[v])
         } else {
-            (v, u)
+            (&mut u_ranges, self.id[v], self.id[u])
         };
-        let start = if exclude_lca {
-            self.id[lca] + 1
-        } else {
-            self.id[lca]
-        };
-        if start <= self.id[deeper] {
-            ranges.push((start, self.id[deeper] + 1));
+        let start = if exclude_lca { lca_id + 1 } else { lca_id };
+        if start <= deep_id {
+            deeper_ranges.push((start, deep_id + 1));
         }
 
+        // u 側は登った順のまま (降順に読む) 連結し、v 側は逆順にして
+        // (昇順に読む区間として) 連結する。
+        let mut ranges: Vec<(usize, usize, PathDirection)> = u_ranges
+            .into_iter()
+            .map(|(l, r)| (l, r, PathDirection::Reversed))
+            .collect();
+        ranges.extend(
+            v_ranges
+                .into_iter()
+                .rev()
+                .map(|(l, r)| (l, r, PathDirection::Forward)),
+        );
         ranges
     }
 }
@@ -913,12 +967,12 @@ mod tests {
             let result = sut.try_hld(0).unwrap();
             let ranges = result.vertex_path_ranges(5, 4);
             // Then
-            let total_width = ranges.iter().map(|&(l, r)| r - l).sum::<usize>();
+            let total_width = ranges.iter().map(|&(l, r, _)| r - l).sum::<usize>();
             assert_eq!(4, total_width);
 
             let mut covered = ranges
                 .iter()
-                .flat_map(|&(l, r)| l..r)
+                .flat_map(|&(l, r, _)| l..r)
                 .collect::<Vec<usize>>();
             covered.sort_unstable();
             let mut expected = [5, 3, 1, 4]
@@ -943,7 +997,7 @@ mod tests {
             let result = sut.try_hld(0).unwrap();
             let ranges = result.edge_path_ranges(5, 4);
             // Then
-            let total_width = ranges.iter().map(|&(l, r)| r - l).sum::<usize>();
+            let total_width = ranges.iter().map(|&(l, r, _)| r - l).sum::<usize>();
             assert_eq!(3, total_width);
         }
 
@@ -961,7 +1015,7 @@ mod tests {
             let result = sut.try_hld(0).unwrap();
             let ranges = result.edge_path_ranges(1, 5);
             // Then
-            let total_width = ranges.iter().map(|&(l, r)| r - l).sum::<usize>();
+            let total_width = ranges.iter().map(|&(l, r, _)| r - l).sum::<usize>();
             assert_eq!(2, total_width);
         }
 
@@ -979,16 +1033,81 @@ mod tests {
             let vertex_width = result
                 .vertex_path_ranges(3, 3)
                 .iter()
-                .map(|&(l, r)| r - l)
+                .map(|&(l, r, _)| r - l)
                 .sum::<usize>();
             let edge_width = result
                 .edge_path_ranges(3, 3)
                 .iter()
-                .map(|&(l, r)| r - l)
+                .map(|&(l, r, _)| r - l)
                 .sum::<usize>();
             // Then
             assert_eq!(1, vertex_width);
             assert_eq!(0, edge_width);
+        }
+
+        /// Scenario: 頂点パスの区間分解は、向きを展開すると `u` から `v`
+        /// へ向かう順序をちょうど再現する (非可換な演算での利用を想定)。
+        /// - Given: 上記の木がある。
+        /// - When: 頂点5から頂点4へのパスの区間分解を求め、各区間を
+        ///   `PathDirection` に従って番号の列へ展開する。
+        /// - Then: 展開した番号の列が、5,3,1,4 の順に対応する番号と一致
+        ///   する (5→3→1 は登り (降順)、1→4 は下り (昇順) になる)。
+        #[test]
+        fn vertex_path_ranges_expand_in_traversal_order() {
+            // Given
+            let sut = create_tree();
+            // When
+            let result = sut.try_hld(0).unwrap();
+            let ranges = result.vertex_path_ranges(5, 4);
+            // Then
+            let expanded = ranges
+                .iter()
+                .flat_map(|&(l, r, dir)| {
+                    let ids: Vec<usize> = if dir == PathDirection::Forward {
+                        (l..r).collect()
+                    } else {
+                        (l..r).rev().collect()
+                    };
+                    ids
+                })
+                .collect::<Vec<usize>>();
+            let expected = [5, 3, 1, 4]
+                .iter()
+                .map(|&v| result.vertex_id(v))
+                .collect::<Vec<usize>>();
+            assert_eq!(expected, expanded);
+        }
+
+        /// Scenario: 一方が他方の祖先である場合、頂点パスの区間分解は
+        /// 単一の下り区間になる (境界値)。
+        /// - Given: 上記の木がある。
+        /// - When: 頂点1 (祖先) から頂点5 (子孫) へのパスの区間分解を
+        ///   求める。
+        /// - Then: 展開した番号の列が 1,3,5 の順に対応する番号と一致する。
+        #[test]
+        fn vertex_path_ranges_expand_in_traversal_order_for_ancestor_descendant_pair() {
+            // Given
+            let sut = create_tree();
+            // When
+            let result = sut.try_hld(0).unwrap();
+            let ranges = result.vertex_path_ranges(1, 5);
+            // Then
+            let expanded = ranges
+                .iter()
+                .flat_map(|&(l, r, dir)| {
+                    let ids: Vec<usize> = if dir == PathDirection::Forward {
+                        (l..r).collect()
+                    } else {
+                        (l..r).rev().collect()
+                    };
+                    ids
+                })
+                .collect::<Vec<usize>>();
+            let expected = [1, 3, 5]
+                .iter()
+                .map(|&v| result.vertex_id(v))
+                .collect::<Vec<usize>>();
+            assert_eq!(expected, expanded);
         }
     }
 }

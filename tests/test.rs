@@ -88,5 +88,6 @@ pub mod bin {
         pub mod tree_diameter;
         pub mod two_sat;
         pub mod vertex_add_path_sum;
+        pub mod vertex_set_path_composite;
     }
 }

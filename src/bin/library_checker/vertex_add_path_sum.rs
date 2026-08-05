@@ -41,10 +41,12 @@ fn main() {
         } else {
             let u = io.u32() as usize;
             let v = io.u32() as usize;
+            // 総和は可換であるため、区間の向き (PathDirection) は無視して
+            // 1本のセグメント木だけで畳み込めばよい。
             let sum = hld
                 .vertex_path_ranges(u, v)
                 .into_iter()
-                .fold(0_i64, |acc, (l, r)| acc + seg.fold(l, r));
+                .fold(0_i64, |acc, (l, r, _)| acc + seg.fold(l, r));
             io.writeln(sum);
         }
     }
