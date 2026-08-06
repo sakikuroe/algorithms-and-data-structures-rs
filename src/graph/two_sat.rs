@@ -96,7 +96,7 @@ impl TwoSat {
         let scc = self.graph.scc();
 
         let mut assignment = vec![false; self.n];
-        for i in 0..self.n {
+        for (i, a) in assignment.iter_mut().enumerate() {
             let id_true = scc.component_id(self.literal(i, true));
             let id_false = scc.component_id(self.literal(i, false));
             if id_true == id_false {
@@ -107,7 +107,7 @@ impl TwoSat {
             // (`Graph::scc` を参照)。「後の (番号が大きい) 方」が実際に
             // 選ばれるべき値であり、これは真偽どちらのリテラルがより強い
             // 制約から導出されるかに対応する。
-            assignment[i] = id_true > id_false;
+            *a = id_true > id_false;
         }
 
         Some(assignment)

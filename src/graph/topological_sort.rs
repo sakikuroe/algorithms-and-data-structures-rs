@@ -64,6 +64,10 @@ impl<T> graph::Graph<T> {
         }
 
         let mut order = Vec::with_capacity(n);
+        // キューから頂点を1つ取り出すたびに、その頂点をトポロジカル順序の
+        // 末尾に確定させる。取り出した頂点から出る各辺の先の入次数を1減らし、
+        // 0 になった頂点 (= 前にある頂点をすべて確定させ終えた頂点) があれば
+        // 新たにキューへ積む。
         while let Some(u) = queue.pop_front() {
             order.push(u);
             for (v, _) in self.edges(u) {

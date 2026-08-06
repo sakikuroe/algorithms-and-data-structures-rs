@@ -163,6 +163,8 @@ impl<T> graph::Graph<T> {
             component_id[start] = num_components;
             let mut stack = vec![start];
             while let Some(u) = stack.pop() {
+                // u から転置グラフ上でたどれる未訪問の頂点 v は、u と同じ
+                // 強連結成分に属するので、同じ番号を割り当ててスタックに積む。
                 for (v, _) in transposed.edges(u) {
                     if component_id[v] == UNASSIGNED {
                         component_id[v] = num_components;
@@ -170,6 +172,8 @@ impl<T> graph::Graph<T> {
                     }
                 }
             }
+            // start から転置グラフ上で到達できる頂点をすべて訪れ終えたので、
+            // 1つの強連結成分が確定した。次の成分のために番号を1つ進める。
             num_components += 1;
         }
 

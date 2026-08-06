@@ -52,28 +52,38 @@ impl<T> graph::Graph<T> {
         let n = self.vertex_count();
         let mut color: Vec<Option<bool>> = vec![None; n];
 
+        // グラフが連結であるとは限らないため、未彩色の頂点が残っていれば、
+        // それを新たな連結成分の始点として彩色をやり直す。
         for start in 0..n {
             if color[start].is_some() {
                 continue;
             }
 
+            // 始点の色はどちらに決めてもよいので false とし、そこから BFS で
+            // 隣接頂点へ反対の色を伝播させていく。
             color[start] = Some(false);
             let mut queue = collections::VecDeque::new();
             queue.push_back(start);
 
             while let Some(u) = queue.pop_front() {
                 let cu = color[u].unwrap();
+                // u と隣接する頂点 v を1つずつ調べる。
                 for (v, _) in self.edges(u) {
                     match color[v] {
+                        // v がまだ塗られていなければ、u と反対の色を割り当て、
+                        // v からさらに先へ伝播させるためにキューへ積む。
                         None => {
                             color[v] = Some(!cu);
                             queue.push_back(v);
                         }
+                        // v が既に u と同じ色で塗られている場合、隣接する頂点
+                        // どうしが同じ色になってしまうため、奇閉路が存在し
+                        // 二部グラフではない。
                         Some(cv) if cv == cu => {
-                            // 隣接する頂点が同じ色になってしまうため、奇閉路が
-                            // 存在し二部グラフではない。
                             return None;
                         }
+                        // v が既に u と反対の色で塗られている場合、矛盾は
+                        // なく、そのまま次の隣接頂点を調べればよい。
                         Some(_) => {}
                     }
                 }

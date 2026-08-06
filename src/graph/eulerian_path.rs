@@ -57,9 +57,10 @@ impl<T> graph::Graph<T> {
         let mut out_degree = vec![0_usize; n];
         let mut in_degree = vec![0_usize; n];
         let mut edge_count = 0_usize;
-        for u in 0..n {
+        // 各頂点から出る辺を数え上げ、出次数・入次数・総辺数を求める。
+        for (u, out_deg) in out_degree.iter_mut().enumerate() {
             for (v, _) in self.edges(u) {
-                out_degree[u] += 1;
+                *out_deg += 1;
                 in_degree[v] += 1;
                 edge_count += 1;
             }
@@ -107,9 +108,14 @@ impl<T> graph::Graph<T> {
         let mut arrival_edge: Vec<Option<&T>> = vec![None];
         while let Some(&u) = stack.last() {
             if let Some((v, payload)) = iters[u].next() {
+                // u からまだたどっていない辺が残っているので、その辺を渡って
+                // 先の頂点 v へ進み、スタックに積む。
                 stack.push(v);
                 arrival_edge.push(Some(payload));
             } else {
+                // u から出るすべての辺をたどり終えた (行き止まりに至った) ので、
+                // u を経路の末尾として確定し、スタックから取り除いて1つ前の
+                // 頂点に戻る。
                 circuit_vertices.push(u);
                 if let Some(payload) = arrival_edge.pop().unwrap() {
                     circuit_payloads.push(payload);
