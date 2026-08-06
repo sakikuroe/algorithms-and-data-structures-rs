@@ -25,12 +25,18 @@ pub mod ds {
 pub mod graph {
     pub mod bellman_ford;
     pub mod bfs;
+    pub mod bipartite;
     pub mod builder;
     pub mod dfs;
     pub mod dijkstra;
+    pub mod eulerian_path;
     pub mod floyd_warshall;
     pub mod graph;
     pub mod johnson;
+    pub mod low_link;
+    pub mod scc;
+    pub mod topological_sort;
+    pub mod two_sat;
     pub mod zero_one_bfs;
 }
 
