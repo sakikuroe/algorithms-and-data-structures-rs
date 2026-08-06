@@ -203,6 +203,9 @@ impl BipartiteGraph {
             // 「現在辺」ポインタ。同じフェーズの間、頂点ごとに使い回すことで、
             // 探索済みで行き止まりと分かった辺を再訪問しない。
             let mut iter = vec![0_usize; self.left_size()];
+            // 未マッチの左側頂点それぞれを始点として、直前の BFS で求めた層に
+            // 沿う増加パスを探す。見つかったパスはその場でマッチングへ反映され、
+            // 次の頂点を始点とする探索は反映後の状態から始まる。
             for u in 0..self.left_size() {
                 if match_left[u].is_none() {
                     self.try_augment(u, &level, &mut iter, &mut match_left, &mut match_right);
@@ -237,6 +240,8 @@ impl BipartiteGraph {
     ) -> Option<Vec<Option<usize>>> {
         let mut level = vec![None; self.left_size()];
         let mut queue = collections::VecDeque::new();
+        // 未マッチの左側頂点をすべて層0としてキューに積み、そこから同時に
+        // BFS を始める。
         for u in 0..self.left_size() {
             if match_left[u].is_none() {
                 level[u] = Some(0);
@@ -249,15 +254,25 @@ impl BipartiteGraph {
         let mut target_level = None;
 
         while let Some(u) = queue.pop_front() {
+            // u の層がすでに target_level に達しているなら、その先を辿っても
+            // 最短の増加パスにはならないため、u からの探索は打ち切る。
             if target_level.is_some_and(|tl| level[u].unwrap() >= tl) {
                 continue;
             }
+            // u から辺で結ばれた右側頂点 v を1つずつ調べる。
             for &v in &self.adjacency[u] {
                 match match_right[v] {
                     None => {
+                        // v は未マッチであり、u から v への増加パスが見つかった。
+                        // ここでは最短の層を記録するだけにとどめる (経路そのもの
+                        // は、後で try_augment が層をもとに改めて辿るため、
+                        // v をキューに積む必要はない)。
                         target_level.get_or_insert(level[u].unwrap() + 1);
                     }
                     Some(u2) => {
+                        // v はすでにマッチ済みであり、その相手 u2 へ1つ余分に
+                        // 進んでから探索を続ける。u2 を初めて訪れた場合のみ層を
+                        // 記録してキューに積む。
                         if level[u2].is_none() {
                             level[u2] = Some(level[u].unwrap() + 1);
                             queue.push_back(u2);
@@ -303,7 +318,11 @@ impl BipartiteGraph {
         let mut stack = vec![u0];
 
         while let Some(&u) = stack.last() {
+            // この頂点 u からスタックへ新たに1段積めた場合に true にする。
             let mut advanced = false;
+            // u に残っている辺を、前回このフェーズで調べ終えた続きから
+            // 1本ずつ調べる (iter[u] より前は、すでに行き止まりと分かって
+            // いるため調べ直さない)。
             while iter[u] < self.adjacency[u].len() {
                 let v = self.adjacency[u][iter[u]];
                 match match_right[v] {
@@ -324,6 +343,11 @@ impl BipartiteGraph {
                         return true;
                     }
                     Some(u2) => {
+                        // v はすでにマッチ済みであり、その相手が u2 である。
+                        // u2 の層が u のちょうど1つ先である場合に限り、
+                        // bfs_layers が見つけた最短の増加パスに沿っていると
+                        // 判断してスタックへ積む。層が合わない辺を辿っても
+                        // 最短のパスにはならないため無視する。
                         if level[u2] == level[u].map(|lv| lv + 1) {
                             stack.push(u2);
                             advanced = true;
