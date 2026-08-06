@@ -117,10 +117,14 @@ impl<Cap: flow_graph::FlowCapacity> FlowGraph<Cap> {
         let mut visited = vec![false; n];
         visited[s] = true;
 
+        // s を起点に、残余容量が正の辺のみを辿って幅優先探索を行う。訪問できた
+        // 頂点が、最小カットの s 側に属する頂点である。
         let mut queue = collections::VecDeque::new();
         queue.push_back(s);
         while let Some(u) = queue.pop_front() {
             for edge in &self.graph[u] {
+                // 残余容量が正の辺だけを辿り、まだ訪問していない頂点だけを
+                // 新たに訪問済みにする。
                 if edge.cap > Cap::ZERO && !visited[edge.to] {
                     visited[edge.to] = true;
                     queue.push_back(edge.to);
@@ -148,10 +152,14 @@ impl<Cap: flow_graph::FlowCapacity> FlowGraph<Cap> {
         let mut level = vec![None; n];
         level[s] = Some(0);
 
+        // キューから頂点を1つずつ取り出し、そこから残余容量が正の辺を1本
+        // 辿った先の頂点へレベルを伝播させていく (幅優先探索)。
         let mut queue = collections::VecDeque::new();
         queue.push_back(s);
         while let Some(u) = queue.pop_front() {
             for edge in &self.graph[u] {
+                // 残余容量が正の辺のみを辿り、まだレベルが決まっていない頂点
+                // だけを、u のレベルより1つ大きいレベルとして確定させる。
                 if edge.cap > Cap::ZERO && level[edge.to].is_none() {
                     level[edge.to] = Some(level[u].unwrap() + 1);
                     queue.push_back(edge.to);

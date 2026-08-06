@@ -143,9 +143,14 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
         for _ in 0..n {
             let mut updated = false;
             for u in 0..n {
+                // まだコストが確定していない頂点 (dist[u] が None) からは、
+                // どの辺を辿っても意味のある更新にならないため読み飛ばす。
                 let Some(du) = dist[u] else {
                     continue;
                 };
+                // 頂点 u から出る各辺のうち、残余容量が正のものについて、
+                // その辺を使うことで隣接頂点 to までのコストがこれまでより
+                // 小さくできるなら更新する (「緩和」と呼ばれる操作)。
                 for edge in &self.graph[u] {
                     if edge.cap > T::ZERO {
                         let nd = du + edge.cost;
@@ -160,6 +165,8 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
                     }
                 }
             }
+            // このラウンドで1件も緩和が起きなければ、以降のラウンドを繰り返し
+            // ても結果は変わらないため、早期に終了する。
             if !updated {
                 break;
             }
@@ -188,14 +195,28 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
         let mut prev_edge = vec![None; n];
         dist[s] = Some(T::ZERO);
 
+        // (還元コストでの距離, 頂点) の組を、距離が小さい順に取り出すための
+        // 優先度キュー。`BinaryHeap` は最大値を先頭に取るため、`Reverse` で
+        // 反転させる。
         let mut heap = collections::BinaryHeap::new();
         heap.push(cmp::Reverse((T::ZERO, s)));
 
+        // キューから距離が最小の頂点を1つずつ取り出し、確定させていく。
+        // 還元コストは非負であるため、一度取り出した頂点の距離はそれ以上
+        // 小さくなることがなく、以降変化しない (確定する)。
         while let Some(cmp::Reverse((d, u))) = heap.pop() {
+            // このキューには、同じ頂点について古い距離のエントリが複数
+            // 積まれていることがある (下の更新のたびに新しいエントリを追加で
+            // 積んでいるだけで、古いエントリを取り除いていないため)。
+            // dist[u] と一致しない (= 既により良い距離で確定済みの) エントリは
+            // 読み捨てる。
             if dist[u] != Some(d) {
                 continue;
             }
 
+            // 確定した頂点 u から出る各辺のうち、残余容量が正のものについて、
+            // 還元コスト `cost(u, to) + potential[u] - potential[to]` を使って
+            // 隣接頂点 to までの距離がこれまでより小さくできるなら更新する。
             for (idx, edge) in self.graph[u].iter().enumerate() {
                 if edge.cap > T::ZERO {
                     let reduced_cost = edge.cost + potential[u] - potential[edge.to];
