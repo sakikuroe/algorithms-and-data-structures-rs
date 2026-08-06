@@ -418,6 +418,78 @@ path = "src/bin/atcoder/bundled/typical90_bs_fuzzy_priority.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "ac-arc085-e-mul"
+path = "src/bin/atcoder/arc085_e_mul.rs"
+
+[[bin]]
+name = "ac-arc085-e-mul-bundled"
+path = "src/bin/atcoder/bundled/arc085_e_mul.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-an-get-more-money"
+path = "src/bin/atcoder/typical90_an_get_more_money.rs"
+
+[[bin]]
+name = "ac-typical90-an-get-more-money-bundled"
+path = "src/bin/atcoder/bundled/typical90_an_get_more_money.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc326-g-unlock-achievement"
+path = "src/bin/atcoder/abc326_g_unlock_achievement.rs"
+
+[[bin]]
+name = "ac-abc326-g-unlock-achievement-bundled"
+path = "src/bin/atcoder/bundled/abc326_g_unlock_achievement.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc225-g-x"
+path = "src/bin/atcoder/abc225_g_x.rs"
+
+[[bin]]
+name = "ac-abc225-g-x-bundled"
+path = "src/bin/atcoder/bundled/abc225_g_x.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc193-f-zebraness"
+path = "src/bin/atcoder/abc193_f_zebraness.rs"
+
+[[bin]]
+name = "ac-abc193-f-zebraness-bundled"
+path = "src/bin/atcoder/bundled/abc193_f_zebraness.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "poj-poj2987-firing"
+path = "src/bin/poj/poj2987_firing.rs"
+
+[[bin]]
+name = "poj-poj2987-firing-bundled"
+path = "src/bin/poj/bundled/poj2987_firing.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "yuki-yuki2713-just-solitaire"
+path = "src/bin/yukicoder/yuki2713_just_solitaire.rs"
+
+[[bin]]
+name = "yuki-yuki2713-just-solitaire-bundled"
+path = "src/bin/yukicoder/bundled/yuki2713_just_solitaire.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "cf-cf1082g-petya-and-graph"
+path = "src/bin/codeforces/cf1082g_petya_and_graph.rs"
+
+[[bin]]
+name = "cf-cf1082g-petya-and-graph-bundled"
+path = "src/bin/codeforces/bundled/cf1082g_petya_and_graph.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "ac-practice2-d-maxflow"
 path = "src/bin/atcoder/practice2_d_maxflow.rs"
 

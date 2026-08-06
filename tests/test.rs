@@ -5,7 +5,12 @@ pub mod bin {
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
+        pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
+        pub mod abc225_g_x;
+        pub mod abc326_g_unlock_achievement;
+        pub mod arc085_e_mul;
+        pub mod typical90_an_get_more_money;
         pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
         pub mod typical90_bs_fuzzy_priority;
         pub mod typical90_m_passing;
@@ -31,6 +36,18 @@ pub mod bin {
         pub mod grl_1_c_all_pairs_shortest_path;
         pub mod grl_1_c_all_pairs_shortest_path_johnson;
         pub mod grl_4_b_topological_sort;
+    }
+
+    pub mod yukicoder {
+        pub mod yuki2713_just_solitaire;
+    }
+
+    pub mod codeforces {
+        pub mod cf1082g_petya_and_graph;
+    }
+
+    pub mod poj {
+        pub mod poj2987_firing;
     }
 
     pub mod library_checker {

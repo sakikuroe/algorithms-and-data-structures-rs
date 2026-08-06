@@ -39,6 +39,7 @@ pub mod graph {
     pub mod min_cost_flow;
     pub mod min_cost_flow_graph;
     pub mod mst;
+    pub mod project_selection;
     pub mod scc;
     pub mod topological_sort;
     pub mod two_sat;
