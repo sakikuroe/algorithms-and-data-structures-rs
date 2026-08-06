@@ -363,5 +363,41 @@ name = "ac-abc209-d-collision-bundled"
 path = "src/bin/atcoder/bundled/abc209_d_collision.rs"
 required-features = ["bundled"]
 
+[[bin]]
+name = "ac-typical90-u-come-back-in-one-piece"
+path = "src/bin/atcoder/typical90_u_come_back_in_one_piece.rs"
+
+[[bin]]
+name = "ac-typical90-u-come-back-in-one-piece-bundled"
+path = "src/bin/atcoder/bundled/typical90_u_come_back_in_one_piece.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-m-passing"
+path = "src/bin/atcoder/typical90_m_passing.rs"
+
+[[bin]]
+name = "ac-typical90-m-passing-bundled"
+path = "src/bin/atcoder/bundled/typical90_m_passing.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-aq-maze-challenge-with-lack-of-sleep"
+path = "src/bin/atcoder/typical90_aq_maze_challenge_with_lack_of_sleep.rs"
+
+[[bin]]
+name = "ac-typical90-aq-maze-challenge-with-lack-of-sleep-bundled"
+path = "src/bin/atcoder/bundled/typical90_aq_maze_challenge_with_lack_of_sleep.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-bs-fuzzy-priority"
+path = "src/bin/atcoder/typical90_bs_fuzzy_priority.rs"
+
+[[bin]]
+name = "ac-typical90-bs-fuzzy-priority-bundled"
+path = "src/bin/atcoder/bundled/typical90_bs_fuzzy_priority.rs"
+required-features = ["bundled"]
+
 [dev-dependencies]
 rstest = "0.26.1"

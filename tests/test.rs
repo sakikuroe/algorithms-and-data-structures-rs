@@ -6,6 +6,10 @@ pub mod bin {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
         pub mod abc209_d_collision;
+        pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
+        pub mod typical90_bs_fuzzy_priority;
+        pub mod typical90_m_passing;
+        pub mod typical90_u_come_back_in_one_piece;
         pub mod abc422_g_balls_and_boxes;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
