@@ -14,17 +14,11 @@ mod lc_cycle_detection {
     /// - Then: 見つけた閉路 (または閉路なし) が期待通りである
     #[rstest]
     // - Given: 閉路 0->4->2->1->0 を含むグラフである
-    #[case::sample_1(
-        "5 7\n0 3\n0 4\n4 2\n4 3\n4 0\n2 1\n1 0\n",
-        "4\n1\n2\n5\n6\n"
-    )]
+    #[case::sample_1("5 7\n0 3\n0 4\n4 2\n4 3\n4 0\n2 1\n1 0\n", "4\n1\n2\n5\n6\n")]
     // - Given: 閉路を含まない単純パスのみのグラフである
     #[case::sample_2_no_cycle("2 1\n1 0\n", "-1\n")]
     // - Given: 複数の閉路を含むグラフである
-    #[case::sample_3_multiple_cycles(
-        "4 6\n0 1\n1 2\n2 0\n0 1\n1 3\n3 0\n",
-        "3\n0\n1\n2\n"
-    )]
+    #[case::sample_3_multiple_cycles("4 6\n0 1\n1 2\n2 0\n0 1\n1 3\n3 0\n", "3\n0\n1\n2\n")]
     fn matches_official_samples(#[case] input: &str, #[case] expected: &str) {
         // When
         let result = common::run_binary(BIN, input);
