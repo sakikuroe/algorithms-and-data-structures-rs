@@ -26,12 +26,12 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
     /// いる。各辺の流量は [`get_edge`](Self::get_edge) で参照できる。
     ///
     /// # Args
-    /// - `s`: 始点。`0..vertex_count()` の範囲でなければならない。
-    /// - `t`: 終点。`0..vertex_count()` の範囲でなければならず、`s` と異なって
-    ///   いなければならない。
+    /// - `s`: 始点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `t`: 終点であり、`0..vertex_count()` の範囲でなければならず、`s` と
+    ///   異なっていなければならない。
     ///
     /// # Returns
-    /// `(T, T)`: `(s から t への最大流量, その流量を実現する最小コスト)`。
+    /// `(T, T)`: `(s から t への最大流量, その流量を実現する最小コスト)`
     ///
     /// # Panics
     /// - `s == t` の場合にパニックする。
@@ -125,11 +125,12 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
     /// すべて0であり、実質的に元の辺のみを辿ることになる。
     ///
     /// # Args
-    /// - `s`: 始点。
+    /// - `s`: 始点
     ///
     /// # Returns
-    /// `Vec<T>`: `result[v]` は `s` から `v` への最短距離。到達できない頂点は
-    /// 以降のポテンシャルとして使われることがないため、`T::ZERO` を割り当てる。
+    /// `Vec<T>`: `result[v]` は `s` から `v` への最短距離であり、到達できない
+    /// 頂点は以降のポテンシャルとして使われることがないため、`T::ZERO` を
+    /// 割り当てる。
     ///
     /// # Complexity
     /// - 時間計算量: O(VE)
@@ -171,13 +172,13 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
     /// 始点 `s` からの最短距離をダイクストラ法で求める。
     ///
     /// # Args
-    /// - `s`: 始点。
-    /// - `potential`: 頂点ごとのポテンシャル。還元コスト
+    /// - `s`: 始点
+    /// - `potential`: 頂点ごとのポテンシャルであり、還元コスト
     ///   `cost(u, v) + potential[u] - potential[v]` が非負になっている必要が
     ///   ある。
     ///
     /// # Returns
-    /// `ShortestPath<T>`: 還元コストでの最短距離と、経路復元に必要な情報。
+    /// `ShortestPath<T>`: 還元コストでの最短距離と、経路復元に必要な情報
     ///
     /// # Complexity
     /// - 時間計算量: O(E log V)

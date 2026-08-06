@@ -73,10 +73,10 @@ impl<T> MinCostFlowGraph<T> {
     /// `n` 頂点、辺を持たない最小費用流グラフを生成する。
     ///
     /// # Args
-    /// - `n`: 頂点数。
+    /// - `n`: 頂点数
     ///
     /// # Returns
-    /// `Self`: 頂点数 `n`、辺を持たない `MinCostFlowGraph<T>`。
+    /// `Self`: 頂点数 `n`、辺を持たない `MinCostFlowGraph<T>`
     ///
     /// # Complexity
     /// - 時間計算量: O(n)
@@ -92,7 +92,7 @@ impl<T> MinCostFlowGraph<T> {
     /// グラフの頂点数を返す。
     ///
     /// # Returns
-    /// `usize`: 頂点数。
+    /// `usize`: 頂点数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -103,7 +103,7 @@ impl<T> MinCostFlowGraph<T> {
     /// これまでに追加した辺の本数を返す。
     ///
     /// # Returns
-    /// `usize`: 追加した辺の本数。
+    /// `usize`: 追加した辺の本数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -117,14 +117,14 @@ impl<T: FlowValue> MinCostFlowGraph<T> {
     /// 追加し、辺番号を返す。
     ///
     /// # Args
-    /// - `from`: 辺の始点。`0..vertex_count()` の範囲でなければならない。
-    /// - `to`: 辺の終点。`0..vertex_count()` の範囲でなければならない。
-    /// - `cap`: 辺の容量。非負でなければならない。
-    /// - `cost`: 辺の単位流量あたりのコスト。正負は問わない。
+    /// - `from`: 辺の始点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `to`: 辺の終点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `cap`: 辺の容量であり、非負でなければならない。
+    /// - `cost`: 辺の単位流量あたりのコストであり、正負は問わない。
     ///
     /// # Returns
-    /// `usize`: 追加した辺の番号。[`get_edge`](Self::get_edge) で参照する際に
-    /// 使う。
+    /// `usize`: 追加した辺の番号であり、[`get_edge`](Self::get_edge) で参照する
+    /// 際に使う。
     ///
     /// # Panics
     /// - `from`/`to` が `0..vertex_count()` の範囲外の場合にパニックする。
@@ -174,10 +174,10 @@ impl<T: FlowValue> MinCostFlowGraph<T> {
     /// 現在の流量に等しい。
     ///
     /// # Args
-    /// - `i`: 辺番号。[`add_edge`](Self::add_edge) の戻り値。
+    /// - `i`: 辺番号であり、[`add_edge`](Self::add_edge) の戻り値である。
     ///
     /// # Returns
-    /// `(usize, usize, T, T, T)`: `(始点, 終点, 元の容量, コスト, 現在の流量)`。
+    /// `(usize, usize, T, T, T)`: `(始点, 終点, 元の容量, コスト, 現在の流量)`
     ///
     /// # Panics
     /// - `i` が `0..edge_count()` の範囲外の場合にパニックする。

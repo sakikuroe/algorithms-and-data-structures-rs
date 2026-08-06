@@ -59,10 +59,10 @@ impl<Cap> FlowGraph<Cap> {
     /// `n` 頂点、辺を持たないフローグラフを生成する。
     ///
     /// # Args
-    /// - `n`: 頂点数。
+    /// - `n`: 頂点数
     ///
     /// # Returns
-    /// `Self`: 頂点数 `n`、辺を持たない `FlowGraph<Cap>`。
+    /// `Self`: 頂点数 `n`、辺を持たない `FlowGraph<Cap>`
     ///
     /// # Complexity
     /// - 時間計算量: O(n)
@@ -78,7 +78,7 @@ impl<Cap> FlowGraph<Cap> {
     /// グラフの頂点数を返す。
     ///
     /// # Returns
-    /// `usize`: 頂点数。
+    /// `usize`: 頂点数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -89,7 +89,7 @@ impl<Cap> FlowGraph<Cap> {
     /// これまでに追加した辺の本数を返す。
     ///
     /// # Returns
-    /// `usize`: 追加した辺の本数。
+    /// `usize`: 追加した辺の本数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -105,13 +105,13 @@ impl<Cap: FlowCapacity> FlowGraph<Cap> {
     /// 張る。逆辺の残余容量は、流量が押し出されるたびに増加していく。
     ///
     /// # Args
-    /// - `from`: 辺の始点。`0..vertex_count()` の範囲でなければならない。
-    /// - `to`: 辺の終点。`0..vertex_count()` の範囲でなければならない。
-    /// - `cap`: 辺の容量。非負でなければならない。
+    /// - `from`: 辺の始点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `to`: 辺の終点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `cap`: 辺の容量であり、非負でなければならない。
     ///
     /// # Returns
-    /// `usize`: 追加した辺の番号。[`get_edge`](Self::get_edge) で参照する際に
-    /// 使う。
+    /// `usize`: 追加した辺の番号であり、[`get_edge`](Self::get_edge) で参照する
+    /// 際に使う。
     ///
     /// # Panics
     /// - `from`/`to` が `0..vertex_count()` の範囲外の場合にパニックする。
@@ -160,10 +160,10 @@ impl<Cap: FlowCapacity> FlowGraph<Cap> {
     /// 現在の流量に等しい。
     ///
     /// # Args
-    /// - `i`: 辺番号。[`add_edge`](Self::add_edge) の戻り値。
+    /// - `i`: 辺番号であり、[`add_edge`](Self::add_edge) の戻り値である。
     ///
     /// # Returns
-    /// `(usize, usize, Cap, Cap)`: `(始点, 終点, 元の容量, 現在の流量)`。
+    /// `(usize, usize, Cap, Cap)`: `(始点, 終点, 元の容量, 現在の流量)`
     ///
     /// # Panics
     /// - `i` が `0..edge_count()` の範囲外の場合にパニックする。

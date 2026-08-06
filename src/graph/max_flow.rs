@@ -23,12 +23,12 @@ impl<Cap: flow_graph::FlowCapacity> FlowGraph<Cap> {
     /// [`min_cut`](Self::min_cut) でそれぞれ参照できる。
     ///
     /// # Args
-    /// - `s`: 始点。`0..vertex_count()` の範囲でなければならない。
-    /// - `t`: 終点。`0..vertex_count()` の範囲でなければならず、`s` と異なって
-    ///   いなければならない。
+    /// - `s`: 始点であり、`0..vertex_count()` の範囲でなければならない。
+    /// - `t`: 終点であり、`0..vertex_count()` の範囲でなければならず、`s` と
+    ///   異なっていなければならない。
     ///
     /// # Returns
-    /// `Cap`: `s` から `t` への最大流量。
+    /// `Cap`: `s` から `t` への最大流量
     ///
     /// # Panics
     /// - `s == t` の場合にパニックする。
@@ -135,11 +135,11 @@ impl<Cap: flow_graph::FlowCapacity> FlowGraph<Cap> {
     /// (最短距離) を求める。
     ///
     /// # Args
-    /// - `s`: 始点。
+    /// - `s`: 始点
     ///
     /// # Returns
     /// `Vec<Option<usize>>`: `result[v]` は `s` から `v` への残余グラフ上の
-    /// 最短距離。到達できない場合は `None`。
+    /// 最短距離であり、到達できない場合は `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(V + E)
@@ -171,15 +171,15 @@ impl<Cap: flow_graph::FlowCapacity> FlowGraph<Cap> {
     /// 行き止まりと分かった辺を二度と辿らない。
     ///
     /// # Args
-    /// - `s`: 始点。
-    /// - `t`: 終点。
-    /// - `level`: [`bfs_levels`](Self::bfs_levels) が返したレベル。
-    /// - `iter`: 頂点ごとの「現在辺」ポインタ。同じフェーズの間、呼び出し元で
-    ///   使い回す。
+    /// - `s`: 始点
+    /// - `t`: 終点
+    /// - `level`: [`bfs_levels`](Self::bfs_levels) が返したレベル
+    /// - `iter`: 頂点ごとの「現在辺」ポインタであり、同じフェーズの間、
+    ///   呼び出し元で使い回す。
     ///
     /// # Returns
-    /// `Cap`: 見つけた増加パスに流した量。増加パスが見つからなかった場合は
-    /// `Cap::ZERO`。
+    /// `Cap`: 見つけた増加パスに流した量であり、増加パスが見つからなかった
+    /// 場合は `Cap::ZERO` である。
     ///
     /// # Complexity
     /// - 時間計算量: 償却 O(V + E) (`iter` を同一フェーズ内で使い回すため)
