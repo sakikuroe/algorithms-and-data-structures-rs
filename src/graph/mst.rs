@@ -137,23 +137,39 @@ impl<T> graph::Graph<T> {
     {
         let n = self.vertex_count();
 
-        // すべての辺を候補として集め、重みの昇順に並べ替える。
+        // グラフ中のすべての辺を、採用するかどうかまだ決まっていない候補として
+        // 1つのリストに集める。add_edge・add_undirected_edge のどちらで登録
+        // された辺も、ここでは区別せずすべて候補として扱う。
         let mut candidates = (0..n)
             .flat_map(|u| self.edges(u).map(move |(v, payload)| (u, v, payload)))
             .collect::<Vec<(usize, usize, &T)>>();
+        // 集めた候補を、重みが軽い順に並べ替える。Kruskal 法は、この順に
+        // 「軽い辺から貪欲に採用するかどうかを判定していく」ことで最小全域木を
+        // 構成する。
         candidates.sort_by_key(|&(_, _, payload)| weight_of(payload));
 
-        // 重みが小さい辺から順に、両端点がすでに同じ連結成分でない場合にのみ
-        // 採用する。自己ループは両端点が常に同じ成分であるため自然に棄却される。
+        // Union-Find を使い、これまでに採用した辺だけで見たときの連結成分を
+        // 管理する。同じ連結成分に属する頂点同士は、辺を通じてすでに (直接、
+        // または他の頂点を経由して間接的に) つながっている状態を表す。
         let mut uf = union_find::UnionFind::new(n);
         let mut edges = Vec::new();
+        // 軽い辺から順に見ていき、その両端点がまだ同じ連結成分でなければ採用する。
         for (u, v, payload) in candidates {
             if !uf.is_same(u, v) {
+                // 両端点が別々の連結成分に属している場合、この辺を採用しても
+                // 閉路はできず、木のまま2つの成分を1つにまとめられる。
+                // そのため、この辺を採用し、両端点の連結成分を1つに統合する。
                 uf.union(u, v);
                 edges.push((u, v, payload));
             }
+            // 両端点がすでに同じ連結成分であれば、採用すると閉路ができてしまう
+            // ため、この辺は採用せず読み飛ばす。自己ループ (u == v) も、
+            // 両端点が常に同じ連結成分であるため、ここで自然に棄却される。
         }
 
+        // 最終的な連結成分の個数は、Union-Find 上で根になっている頂点の個数に
+        // 等しい。これが1であれば全域木、2以上であれば連結成分ごとの木からなる
+        // 森である。
         let component_count = (0..n).filter(|&v| uf.is_root(v)).count();
 
         MinimumSpanningForest {
