@@ -328,6 +328,15 @@ path = "src/bin/aoj/bundled/grl_1_c_all_pairs_shortest_path_johnson.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "aoj-grl-4-b-topological-sort"
+path = "src/bin/aoj/grl_4_b_topological_sort.rs"
+
+[[bin]]
+name = "aoj-grl-4-b-topological-sort-bundled"
+path = "src/bin/aoj/bundled/grl_4_b_topological_sort.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "ac-abc176-d-wizard-in-maze"
 path = "src/bin/atcoder/abc176_d_wizard_in_maze.rs"
 

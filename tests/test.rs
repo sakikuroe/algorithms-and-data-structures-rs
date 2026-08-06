@@ -25,6 +25,7 @@ pub mod bin {
         pub mod grl_1_b_single_source_shortest_path;
         pub mod grl_1_c_all_pairs_shortest_path;
         pub mod grl_1_c_all_pairs_shortest_path_johnson;
+        pub mod grl_4_b_topological_sort;
     }
 
     pub mod library_checker {
