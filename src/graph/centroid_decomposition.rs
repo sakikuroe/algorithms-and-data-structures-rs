@@ -103,11 +103,22 @@ impl CentroidDecomposition {
         mut f: impl FnMut(usize, &[usize], &[Vec<usize>]),
     ) {
         let n = g.vertex_count();
+        // blocked[v] が true の頂点は、すでに重心として取り除かれた頂点
+        // (今調べている重心の祖先) であり、探索がその先へ入り込まない
+        // ようにするための壁として使う。
         let mut blocked = vec![false; n];
+        // dist[v] は、今調べている部分問題の中で v まで辿り着いた距離。
+        // usize::MAX は「まだ辿り着いていない」ことを表す番兵として使う。
         let mut dist: Vec<usize> = vec![usize::MAX; n];
+        // branch_of[v] は、重心 c から見て v がどの枝に属するかを表す。
+        // 枝の identifier として、その枝で c に隣接する頂点自身の番号を使う。
         let mut branch_of: Vec<usize> = vec![usize::MAX; n];
 
+        // すべての頂点を、いずれかの回で重心として1回ずつ巡る。
         for c in 0..n {
+            // c の祖先 (すでに重心として取り除かれた頂点) を壁として塞ぐ。
+            // これにより、これから行う探索は「c を含み、まだ取り除かれて
+            // いない部分問題」の内側だけに閉じ込められる。
             let mut ancestors = Vec::new();
             let mut cur = self.parent(c);
             while let Some(p) = cur {
@@ -116,6 +127,8 @@ impl CentroidDecomposition {
                 cur = self.parent(p);
             }
 
+            // c を起点とする幅優先探索で、部分問題に含まれる各頂点までの
+            // 距離と、どの枝に属するかを求める。
             let mut component = vec![c];
             dist[c] = 0;
             let mut queue = collections::VecDeque::new();
@@ -124,6 +137,8 @@ impl CentroidDecomposition {
                 for (v, _) in g.edges(u) {
                     if !blocked[v] && dist[v] == usize::MAX {
                         dist[v] = dist[u] + 1;
+                        // c 自身の隣接頂点なら、そこが新しい枝の入口になる。
+                        // それ以外は、親と同じ枝に属する。
                         branch_of[v] = if u == c { v } else { branch_of[u] };
                         component.push(v);
                         queue.push_back(v);
@@ -131,8 +146,12 @@ impl CentroidDecomposition {
                 }
             }
 
+            // 部分問題全体の距離の列 (重心自身の距離0を含む) を作る。
             let whole = component.iter().map(|&v| dist[v]).collect::<Vec<usize>>();
 
+            // 枝ごとに距離をまとめる。branch_index は「枝の入口の頂点番号」
+            // から「branches の何番目の枝か」への対応表であり、初出の枝が
+            // 現れるたびに新しい空の列を追加する。
             let mut branch_index: collections::HashMap<usize, usize> = collections::HashMap::new();
             let mut branches: Vec<Vec<usize>> = Vec::new();
             for &v in &component {
@@ -147,8 +166,11 @@ impl CentroidDecomposition {
                 }
             }
 
+            // 呼び出し側のコールバックへ、この重心の集計結果を渡す。
             f(c, &whole, &branches);
 
+            // 次の回の重心のために、この回で書き込んだ分だけ状態を元に
+            // 戻す (全要素を毎回初期化すると O(V^2) になってしまうため)。
             for v in component {
                 dist[v] = usize::MAX;
                 branch_of[v] = usize::MAX;
@@ -229,11 +251,17 @@ impl CentroidDecomposition {
         WF: Fn(&T) -> W,
     {
         let n = g.vertex_count();
+        // 全体の流れは for_each_component と同じであり、辺数の代わりに
+        // weight_of が返す重みの総和を距離として扱う点だけが異なる。
+        // dist は「まだ辿り着いていない」ことを None で表す (辺の重みは
+        // 非負であるため usize::MAX のような番兵値を作れないため)。
         let mut blocked = vec![false; n];
         let mut dist: Vec<Option<W>> = vec![None; n];
         let mut branch_of: Vec<usize> = vec![usize::MAX; n];
 
+        // すべての頂点を、いずれかの回で重心として1回ずつ巡る。
         for c in 0..n {
+            // c の祖先 (すでに重心として取り除かれた頂点) を壁として塞ぐ。
             let mut ancestors = Vec::new();
             let mut cur = self.parent(c);
             while let Some(p) = cur {
@@ -242,6 +270,8 @@ impl CentroidDecomposition {
                 cur = self.parent(p);
             }
 
+            // c を起点とする幅優先探索で、部分問題に含まれる各頂点までの
+            // 重み付き距離と、どの枝に属するかを求める。
             let mut component = vec![c];
             dist[c] = Some(W::default());
             let mut queue = collections::VecDeque::new();
@@ -250,6 +280,8 @@ impl CentroidDecomposition {
                 for (v, payload) in g.edges(u) {
                     if !blocked[v] && dist[v].is_none() {
                         dist[v] = Some(dist[u].expect("u was already visited") + weight_of(payload));
+                        // c 自身の隣接頂点なら新しい枝の入口、それ以外は
+                        // 親と同じ枝に属する。
                         branch_of[v] = if u == c { v } else { branch_of[u] };
                         component.push(v);
                         queue.push_back(v);
@@ -257,11 +289,14 @@ impl CentroidDecomposition {
                 }
             }
 
+            // 部分問題全体の距離の列 (重心自身の距離0を含む) を作る。
             let whole = component
                 .iter()
                 .map(|&v| dist[v].expect("every vertex in component has a distance"))
                 .collect::<Vec<W>>();
 
+            // 枝ごとに距離をまとめる (branch_index は枝の入口の頂点番号から
+            // branches の添字への対応表)。
             let mut branch_index: collections::HashMap<usize, usize> = collections::HashMap::new();
             let mut branches: Vec<Vec<W>> = Vec::new();
             for &v in &component {
@@ -276,8 +311,10 @@ impl CentroidDecomposition {
                 }
             }
 
+            // 呼び出し側のコールバックへ、この重心の集計結果を渡す。
             f(c, &whole, &branches);
 
+            // 次の回の重心のために、この回で書き込んだ分だけ状態を元に戻す。
             for v in component {
                 dist[v] = None;
                 branch_of[v] = usize::MAX;

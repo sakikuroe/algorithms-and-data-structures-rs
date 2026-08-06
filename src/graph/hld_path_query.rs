@@ -157,7 +157,13 @@ where
     /// `M::S`: 畳み込んだ結果
     fn fold_ranges(&self, ranges: Vec<(usize, usize, PathDirection)>) -> M::S {
         let n = self.forward.len();
+        // 区間の列を先頭から順に畳み込んでいく。acc がここまでの畳み込み
+        // 結果であり、区間ごとの値を M::op で右から結合していく。
         ranges.into_iter().fold(M::id(), |acc, (l, r, dir)| {
+            // 区間の向きに応じて、参照するセグメント木を使い分ける。番号の
+            // 昇順に読みたい区間 (Forward) はそのまま forward から、降順に
+            // 読みたい区間 (Reversed) は、番号を反転させて構築してある
+            // reversed から、対応する反転後の区間 [n-r, n-l) を取り出す。
             let value = match dir {
                 PathDirection::Forward => self.forward.fold(l, r),
                 PathDirection::Reversed => self.reversed.fold(n - r, n - l),

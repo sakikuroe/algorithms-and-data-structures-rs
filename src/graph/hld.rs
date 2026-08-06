@@ -336,15 +336,23 @@ impl Hld {
     /// assert_eq!(Some(2), hld.jump(1, 2, 2));
     /// ```
     pub fn jump(&self, u: usize, v: usize, k: usize) -> Option<usize> {
+        // u から v へのパスは、u から LCA へ登る前半部分 (長さ dist_to_lca) と、
+        // LCA から v へ下る後半部分 (長さ dist_from_lca) の2つに分けられる。
         let w = self.lca_from_root(u, v);
         let dist_to_lca = self.depth[u] - self.depth[w];
         let dist_from_lca = self.depth[v] - self.depth[w];
 
         if k <= dist_to_lca {
+            // k 歩目はまだ前半部分の中にあるため、u からそのまま k 個上へ
+            // 登った祖先が答えになる。
             self.kth_ancestor(u, k)
         } else if k <= dist_to_lca + dist_from_lca {
+            // k 歩目は後半部分に入っている。後半は LCA から v へ「下る」
+            // 向きだが、kth_ancestor は「上へ登る」操作しか持たないため、
+            // 逆向きに v から数えた歩数 (残り歩数) で置き換えて求める。
             self.kth_ancestor(v, dist_to_lca + dist_from_lca - k)
         } else {
+            // k がパス全体の長さを超えている。
             None
         }
     }

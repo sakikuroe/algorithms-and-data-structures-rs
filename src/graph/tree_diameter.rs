@@ -46,11 +46,15 @@ impl<T> graph::Graph<T> {
         }
         graph::validate_tree(self, 0)?;
 
+        // 1回目の探索: 頂点0からの距離を求め、そのうち最も遠い頂点を1つ選ぶ。
+        // 木上の性質として、この頂点は必ず直径の端点の1つになっている。
         let first = self.bfs(&[0]);
         let farthest = (0..n)
             .max_by_key(|&v| first.distance(v))
             .expect("n > 0 here");
 
+        // 2回目の探索: 1回目で見つけた端点から改めて距離を測り直す。今度は
+        // 最も遠い頂点までの距離そのものが、木の直径になる。
         let second = self.bfs(&[farthest]);
         let diameter = (0..n)
             .filter_map(|v| second.distance(v))
@@ -97,11 +101,16 @@ impl<T> graph::Graph<T> {
         }
         graph::validate_tree(self, 0)?;
 
+        // 1回目の探索: 頂点0から最も遠い頂点を求める。この頂点は必ず直径の
+        // 端点の1つになっている。
         let first = self.bfs(&[0]);
         let one_end = (0..n)
             .max_by_key(|&v| first.distance(v))
             .expect("n > 0 here");
 
+        // 2回目の探索: 1回目で見つけた端点から改めて探索し、そこから最も
+        // 遠い頂点を、もう一方の端点として求める。この2点間の経路が
+        // そのまま直径を実現する経路になる。
         let second = self.bfs(&[one_end]);
         let other_end = (0..n)
             .max_by_key(|&v| second.distance(v))
@@ -165,11 +174,16 @@ impl<T> graph::Graph<T> {
         }
         graph::validate_tree(self, 0)?;
 
+        // 1回目の探索: 重み付きの最短路 (Dijkstra 法) で頂点0から最も遠い
+        // 頂点を求める。辺数の場合と同様、この頂点は必ず直径の端点の1つ
+        // になっている。
         let first = self.dijkstra_by(&[(0, W::default())], &weight_of);
         let farthest = (0..n)
             .max_by_key(|&v| first.distance(v))
             .expect("n > 0 here");
 
+        // 2回目の探索: 1回目で見つけた端点から改めて最短路を測り直す。
+        // 最も遠い頂点までの距離が、そのまま木の直径になる。
         let second = self.dijkstra_by(&[(farthest, W::default())], &weight_of);
         let diameter = (0..n)
             .filter_map(|v| second.distance(v))
@@ -227,11 +241,16 @@ impl<T> graph::Graph<T> {
         }
         graph::validate_tree(self, 0)?;
 
+        // 1回目の探索: 頂点0から最も遠い頂点を求める。この頂点は必ず直径の
+        // 端点の1つになっている。
         let first = self.dijkstra_by(&[(0, W::default())], &weight_of);
         let one_end = (0..n)
             .max_by_key(|&v| first.distance(v))
             .expect("n > 0 here");
 
+        // 2回目の探索: 1回目で見つけた端点から改めて探索し、そこから最も
+        // 遠い頂点を、もう一方の端点として求める。この2点間の経路が
+        // そのまま直径を実現する経路になる。
         let second = self.dijkstra_by(&[(one_end, W::default())], &weight_of);
         let other_end = (0..n)
             .max_by_key(|&v| second.distance(v))
