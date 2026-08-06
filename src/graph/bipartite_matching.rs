@@ -27,11 +27,11 @@ impl BipartiteGraph {
     /// 生成する。
     ///
     /// # Args
-    /// - `left_size`: 左側の頂点数。
-    /// - `right_size`: 右側の頂点数。
+    /// - `left_size`: 左側の頂点数
+    /// - `right_size`: 右側の頂点数
     ///
     /// # Returns
-    /// `Self`: 指定した頂点数を持ち、辺を持たない `BipartiteGraph`。
+    /// `Self`: 指定した頂点数を持ち、辺を持たない `BipartiteGraph`
     ///
     /// # Complexity
     /// - 時間計算量: O(left_size)
@@ -47,7 +47,7 @@ impl BipartiteGraph {
     /// 左側の頂点数を返す。
     ///
     /// # Returns
-    /// `usize`: 左側の頂点数。
+    /// `usize`: 左側の頂点数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -58,7 +58,7 @@ impl BipartiteGraph {
     /// 右側の頂点数を返す。
     ///
     /// # Returns
-    /// `usize`: 右側の頂点数。
+    /// `usize`: 右側の頂点数
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -69,8 +69,8 @@ impl BipartiteGraph {
     /// 左側の頂点 `u` と右側の頂点 `v` を結ぶ辺を追加する。
     ///
     /// # Args
-    /// - `u`: 左側の頂点番号。`0..left_size()` の範囲でなければならない。
-    /// - `v`: 右側の頂点番号。`0..right_size()` の範囲でなければならない。
+    /// - `u`: 左側の頂点番号であり、`0..left_size()` の範囲でなければならない。
+    /// - `v`: 右側の頂点番号であり、`0..right_size()` の範囲でなければならない。
     ///
     /// # Panics
     /// - `u` が `0..left_size()` の範囲外の場合にパニックする。
@@ -109,7 +109,7 @@ impl BipartiteMatching {
     /// マッチングに含まれる辺の本数を返す。
     ///
     /// # Returns
-    /// `usize`: マッチした頂点対の個数。
+    /// `usize`: マッチした頂点対の個数
     ///
     /// # Complexity
     /// - 時間計算量: O(左側の頂点数)
@@ -120,10 +120,11 @@ impl BipartiteMatching {
     /// 左側の頂点 `u` にマッチした右側の頂点を返す。
     ///
     /// # Args
-    /// - `u`: 左側の頂点番号。
+    /// - `u`: 左側の頂点番号
     ///
     /// # Returns
-    /// `Option<usize>`: マッチした右側の頂点。マッチしていない場合は `None`。
+    /// `Option<usize>`: マッチした右側の頂点であり、マッチしていない場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -134,10 +135,11 @@ impl BipartiteMatching {
     /// 右側の頂点 `v` にマッチした左側の頂点を返す。
     ///
     /// # Args
-    /// - `v`: 右側の頂点番号。
+    /// - `v`: 右側の頂点番号
     ///
     /// # Returns
-    /// `Option<usize>`: マッチした左側の頂点。マッチしていない場合は `None`。
+    /// `Option<usize>`: マッチした左側の頂点であり、マッチしていない場合は
+    /// `None` である。
     ///
     /// # Complexity
     /// - 時間計算量: O(1)
@@ -148,7 +150,7 @@ impl BipartiteMatching {
     /// マッチした頂点対を `(左側の頂点, 右側の頂点)` の組として列挙する。
     ///
     /// # Returns
-    /// `impl Iterator<Item = (usize, usize)>`: マッチした頂点対の列。
+    /// `impl Iterator<Item = (usize, usize)>`: マッチした頂点対の列であり、
     /// 左側の頂点番号の昇順に並ぶ。
     ///
     /// # Complexity
@@ -166,7 +168,7 @@ impl BipartiteGraph {
     /// Hopcroft-Karp 法により、二部グラフの最大マッチングを求める。
     ///
     /// # Returns
-    /// `BipartiteMatching`: 求めた最大マッチング。
+    /// `BipartiteMatching`: 求めた最大マッチング
     ///
     /// # Complexity
     /// - 時間計算量: O(E sqrt(V))
@@ -218,7 +220,7 @@ impl BipartiteGraph {
     /// (層) を求める。
     ///
     /// # Args
-    /// - `match_left`/`match_right`: 現在のマッチング。
+    /// - `match_left`/`match_right`: 現在のマッチング
     ///
     /// # Returns
     /// `Option<Vec<Option<usize>>>`: 未マッチの右側頂点へ到達できた場合、
@@ -277,15 +279,15 @@ impl BipartiteGraph {
     /// 二度と訪問しない。
     ///
     /// # Args
-    /// - `u0`: 増加パスの始点となる、未マッチの左側頂点。
-    /// - `level`: [`bfs_layers`](Self::bfs_layers) が返した層。
-    /// - `iter`: 頂点ごとの「現在辺」ポインタ。同じフェーズの間、呼び出し元で
-    ///   使い回す。
-    /// - `match_left`/`match_right`: 現在のマッチング。増加パスが見つかった
-    ///   場合、その場で更新する。
+    /// - `u0`: 増加パスの始点となる、未マッチの左側頂点
+    /// - `level`: [`bfs_layers`](Self::bfs_layers) が返した層
+    /// - `iter`: 頂点ごとの「現在辺」ポインタであり、同じフェーズの間、
+    ///   呼び出し元で使い回す。
+    /// - `match_left`/`match_right`: 現在のマッチングであり、増加パスが
+    ///   見つかった場合、その場で更新する。
     ///
     /// # Returns
-    /// `bool`: 増加パスが見つかり、マッチングを更新できた場合は `true`。
+    /// `bool`: 増加パスが見つかり、マッチングを更新できた場合は `true`
     ///
     /// # Complexity
     /// - 時間計算量: 償却 O(E) (`iter` を同一フェーズ内で使い回すため)
