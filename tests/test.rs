@@ -44,6 +44,7 @@ pub mod bin {
         pub mod lca;
         pub mod log_of_formal_power_series;
         pub mod log_of_formal_power_series_sparse;
+        pub mod minimum_spanning_tree;
         pub mod partition_function;
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
