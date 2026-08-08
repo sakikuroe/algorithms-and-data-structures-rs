@@ -392,6 +392,66 @@ IMPL_FOR_RE = re.compile(
 # ジェネリクスパラメータ一覧の除去は正規表現ではなく `strip_leading_generic_params`
 # に委ね、ここでは `impl` の直後の文字列をそのまま捕捉するだけにとどめる。
 IMPL_LINE_RE = re.compile(r"^\s*impl\b(.*)$")
+
+# `macro_rules!` の本体は展開前のテンプレートであり、通常の Rust アイテムでは
+# ない。テンプレート内の `impl Trait for $t { ... }` を通常の impl と誤認して
+# 削除すると、`$( ... )*` の中身が空になり、対応するメタ変数を持たない不正な
+# 繰り返し展開としてコンパイルエラーになる。そのため、この本体の行範囲は
+# dead_code・孤立 impl・未使用 impl のいずれの削除対象からも除外する。
+MACRO_RULES_OPEN_RE = re.compile(r"^\s*macro_rules!\s+([A-Za-z_]\w*)\s*\{\s*$")
+
+
+def find_macro_rules_ranges(lines):
+    """`macro_rules! name { ... }` 定義本体の (開始行, 終了行, マクロ名) を、
+    行番号は 0-indexed・両端を含む形で列挙する。
+    """
+    ranges = []
+    for idx, line in enumerate(lines):
+        match = MACRO_RULES_OPEN_RE.match(line)
+        if match:
+            _, end = find_item_range(lines, idx + 1)
+            ranges.append((idx, end, match.group(1)))
+    return ranges
+
+
+def is_within_ranges(idx, ranges):
+    return any(start <= idx <= end for start, end, *_ in ranges)
+
+
+def find_macro_invocation_lines(lines, name):
+    """`name!( ... );` という単純な呼び出し文の行番号 (1-indexed) を列挙する。"""
+    pattern = re.compile(r"^\s*" + re.escape(name) + r"!\s*\(.*\)\s*;\s*$")
+    return [idx + 1 for idx, line in enumerate(lines) if pattern.match(line)]
+
+
+def find_orphaned_macro_ranges(lines, removed_names):
+    """本体のテンプレートが参照するトレイトが既に削除された `macro_rules!` を、
+    定義本体と呼び出し文ごと (0-indexed, inclusive の行範囲として) 列挙する。
+
+    `macro_rules!` の本体内にある `impl Trait for $t { ... }` は、通常の枝刈り
+    対象からは除外している ([`find_macro_rules_ranges`] を参照) ため、その
+    Trait 自体が削除された場合はここでマクロ定義・呼び出しをまとめて取り除く。
+    """
+    ranges = []
+    for start, end, name in find_macro_rules_ranges(lines):
+        body_refs_removed = False
+        for line in lines[start : end + 1]:
+            match = IMPL_LINE_RE.match(line)
+            if not match:
+                continue
+            head = strip_leading_generic_params(match.group(1))
+            trait_name, _ = impl_targets(head)
+            if trait_name and trait_name in removed_names:
+                body_refs_removed = True
+                break
+        if not body_refs_removed:
+            continue
+        ranges.append((start, end))
+        for ln in find_macro_invocation_lines(lines, name):
+            ranges.append((ln - 1, ln - 1))
+    return ranges
+
+
 TYPE_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)"
 )
@@ -650,9 +710,16 @@ def find_orphaned_lines(lines, removed_names):
     判定に用いるのは、バンドル生成時点では定義されていたのに今は存在しない名前の
     集合である。`impl FastWrite for u32` の `u32` のように、もともと定義がない名前を
     誤って対象にしてしまうことがない。
+
+    `macro_rules!` の本体にある `impl Trait for $t { ... }` のようなテンプレートは、
+    見た目上 `impl ... for ...` に一致してしまうが実際のアイテムではないため、
+    対象から除外する ([`find_macro_rules_ranges`] を参照)。
     """
+    macro_ranges = find_macro_rules_ranges(lines)
     orphaned = []
     for idx, line in enumerate(lines):
+        if is_within_ranges(idx, macro_ranges):
+            continue
         match = IMPL_LINE_RE.match(line)
         if match:
             head = strip_leading_generic_params(match.group(1))
@@ -696,7 +763,14 @@ def heal_use_groups(path, removed_names):
         if not survivors:
             continue
         if len(survivors) == 1:
-            result.append(f"{prefix}{survivors[0]}{suffix}")
+            # `self` は `use path::{self};` のように波括弧の中でのみ許される
+            # 特殊な要素であり、`use path::self;` は構文エラーになる。生存者が
+            # `self` 単体の場合は、末尾の `::` ごと落として `use path;` の形に
+            # 戻す必要がある (prefix は正規表現の都合で必ず `::` で終わる)。
+            if survivors[0] == "self":
+                result.append(f"{prefix[:-2]}{suffix}")
+            else:
+                result.append(f"{prefix}{survivors[0]}{suffix}")
         else:
             result.append(f"{prefix}{{{', '.join(survivors)}}}{suffix}")
     if changed:
@@ -705,8 +779,11 @@ def heal_use_groups(path, removed_names):
 
 
 def find_unused_impl_lines(lines, mono_pairs):
+    macro_ranges = find_macro_rules_ranges(lines)
     unused = []
     for idx, line in enumerate(lines):
+        if is_within_ranges(idx, macro_ranges):
+            continue
         m = IMPL_FOR_RE.match(line)
         if not m:
             continue
@@ -810,10 +887,12 @@ def prune_dead_items(path, dead_lines):
     if not dead_lines:
         return 0
     lines = path.read_text(encoding="utf-8").split("\n")
+    macro_ranges = find_macro_rules_ranges(lines)
     safe_lines = [
         ln
         for ln in dead_lines
         if not is_inside_trait_definition_or_impl(lines, ln - 1)
+        and not is_within_ranges(ln - 1, macro_ranges)
     ]
     if not safe_lines:
         return 0
@@ -827,6 +906,16 @@ def prune_orphans(path, original_names):
     if not removed_names:
         return 0
     removed = 0
+
+    # macro_rules! 本体はテンプレートであり、通常の impl とは別枠で扱う必要が
+    # あるため、参照先のトレイトが消えたマクロ定義・呼び出しを先にまとめて
+    # 取り除く。この後の find_orphaned_lines は、マクロ本体の行をそもそも
+    # 対象から除外しているため、ここで処理しておかないと孤立したままになる。
+    macro_ranges = find_orphaned_macro_ranges(lines, removed_names)
+    if macro_ranges:
+        removed += remove_ranges(path, macro_ranges)
+        lines = path.read_text(encoding="utf-8").split("\n")
+
     orphaned_lines = find_orphaned_lines(lines, removed_names)
     if orphaned_lines:
         ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
