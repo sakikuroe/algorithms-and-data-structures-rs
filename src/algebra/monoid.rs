@@ -1,21 +1,16 @@
-//! A module that defines the `Monoid` trait and common monoid implementations.
 //! `Monoid` trait および一般的なモノイドの実装を定義するモジュールである.
 
 use crate::algebra::semi_group;
 
-/// A trait representing a monoid, which is a semigroup with an identity element.
 /// モノイド (monoid) を表現する trait であり, 単位元を持つ半群である.
 pub trait Monoid: semi_group::SemiGroup {
-    /// Returns the identity element of the monoid.
     /// モノイドの単位元を返す.
     ///
     /// # Returns
-    /// `Self::S`: The identity element.
-    ///            単位元.
+    /// `Self::S`: 単位元.
     fn id() -> Self::S;
 }
 
-/// A monoid for the minimum operation on `i64`.
 /// `i64` 型の最小値を求めるモノイドである.
 pub struct MinMonoid;
 
@@ -32,7 +27,6 @@ impl Monoid for MinMonoid {
     }
 }
 
-/// A monoid for the maximum operation on `i64`.
 /// `i64` 型の最大値を求めるモノイドである.
 pub struct MaxMonoid;
 
@@ -49,7 +43,6 @@ impl Monoid for MaxMonoid {
     }
 }
 
-/// A monoid for the addition operation on `i64`.
 /// `i64` 型の加算を行うモノイドである.
 pub struct AddMonoid;
 
@@ -66,7 +59,6 @@ impl Monoid for AddMonoid {
     }
 }
 
-/// A monoid for the XOR operation on `u64`.
 /// `u64` 型の排他的論理和 (XOR) を行うモノイドである.
 pub struct XorMonoid;
 
@@ -83,7 +75,6 @@ impl Monoid for XorMonoid {
     }
 }
 
-/// A monoid for the bitwise AND operation on `u64`.
 /// `u64` 型のビット単位の論理積 (AND) を行うモノイドである.
 pub struct AndMonoid;
 
@@ -100,7 +91,6 @@ impl Monoid for AndMonoid {
     }
 }
 
-/// A monoid for the bitwise OR operation on `u64`.
 /// `u64` 型のビット単位の論理和 (OR) を行うモノイドである.
 pub struct OrMonoid;
 
@@ -117,17 +107,8 @@ impl Monoid for OrMonoid {
     }
 }
 
-/// A monoid for composing affine functions `f(x) = ax + b` modulo `MOD`.
 /// `MOD` を法とする一次関数 `f(x) = ax + b` の合成を行うモノイドである.
 ///
-/// Unlike the other monoids in this module, this operation is **not**
-/// commutative: composing two functions in a different order generally
-/// yields a different function. `op(a, b)` is defined so that `a` is applied
-/// first and `b` is applied to the result (i.e. `op(a, b)` represents the
-/// composition `b ∘ a`). This left-to-right "apply `a`, then apply `b`"
-/// convention matches the order in which a segment tree combines elements
-/// while folding a range, making this monoid a natural fit for path-composite
-/// queries over a sequence of functions.
 /// このモジュール内の他のモノイドと異なり, この演算は可換**ではない**.
 /// 2つの関数を合成する順序を入れ替えると, 一般に異なる関数になる.
 /// `op(a, b)` は「まず `a` を適用し, その結果に `b` を適用する」
