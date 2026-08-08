@@ -53,6 +53,7 @@ pub mod bin {
 
     pub mod yukicoder {
         pub mod yuki2713_just_solitaire;
+        pub mod yuki650_matrix_tree_query;
     }
 
     pub mod codeforces {

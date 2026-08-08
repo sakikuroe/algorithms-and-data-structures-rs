@@ -499,6 +499,15 @@ path = "src/bin/poj/bundled/poj2987_firing.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "yuki-yuki650-matrix-tree-query"
+path = "src/bin/yukicoder/yuki650_matrix_tree_query.rs"
+
+[[bin]]
+name = "yuki-yuki650-matrix-tree-query-bundled"
+path = "src/bin/yukicoder/bundled/yuki650_matrix_tree_query.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "yuki-yuki2713-just-solitaire"
 path = "src/bin/yukicoder/yuki2713_just_solitaire.rs"
 
