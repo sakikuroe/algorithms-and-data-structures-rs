@@ -828,21 +828,43 @@ def strip_doc_comments(path):
     return removed
 
 
-def collapse_blank_lines(path):
-    """連続する空行を1行にまとめる。
+def run_rustfmt(path):
+    """バンドル後のファイルを rustfmt で整形する。
 
     アイテムは find_item_range/remove_ranges によって1つずつ正確な行範囲で
     削除されるが、元のソースでそのアイテムを他のアイテムと区切っていた空行
     自体は削除対象に含まれない。そのため、同じモジュール内の複数のアイテムが
-    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る
-    (strip_empty_blocks は中身が完全に空になったブロックそのものを畳むだけで、
-    一部の中身が残ったブロック内の空行の積み重なりは対象外である)。
+    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る。
+    これを自前の正規表現ヒューリスティックで検出・整形するのではなく、
+    Rust の構文を正しく解釈する rustfmt に委ねる。
+    """
+    subprocess.run(
+        ["rustfmt", "--edition", "2024", str(path)],
+        capture_output=True, text=True, cwd=REPO, check=True,
+    )
+
+
+LEADING_BLANK_IN_BLOCK_RE = re.compile(r"\{\s*$")
+
+
+def strip_leading_blank_lines_in_blocks(path):
+    """`{` の直後にある空行を取り除く。
+
+    rustfmt は `}` 直前の空行は取り除くが、`}` 直後の空行はブロック冒頭の
+    意図的な区切りとみなして残す仕様である (rustfmt 自体の挙動であり、本
+    ツールが検出すべき範囲は「モジュール doc コメントが strip_doc_comments で
+    消えた跡に残る空行」のような枝刈り由来のものに限られる)。両者を区別する
+    手段がないため、`{` 直後の空行は一律で取り除く。
     """
     lines = path.read_text(encoding="utf-8").split("\n")
     kept = []
     removed = 0
     for line in lines:
-        if line.strip() == "" and kept and kept[-1].strip() == "":
+        if (
+            line.strip() == ""
+            and kept
+            and LEADING_BLANK_IN_BLOCK_RE.search(kept[-1])
+        ):
             removed += 1
             continue
         kept.append(line)
@@ -1038,13 +1060,14 @@ def prune(out_path, bin_name):
         print("  stopped after max iterations")
 
     doc_lines_removed = strip_doc_comments(path)
-    blank_lines_removed = collapse_blank_lines(path)
+    run_rustfmt(path)
+    leading_blank_lines_removed = strip_leading_blank_lines_in_blocks(path)
     compiled, _ = build_diagnostics(rel_path, bin_name)
     if not compiled:
         raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
 
     print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
-    print(f"  collapsed {blank_lines_removed} redundant blank lines")
+    print(f"  removed {leading_blank_lines_removed} leading blank lines left by pruning")
     print(f"  total items removed: {total_removed}")
     print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
 
