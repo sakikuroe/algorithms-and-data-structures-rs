@@ -308,7 +308,14 @@ def extract_source(src_path):
         raise RuntimeError(f"{src_path}: 2 行目が URL のコメント行ではない")
     url = url_match.group(1)
 
-    body_start = next(i for i, line in enumerate(lines) if line.startswith("use anmitsu::"))
+    # 本文は、1・2 行目のヘッダーコメントに続く空行の直後から始まる。
+    # 以前は最初に現れる `use anmitsu::` の行を本文の開始位置としていたが、
+    # `use std::collections::{HashSet, VecDeque};` のように anmitsu 以外の
+    # use 文を先に書いている問題では、その行が本文から丸ごと欠落してしまう
+    # 不具合があった。
+    body_start = 2
+    while body_start < len(lines) and not lines[body_start].strip():
+        body_start += 1
     body = "\n".join(lines[body_start:]).replace("anmitsu::", "")
     return source, title, url, body.strip("\n") + "\n"
 
