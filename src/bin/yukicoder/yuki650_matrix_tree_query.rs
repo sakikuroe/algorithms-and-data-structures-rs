@@ -4,7 +4,7 @@
 use anmitsu::algebra::monoid::Monoid;
 use anmitsu::algebra::semi_group::SemiGroup;
 use anmitsu::graph::graph::Graph;
-use anmitsu::graph::hld_path_query::HldPathQuery;
+use anmitsu::graph::hld_path_query::HldEdgePathQuery;
 use anmitsu::io::fastio::Fastio;
 
 const MOD: u64 = 1_000_000_007;
@@ -70,10 +70,7 @@ fn main() {
     }
 
     let hld = g.try_hld(0).unwrap();
-    // 各辺の初期値は単位行列であり、頂点の初期値としても (どの頂点が
-    // どの辺に対応するかによらず) 同じ値になる。
-    let identity = Matrix2x2Monoid::id();
-    let mut path_query = HldPathQuery::<Matrix2x2Monoid>::new(&hld, &vec![identity; n]);
+    let mut path_query = HldEdgePathQuery::<Matrix2x2Monoid>::new(&hld);
 
     let q = io.u32() as usize;
     for _ in 0..q {

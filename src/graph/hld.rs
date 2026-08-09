@@ -48,6 +48,21 @@ enum Frame {
     Leave(usize, Option<usize>),
 }
 
+/// [`Hld::climb_to_lca`] の結果を保持する。
+struct ClimbToLca {
+    /// `u` が LCA に向かって登る際に通過する区間 (登った順、番号空間)。
+    u_ranges: Vec<(usize, usize)>,
+    /// `v` が LCA に向かって登る際に通過する区間 (登った順、番号空間)。
+    v_ranges: Vec<(usize, usize)>,
+    /// LCA 自身を含む最後の区間を、`u_ranges`/`v_ranges` のどちらが
+    /// 受け取ったか。`true` なら `u_ranges` の末尾、`false` なら
+    /// `v_ranges` の末尾である。
+    merge_extends_u: bool,
+    /// LCA 自身を含む最後の区間が実際に追加されたか。辺クエリでは、LCA
+    /// 自身しか含まない区間を除外した結果、何も追加されない場合がある。
+    merge_pushed: bool,
+}
+
 /// HLD の結果を保持する。
 pub struct Hld {
     /// 構築時に指定した根。
@@ -69,6 +84,17 @@ pub struct Hld {
 }
 
 impl Hld {
+    /// 頂点数を返す。
+    ///
+    /// # Returns
+    /// `usize`: 頂点数
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(1)
+    pub fn vertex_count(&self) -> usize {
+        self.parent.len()
+    }
+
     /// 構築時に指定した根を返す。
     ///
     /// # Returns
@@ -147,7 +173,7 @@ impl Hld {
     /// ```
     pub fn subtree_size(&self, root: usize, v: usize) -> usize {
         if root == v {
-            return self.parent.len();
+            return self.vertex_count();
         }
 
         let (lo, hi) = self.subtree_range(v);
@@ -163,7 +189,7 @@ impl Hld {
             let child_toward_root = self
                 .kth_ancestor(root, steps)
                 .expect("root must be a strict descendant of v here");
-            self.parent.len() - self.subtree_size[child_toward_root]
+            self.vertex_count() - self.subtree_size[child_toward_root]
         }
     }
 
@@ -396,7 +422,8 @@ impl Hld {
     /// assert_eq!(3, total_length);
     /// ```
     pub fn vertex_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
-        self.path_ranges(u, v, false)
+        let climb = self.climb_to_lca(u, v, false);
+        Self::assemble_ranges(climb.u_ranges, climb.v_ranges)
     }
 
     /// 頂点 `u` から `v` へのパス上にある、すべての辺に対応する番号を、
@@ -419,17 +446,65 @@ impl Hld {
     /// - 時間計算量: O(log V) (ならし)
     ///   - V は頂点数である。
     pub fn edge_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
-        self.path_ranges(u, v, true)
+        let climb = self.climb_to_lca(u, v, true);
+        Self::assemble_ranges(climb.u_ranges, climb.v_ranges)
     }
 
-    /// [`vertex_path_ranges`](Self::vertex_path_ranges) と
-    /// [`edge_path_ranges`](Self::edge_path_ranges) の共通部分を担う。
+    /// 頂点 `u` から `v` へのパス上にある、頂点と辺の両方の番号を、`u`,
+    /// (`u` の次の辺), (次の頂点), ……, `v` という順に交互に並べたときの
+    /// 「2倍空間」上の番号を、向きの情報を付けた半開区間の列として返す。
     ///
-    /// `u` を登る側の区間と `v` を登る側の区間を別々の列に集めたうえで、
-    /// 最後に `u` 側をそのままの順序で、`v` 側を逆順にして連結する。
-    /// こうすることで、全体として `u` から `v` へ向かう順序を保ったまま、
-    /// 各区間が「登る (番号の降順)」か「下る (番号の昇順)」かを正しく
-    /// 区別できる。
+    /// 2倍空間では、頂点 `x` の番号を `2*vertex_id(x)`、`x` から親への辺の
+    /// 番号を `2*vertex_id(x)-1` に割り当てる。同じチェーン内では頂点と
+    /// 親への辺が2倍空間上で連続するため、[`vertex_path_ranges`] と同じ
+    /// 区間分解をそのまま2倍に引き伸ばせるが、チェーンをまたぐ境界
+    /// (異なるチェーンへ登る/降りる箇所、および LCA で合流する箇所) では、
+    /// 単純な引き伸ばしだけでは境界をまたぐ辺が抜け落ちる。境界をまたぐ
+    /// 辺は、遷移先の区間の下限をさらに1つ広げることで正しく含める。
+    /// ただし LCA 自身が合流する区間の下限だけは、LCA から親への辺が
+    /// パスの外にあるため広げてはならない。
+    ///
+    /// # Args
+    /// - `u`: パスの起点
+    /// - `v`: パスの終点
+    ///
+    /// # Returns
+    /// `Vec<(usize, usize, PathDirection)>`: 2倍空間上でパスをちょうど
+    /// 覆う、向き付きの半開区間の列
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log V) (ならし)
+    ///   - V は頂点数である。
+    pub fn vertex_edge_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
+        let climb = self.climb_to_lca(u, v, false);
+        // u_ranges/v_ranges のうち、LCA 合流時に追加された最後の1件だけは
+        // 拡張しない対象として特定する (どちらか一方にしか存在しない)。
+        let u_no_extend_idx = (climb.merge_extends_u && climb.merge_pushed)
+            .then(|| climb.u_ranges.len() - 1);
+        let v_no_extend_idx = (!climb.merge_extends_u && climb.merge_pushed)
+            .then(|| climb.v_ranges.len() - 1);
+
+        let mut ranges: Vec<(usize, usize, PathDirection)> = climb
+            .u_ranges
+            .into_iter()
+            .enumerate()
+            .map(|(i, (l, r))| {
+                let doubled_l = if Some(i) == u_no_extend_idx { 2 * l } else { 2 * l - 1 };
+                (doubled_l, 2 * r - 1, PathDirection::Reversed)
+            })
+            .collect();
+        ranges.extend(climb.v_ranges.into_iter().enumerate().rev().map(|(i, (l, r))| {
+            let doubled_l = if Some(i) == v_no_extend_idx { 2 * l } else { 2 * l - 1 };
+            (doubled_l, 2 * r - 1, PathDirection::Forward)
+        }));
+        ranges
+    }
+
+    /// [`vertex_path_ranges`](Self::vertex_path_ranges)・
+    /// [`edge_path_ranges`](Self::edge_path_ranges)・
+    /// [`vertex_edge_path_ranges`](Self::vertex_edge_path_ranges) の
+    /// 共通部分を担う。`u` を登る側の区間と `v` を登る側の区間を、
+    /// 登った順 (番号の降順) のまま、それぞれ別々の列として返す。
     ///
     /// # Args
     /// - `u`/`v`: パスの両端点
@@ -437,17 +512,9 @@ impl Hld {
     ///   番号を除く (辺クエリ用)。
     ///
     /// # Returns
-    /// `Vec<(usize, usize, PathDirection)>`: パスを覆う、向き付きの半開
-    /// 区間の列
-    fn path_ranges(
-        &self,
-        mut u: usize,
-        mut v: usize,
-        exclude_lca: bool,
-    ) -> Vec<(usize, usize, PathDirection)> {
-        // u_ranges/v_ranges は、それぞれ u/v が LCA に向かって登る際に
-        // 通過する区間を、登った順に集めたものである。いずれも「番号の
-        // 降順に読む」区間として扱う。
+    /// `ClimbToLca`: `u`/`v` それぞれの登り区間の列、および LCA 自身を
+    /// 含む最後の区間をどちらが受け取ったか
+    fn climb_to_lca(&self, mut u: usize, mut v: usize, exclude_lca: bool) -> ClimbToLca {
         let mut u_ranges = Vec::new();
         let mut v_ranges = Vec::new();
 
@@ -466,18 +533,38 @@ impl Hld {
 
         // 同じパスに入った時点で、浅い方が LCA になる。深い方の登りの列に、
         // LCA までの最後の区間を追加する。
-        let (deeper_ranges, lca_id, deep_id) = if self.id[u] <= self.id[v] {
-            (&mut v_ranges, self.id[u], self.id[v])
+        let merge_extends_u = self.id[v] < self.id[u];
+        let (lca_id, deep_id) = if merge_extends_u {
+            (self.id[v], self.id[u])
         } else {
-            (&mut u_ranges, self.id[v], self.id[u])
+            (self.id[u], self.id[v])
         };
         let start = if exclude_lca { lca_id + 1 } else { lca_id };
-        if start <= deep_id {
-            deeper_ranges.push((start, deep_id + 1));
+        let merge_pushed = start <= deep_id;
+        if merge_pushed {
+            if merge_extends_u {
+                u_ranges.push((start, deep_id + 1));
+            } else {
+                v_ranges.push((start, deep_id + 1));
+            }
         }
 
-        // u 側は登った順のまま (降順に読む) 連結し、v 側は逆順にして
-        // (昇順に読む区間として) 連結する。
+        ClimbToLca {
+            u_ranges,
+            v_ranges,
+            merge_extends_u,
+            merge_pushed,
+        }
+    }
+
+    /// `u` 側の区間をそのままの順序 (降順に読む) で、`v` 側の区間を逆順に
+    /// して (昇順に読む区間として) 連結する。こうすることで、全体として
+    /// `u` から `v` へ向かう順序を保ったまま、各区間が「登る」か「下る」
+    /// かを正しく区別できる。
+    fn assemble_ranges(
+        u_ranges: Vec<(usize, usize)>,
+        v_ranges: Vec<(usize, usize)>,
+    ) -> Vec<(usize, usize, PathDirection)> {
         let mut ranges: Vec<(usize, usize, PathDirection)> = u_ranges
             .into_iter()
             .map(|(l, r)| (l, r, PathDirection::Reversed))
@@ -734,6 +821,20 @@ mod tests {
     // Hld (try_hld が返す Hld) のテスト: 各アクセサの戻り値を検証する。
     mod hld {
         use super::*;
+
+        /// Scenario: 頂点数が、構築時に渡したグラフの頂点数と一致する。
+        /// - Given: 6頂点の上記の木がある。
+        /// - When: 頂点0を根に前処理する。
+        /// - Then: 頂点数が6になる。
+        #[test]
+        fn returns_vertex_count_matching_graph_size() {
+            // Given
+            let sut = create_tree();
+            // When
+            let result = sut.try_hld(0).unwrap();
+            // Then
+            assert_eq!(6, result.vertex_count());
+        }
 
         /// Scenario: 各頂点の深さが、根からの辺数と一致する。
         /// - Given: 上記の木がある。
@@ -1119,6 +1220,65 @@ mod tests {
                 .map(|&v| result.vertex_id(v))
                 .collect::<Vec<usize>>();
             assert_eq!(expected, expanded);
+        }
+
+        /// Scenario: 頂点辺パスの区間分解 (2倍空間) は、展開すると頂点と
+        /// 辺が交互に並んだ番号の列になり、チェーンをまたぐ境界の辺も
+        /// 抜け落ちない。
+        /// - Given: 上記の木がある。
+        /// - When: 頂点5から頂点4への頂点辺パスの区間分解 (経路は
+        ///   5,{5,3},3,{3,1},1,{1,4},4 であり、{3,1}と{1,4}は異なる
+        ///   チェーンをまたぐ) を求め、番号の列へ展開する。
+        /// - Then: 展開した番号の列が、頂点5,辺{5,3},頂点3,辺{3,1},
+        ///   頂点1,辺{1,4},頂点4 の2倍空間上の番号と一致する。
+        #[test]
+        fn vertex_edge_path_ranges_expand_in_traversal_order() {
+            // Given
+            let sut = create_tree();
+            // When
+            let result = sut.try_hld(0).unwrap();
+            let ranges = result.vertex_edge_path_ranges(5, 4);
+            // Then
+            let expanded = ranges
+                .iter()
+                .flat_map(|&(l, r, dir)| {
+                    let ids: Vec<usize> = if dir == PathDirection::Forward {
+                        (l..r).collect()
+                    } else {
+                        (l..r).rev().collect()
+                    };
+                    ids
+                })
+                .collect::<Vec<usize>>();
+            let vertex_slot = |v: usize| 2 * result.vertex_id(v);
+            let edge_slot_into = |child: usize| 2 * result.vertex_id(child) - 1;
+            let expected = vec![
+                vertex_slot(5),
+                edge_slot_into(5),
+                vertex_slot(3),
+                edge_slot_into(3),
+                vertex_slot(1),
+                edge_slot_into(4),
+                vertex_slot(4),
+            ];
+            assert_eq!(expected, expanded);
+        }
+
+        /// Scenario: 起点と終点が同じ場合、頂点辺パスの区間分解はその頂点
+        /// 自身のみを覆う (境界値)。
+        /// - Given: 上記の木がある。
+        /// - When: 頂点3自身への頂点辺パスの区間分解を求める。
+        /// - Then: 区間の幅の合計が1になる。
+        #[test]
+        fn vertex_edge_path_ranges_covers_only_the_vertex_for_same_endpoint() {
+            // Given
+            let sut = create_tree();
+            // When
+            let result = sut.try_hld(0).unwrap();
+            let ranges = result.vertex_edge_path_ranges(3, 3);
+            // Then
+            let total_width = ranges.iter().map(|&(l, r, _)| r - l).sum::<usize>();
+            assert_eq!(1, total_width);
         }
     }
 }

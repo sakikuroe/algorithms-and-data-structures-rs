@@ -3,7 +3,7 @@
 
 use anmitsu::algebra::monoid::AddMonoid;
 use anmitsu::graph::graph::Graph;
-use anmitsu::graph::hld_path_query::HldPathQuery;
+use anmitsu::graph::hld_path_query::HldEdgePathQuery;
 use anmitsu::io::fastio::Fastio;
 
 fn main() {
@@ -26,10 +26,7 @@ fn main() {
             g.add_undirected_edge(a, b, ());
         }
         let hld = g.try_hld(0).unwrap();
-        // 頂点の初期値は使われない (根は対応する辺を持たず、他の頂点は直後の
-        // set_edge で辺のコストに上書きされるため)。この問題に辺の更新は
-        // 無いが、コストの取得には HldPathQuery の辺クエリをそのまま使う。
-        let mut path_query = HldPathQuery::<AddMonoid>::new(&hld, &vec![0_i64; n]);
+        let mut path_query = HldEdgePathQuery::<AddMonoid>::new(&hld);
         for &(a, b, c) in &edges {
             path_query.set_edge(a, b, c);
         }

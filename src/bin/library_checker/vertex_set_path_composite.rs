@@ -3,7 +3,7 @@
 
 use anmitsu::algebra::monoid::AffineMonoid;
 use anmitsu::graph::graph::Graph;
-use anmitsu::graph::hld_path_query::HldPathQuery;
+use anmitsu::graph::hld_path_query::HldVertexPathQuery;
 use anmitsu::io::fastio::Fastio;
 
 const MOD: u64 = 998244353;
@@ -31,7 +31,7 @@ fn main() {
     }
 
     let hld = g.try_hld(0).unwrap();
-    let mut path_query = HldPathQuery::<Affine>::new(&hld, &functions);
+    let mut path_query = HldVertexPathQuery::<Affine>::new(&hld, &functions);
 
     for _ in 0..q {
         let kind = io.u32();
