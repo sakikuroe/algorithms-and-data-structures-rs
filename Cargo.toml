@@ -85,6 +85,33 @@ path = "src/bin/library_checker/bundled/bipartitematching.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "lc-lca"
+path = "src/bin/library_checker/lca.rs"
+
+[[bin]]
+name = "lc-lca-bundled"
+path = "src/bin/library_checker/bundled/lca.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-lca-by-euler-tour"
+path = "src/bin/library_checker/lca_by_euler_tour.rs"
+
+[[bin]]
+name = "lc-lca-by-euler-tour-bundled"
+path = "src/bin/library_checker/bundled/lca_by_euler_tour.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-vertex-add-path-sum"
+path = "src/bin/library_checker/vertex_add_path_sum.rs"
+
+[[bin]]
+name = "lc-vertex-add-path-sum-bundled"
+path = "src/bin/library_checker/bundled/vertex_add_path_sum.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "lc-convolution-mod"
 path = "src/bin/library_checker/convolution_mod.rs"
 
@@ -301,15 +328,6 @@ path = "src/bin/atcoder/bundled/abc422_g_balls_and_boxes.rs"
 required-features = ["bundled"]
 
 [[bin]]
-name = "lc-lca"
-path = "src/bin/library_checker/lca.rs"
-
-[[bin]]
-name = "lc-lca-bundled"
-path = "src/bin/library_checker/bundled/lca.rs"
-required-features = ["bundled"]
-
-[[bin]]
 name = "aoj-alds1-11-b-depth-first-search"
 path = "src/bin/aoj/alds1_11_b_depth_first_search.rs"
 
@@ -445,6 +463,15 @@ path = "src/bin/atcoder/bundled/typical90_an_get_more_money.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "ac-abc294-g-distance-queries-on-a-tree"
+path = "src/bin/atcoder/abc294_g_distance_queries_on_a_tree.rs"
+
+[[bin]]
+name = "ac-abc294-g-distance-queries-on-a-tree-bundled"
+path = "src/bin/atcoder/bundled/abc294_g_distance_queries_on_a_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "ac-abc326-g-unlock-achievement"
 path = "src/bin/atcoder/abc326_g_unlock_achievement.rs"
 
@@ -481,6 +508,33 @@ path = "src/bin/poj/bundled/poj2987_firing.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "spoj-qtree"
+path = "src/bin/spoj/qtree.rs"
+
+[[bin]]
+name = "spoj-qtree-bundled"
+path = "src/bin/spoj/bundled/qtree.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "spoj-qtree2"
+path = "src/bin/spoj/qtree2.rs"
+
+[[bin]]
+name = "spoj-qtree2-bundled"
+path = "src/bin/spoj/bundled/qtree2.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "yuki-yuki650-matrix-tree-query"
+path = "src/bin/yukicoder/yuki650_matrix_tree_query.rs"
+
+[[bin]]
+name = "yuki-yuki650-matrix-tree-query-bundled"
+path = "src/bin/yukicoder/bundled/yuki650_matrix_tree_query.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "yuki-yuki2713-just-solitaire"
 path = "src/bin/yukicoder/yuki2713_just_solitaire.rs"
 
@@ -505,6 +559,96 @@ path = "src/bin/atcoder/practice2_d_maxflow.rs"
 [[bin]]
 name = "ac-practice2-d-maxflow-bundled"
 path = "src/bin/atcoder/bundled/practice2_d_maxflow.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc406-f-compare-tree-weights"
+path = "src/bin/atcoder/abc406_f_compare_tree_weights.rs"
+
+[[bin]]
+name = "ac-abc406-f-compare-tree-weights-bundled"
+path = "src/bin/atcoder/bundled/abc406_f_compare_tree_weights.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-abc187-e-through-path"
+path = "src/bin/atcoder/abc187_e_through_path.rs"
+
+[[bin]]
+name = "ac-abc187-e-through-path-bundled"
+path = "src/bin/atcoder/bundled/abc187_e_through_path.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "ac-typical90-am-tree-distance"
+path = "src/bin/atcoder/typical90_am_tree_distance.rs"
+
+[[bin]]
+name = "ac-typical90-am-tree-distance-bundled"
+path = "src/bin/atcoder/bundled/typical90_am_tree_distance.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-tree-diameter"
+path = "src/bin/library_checker/tree_diameter.rs"
+
+[[bin]]
+name = "lc-tree-diameter-bundled"
+path = "src/bin/library_checker/bundled/tree_diameter.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-jump-on-tree"
+path = "src/bin/library_checker/jump_on_tree.rs"
+
+[[bin]]
+name = "lc-jump-on-tree-bundled"
+path = "src/bin/library_checker/bundled/jump_on_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "aoj-grl-5-a-diameter-of-a-tree"
+path = "src/bin/aoj/grl_5_a_diameter_of_a_tree.rs"
+
+[[bin]]
+name = "aoj-grl-5-a-diameter-of-a-tree-bundled"
+path = "src/bin/aoj/bundled/grl_5_a_diameter_of_a_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "lc-vertex-set-path-composite"
+path = "src/bin/library_checker/vertex_set_path_composite.rs"
+
+[[bin]]
+name = "lc-vertex-set-path-composite-bundled"
+path = "src/bin/library_checker/bundled/vertex_set_path_composite.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "bj-bj15480-lca-and-query"
+path = "src/bin/baekjoon/bj15480_lca_and_query.rs"
+
+[[bin]]
+name = "bj-bj15480-lca-and-query-bundled"
+path = "src/bin/baekjoon/bundled/bj15480_lca_and_query.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "poj-poj1741-tree"
+path = "src/bin/poj/poj1741_tree.rs"
+
+[[bin]]
+name = "poj-poj1741-tree-bundled"
+path = "src/bin/poj/bundled/poj1741_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "cc-talca"
+path = "src/bin/codechef/talca.rs"
+
+[[bin]]
+name = "cc-talca-bundled"
+path = "src/bin/codechef/bundled/talca.rs"
 required-features = ["bundled"]
 
 [dev-dependencies]

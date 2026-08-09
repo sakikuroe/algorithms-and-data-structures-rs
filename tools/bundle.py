@@ -1,7 +1,7 @@
 """
 Library Checker / AtCoder / CodeChef / AOJ / Baekjoon / POJ / yukicoder /
-Codeforces 提出用に、
-src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces}/
+Codeforces / SPOJ 提出用に、
+src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces,spoj}/
 <slug>.rs を単一ファイルへバンドルし、続けて不要コードを枝刈りするスクリプトである。
 
 使い方:
@@ -12,11 +12,12 @@ src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces}
 新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs、
 src/bin/atcoder/<slug>.rs、src/bin/codechef/<slug>.rs、src/bin/aoj/<slug>.rs、
 src/bin/baekjoon/<slug>.rs、src/bin/poj/<slug>.rs、src/bin/yukicoder/<slug>.rs、
-または src/bin/codeforces/<slug>.rs を作成し (先頭 2 行が
+src/bin/codeforces/<slug>.rs、または src/bin/spoj/<slug>.rs を作成し (先頭 2 行が
 `// Library Checker: <題名>` / `// AtCoder: <題名>` / `// CodeChef: <題名>` /
 `// AOJ: <題名>` / `// Baekjoon: <題名>` / `// POJ: <題名>` / `// yukicoder: <題名>` /
-`// Codeforces: <題名>` と `// <URL>` になっている前提)、Cargo.toml にバンドル後の
-バイナリーを登録したうえで `python3 tools/bundle.py <slug>` を実行するだけでよい。
+`// Codeforces: <題名>` / `// SPOJ: <題名>` と `// <URL>` になっている前提)、
+Cargo.toml にバンドル後のバイナリーを登録したうえで
+`python3 tools/bundle.py <slug>` を実行するだけでよい。
 どのモジュールを取り込むかを手で指定する必要はない。
 
 バンドル後のバイナリーは生成物であってリポジトリーには含めないため、Cargo.toml へは
@@ -57,6 +58,7 @@ SRC_DIRS = {
     "POJ": REPO / "src/bin/poj",
     "yukicoder": REPO / "src/bin/yukicoder",
     "Codeforces": REPO / "src/bin/codeforces",
+    "SPOJ": REPO / "src/bin/spoj",
 }
 BIN_PREFIX = {
     "Library Checker": "lc",
@@ -67,6 +69,7 @@ BIN_PREFIX = {
     "POJ": "poj",
     "yukicoder": "yuki",
     "Codeforces": "cf",
+    "SPOJ": "spoj",
 }
 
 # 枝刈りを繰り返す上限。トレイト実装の除去が新たな dead_code を生むため、
@@ -292,14 +295,14 @@ def extract_source(src_path):
     lines = text.split("\n")
 
     title_match = re.match(
-        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ|yukicoder|Codeforces): (.+)$",
+        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ|yukicoder|Codeforces|SPOJ): (.+)$",
         lines[0],
     )
     if not title_match:
         raise RuntimeError(
             f"{src_path}: 1 行目が '// Library Checker: ...' / '// AtCoder: ...' / "
             "'// CodeChef: ...' / '// AOJ: ...' / '// Baekjoon: ...' / '// POJ: ...' / "
-            "'// yukicoder: ...' / '// Codeforces: ...' 形式ではない"
+            "'// yukicoder: ...' / '// Codeforces: ...' / '// SPOJ: ...' 形式ではない"
         )
     source, title = title_match.groups()
 
@@ -308,7 +311,14 @@ def extract_source(src_path):
         raise RuntimeError(f"{src_path}: 2 行目が URL のコメント行ではない")
     url = url_match.group(1)
 
-    body_start = next(i for i, line in enumerate(lines) if line.startswith("use anmitsu::"))
+    # 本文は、1・2 行目のヘッダーコメントに続く空行の直後から始まる。
+    # 以前は最初に現れる `use anmitsu::` の行を本文の開始位置としていたが、
+    # `use std::collections::{HashSet, VecDeque};` のように anmitsu 以外の
+    # use 文を先に書いている問題では、その行が本文から丸ごと欠落してしまう
+    # 不具合があった。
+    body_start = 2
+    while body_start < len(lines) and not lines[body_start].strip():
+        body_start += 1
     body = "\n".join(lines[body_start:]).replace("anmitsu::", "")
     return source, title, url, body.strip("\n") + "\n"
 
@@ -392,6 +402,66 @@ IMPL_FOR_RE = re.compile(
 # ジェネリクスパラメータ一覧の除去は正規表現ではなく `strip_leading_generic_params`
 # に委ね、ここでは `impl` の直後の文字列をそのまま捕捉するだけにとどめる。
 IMPL_LINE_RE = re.compile(r"^\s*impl\b(.*)$")
+
+# `macro_rules!` の本体は展開前のテンプレートであり、通常の Rust アイテムでは
+# ない。テンプレート内の `impl Trait for $t { ... }` を通常の impl と誤認して
+# 削除すると、`$( ... )*` の中身が空になり、対応するメタ変数を持たない不正な
+# 繰り返し展開としてコンパイルエラーになる。そのため、この本体の行範囲は
+# dead_code・孤立 impl・未使用 impl のいずれの削除対象からも除外する。
+MACRO_RULES_OPEN_RE = re.compile(r"^\s*macro_rules!\s+([A-Za-z_]\w*)\s*\{\s*$")
+
+
+def find_macro_rules_ranges(lines):
+    """`macro_rules! name { ... }` 定義本体の (開始行, 終了行, マクロ名) を、
+    行番号は 0-indexed・両端を含む形で列挙する。
+    """
+    ranges = []
+    for idx, line in enumerate(lines):
+        match = MACRO_RULES_OPEN_RE.match(line)
+        if match:
+            _, end = find_item_range(lines, idx + 1)
+            ranges.append((idx, end, match.group(1)))
+    return ranges
+
+
+def is_within_ranges(idx, ranges):
+    return any(start <= idx <= end for start, end, *_ in ranges)
+
+
+def find_macro_invocation_lines(lines, name):
+    """`name!( ... );` という単純な呼び出し文の行番号 (1-indexed) を列挙する。"""
+    pattern = re.compile(r"^\s*" + re.escape(name) + r"!\s*\(.*\)\s*;\s*$")
+    return [idx + 1 for idx, line in enumerate(lines) if pattern.match(line)]
+
+
+def find_orphaned_macro_ranges(lines, removed_names):
+    """本体のテンプレートが参照するトレイトが既に削除された `macro_rules!` を、
+    定義本体と呼び出し文ごと (0-indexed, inclusive の行範囲として) 列挙する。
+
+    `macro_rules!` の本体内にある `impl Trait for $t { ... }` は、通常の枝刈り
+    対象からは除外している ([`find_macro_rules_ranges`] を参照) ため、その
+    Trait 自体が削除された場合はここでマクロ定義・呼び出しをまとめて取り除く。
+    """
+    ranges = []
+    for start, end, name in find_macro_rules_ranges(lines):
+        body_refs_removed = False
+        for line in lines[start : end + 1]:
+            match = IMPL_LINE_RE.match(line)
+            if not match:
+                continue
+            head = strip_leading_generic_params(match.group(1))
+            trait_name, _ = impl_targets(head)
+            if trait_name and trait_name in removed_names:
+                body_refs_removed = True
+                break
+        if not body_refs_removed:
+            continue
+        ranges.append((start, end))
+        for ln in find_macro_invocation_lines(lines, name):
+            ranges.append((ln - 1, ln - 1))
+    return ranges
+
+
 TYPE_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)"
 )
@@ -650,9 +720,16 @@ def find_orphaned_lines(lines, removed_names):
     判定に用いるのは、バンドル生成時点では定義されていたのに今は存在しない名前の
     集合である。`impl FastWrite for u32` の `u32` のように、もともと定義がない名前を
     誤って対象にしてしまうことがない。
+
+    `macro_rules!` の本体にある `impl Trait for $t { ... }` のようなテンプレートは、
+    見た目上 `impl ... for ...` に一致してしまうが実際のアイテムではないため、
+    対象から除外する ([`find_macro_rules_ranges`] を参照)。
     """
+    macro_ranges = find_macro_rules_ranges(lines)
     orphaned = []
     for idx, line in enumerate(lines):
+        if is_within_ranges(idx, macro_ranges):
+            continue
         match = IMPL_LINE_RE.match(line)
         if match:
             head = strip_leading_generic_params(match.group(1))
@@ -696,7 +773,14 @@ def heal_use_groups(path, removed_names):
         if not survivors:
             continue
         if len(survivors) == 1:
-            result.append(f"{prefix}{survivors[0]}{suffix}")
+            # `self` は `use path::{self};` のように波括弧の中でのみ許される
+            # 特殊な要素であり、`use path::self;` は構文エラーになる。生存者が
+            # `self` 単体の場合は、末尾の `::` ごと落として `use path;` の形に
+            # 戻す必要がある (prefix は正規表現の都合で必ず `::` で終わる)。
+            if survivors[0] == "self":
+                result.append(f"{prefix[:-2]}{suffix}")
+            else:
+                result.append(f"{prefix}{survivors[0]}{suffix}")
         else:
             result.append(f"{prefix}{{{', '.join(survivors)}}}{suffix}")
     if changed:
@@ -705,8 +789,11 @@ def heal_use_groups(path, removed_names):
 
 
 def find_unused_impl_lines(lines, mono_pairs):
+    macro_ranges = find_macro_rules_ranges(lines)
     unused = []
     for idx, line in enumerate(lines):
+        if is_within_ranges(idx, macro_ranges):
+            continue
         m = IMPL_FOR_RE.match(line)
         if not m:
             continue
@@ -744,21 +831,43 @@ def strip_doc_comments(path):
     return removed
 
 
-def collapse_blank_lines(path):
-    """連続する空行を1行にまとめる。
+def run_rustfmt(path):
+    """バンドル後のファイルを rustfmt で整形する。
 
     アイテムは find_item_range/remove_ranges によって1つずつ正確な行範囲で
     削除されるが、元のソースでそのアイテムを他のアイテムと区切っていた空行
     自体は削除対象に含まれない。そのため、同じモジュール内の複数のアイテムが
-    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る
-    (strip_empty_blocks は中身が完全に空になったブロックそのものを畳むだけで、
-    一部の中身が残ったブロック内の空行の積み重なりは対象外である)。
+    連続して削除されると、区切りだった空行だけが隙間として積み重なって残る。
+    これを自前の正規表現ヒューリスティックで検出・整形するのではなく、
+    Rust の構文を正しく解釈する rustfmt に委ねる。
+    """
+    subprocess.run(
+        ["rustfmt", "--edition", "2024", str(path)],
+        capture_output=True, text=True, cwd=REPO, check=True,
+    )
+
+
+LEADING_BLANK_IN_BLOCK_RE = re.compile(r"\{\s*$")
+
+
+def strip_leading_blank_lines_in_blocks(path):
+    """`{` の直後にある空行を取り除く。
+
+    rustfmt は `}` 直前の空行は取り除くが、`}` 直後の空行はブロック冒頭の
+    意図的な区切りとみなして残す仕様である (rustfmt 自体の挙動であり、本
+    ツールが検出すべき範囲は「モジュール doc コメントが strip_doc_comments で
+    消えた跡に残る空行」のような枝刈り由来のものに限られる)。両者を区別する
+    手段がないため、`{` 直後の空行は一律で取り除く。
     """
     lines = path.read_text(encoding="utf-8").split("\n")
     kept = []
     removed = 0
     for line in lines:
-        if line.strip() == "" and kept and kept[-1].strip() == "":
+        if (
+            line.strip() == ""
+            and kept
+            and LEADING_BLANK_IN_BLOCK_RE.search(kept[-1])
+        ):
             removed += 1
             continue
         kept.append(line)
@@ -810,10 +919,12 @@ def prune_dead_items(path, dead_lines):
     if not dead_lines:
         return 0
     lines = path.read_text(encoding="utf-8").split("\n")
+    macro_ranges = find_macro_rules_ranges(lines)
     safe_lines = [
         ln
         for ln in dead_lines
         if not is_inside_trait_definition_or_impl(lines, ln - 1)
+        and not is_within_ranges(ln - 1, macro_ranges)
     ]
     if not safe_lines:
         return 0
@@ -827,6 +938,16 @@ def prune_orphans(path, original_names):
     if not removed_names:
         return 0
     removed = 0
+
+    # macro_rules! 本体はテンプレートであり、通常の impl とは別枠で扱う必要が
+    # あるため、参照先のトレイトが消えたマクロ定義・呼び出しを先にまとめて
+    # 取り除く。この後の find_orphaned_lines は、マクロ本体の行をそもそも
+    # 対象から除外しているため、ここで処理しておかないと孤立したままになる。
+    macro_ranges = find_orphaned_macro_ranges(lines, removed_names)
+    if macro_ranges:
+        removed += remove_ranges(path, macro_ranges)
+        lines = path.read_text(encoding="utf-8").split("\n")
+
     orphaned_lines = find_orphaned_lines(lines, removed_names)
     if orphaned_lines:
         ranges = [find_item_range(lines, ln) for ln in orphaned_lines]
@@ -942,13 +1063,14 @@ def prune(out_path, bin_name):
         print("  stopped after max iterations")
 
     doc_lines_removed = strip_doc_comments(path)
-    blank_lines_removed = collapse_blank_lines(path)
+    run_rustfmt(path)
+    leading_blank_lines_removed = strip_leading_blank_lines_in_blocks(path)
     compiled, _ = build_diagnostics(rel_path, bin_name)
     if not compiled:
         raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
 
     print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
-    print(f"  collapsed {blank_lines_removed} redundant blank lines")
+    print(f"  removed {leading_blank_lines_removed} leading blank lines left by pruning")
     print(f"  total items removed: {total_removed}")
     print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
 

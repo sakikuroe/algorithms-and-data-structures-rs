@@ -137,16 +137,19 @@ impl<T> graph::Graph<T> {
     {
         let n = self.vertex_count();
 
-        // グラフ中のすべての辺を、採用するかどうかまだ決まっていない候補として
-        // 1つのリストに集める。add_edge・add_undirected_edge のどちらで登録
-        // された辺も、ここでは区別せずすべて候補として扱う。
-        let mut candidates = (0..n)
-            .flat_map(|u| self.edges(u).map(move |(v, payload)| (u, v, payload)))
-            .collect::<Vec<(usize, usize, &T)>>();
-        // 集めた候補を、重みが軽い順に並べ替える。Kruskal 法は、この順に
-        // 「軽い辺から貪欲に採用するかどうかを判定していく」ことで最小全域木を
-        // 構成する。
-        candidates.sort_by_key(|&(_, _, payload)| weight_of(payload));
+        // すべての辺を候補として集め、重みの昇順に並べ替える。あらかじめ
+        // 総辺数を数えて容量を確保しておくことで、Vec の再割り当てを避ける。
+        let total_edges = (0..n).map(|u| self.out_degree(u)).sum();
+        let mut candidates = Vec::with_capacity(total_edges);
+        for u in 0..n {
+            for (v, payload) in self.edges(u) {
+                candidates.push((u, v, payload));
+            }
+        }
+        // 同じ重みの辺同士の順序は結果 (採用される辺の集合の重みの合計) に
+        // 影響しないため、安定性を保つ必要がなく、より高速な不安定ソートで
+        // 十分である。
+        candidates.sort_unstable_by_key(|&(_, _, payload)| weight_of(payload));
 
         // Union-Find を使い、これまでに採用した辺だけで見たときの連結成分を
         // 管理する。同じ連結成分に属する頂点同士は、辺を通じてすでに (直接、

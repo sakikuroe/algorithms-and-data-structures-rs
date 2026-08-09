@@ -12,6 +12,77 @@ pub struct Graph<T> {
     pub(super) edges: Vec<Vec<(u32, T)>>,
 }
 
+/// グラフが木であることを前提とするアルゴリズム (HLD・重心分解・木の直径など)
+/// に、木でないグラフを渡した場合に返されるエラーである。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotATreeError {
+    /// 指定した根から、すべての頂点には到達できなかった。
+    Disconnected,
+    /// 閉路、多重辺、または対応する逆辺を欠いた辺があり、単純な木として
+    /// 辿れなかった。
+    HasCycle,
+}
+
+/// グラフが `root` を根とする木であることを検証する。
+///
+/// HLD・重心分解・木の直径など、木であることを前提とするアルゴリズムの
+/// 前処理として、[`hld`](super::hld)・[`centroid_decomposition`](super::centroid_decomposition)・
+/// [`tree_diameter`](super::tree_diameter) の各モジュールから共通して呼び出される。
+///
+/// # Args
+/// - `g`: 検証対象のグラフ。
+/// - `root`: 連結性の確認の起点とする頂点。`0..g.vertex_count()` の範囲で
+///   なければならない。
+///
+/// # Returns
+/// `Result<(), NotATreeError>`: 木であれば `Ok(())`。木でなければ、その
+/// 理由を表すエラー。
+///
+/// # Complexity
+/// - 時間計算量: O(V + E)
+///   - V は頂点数、E は辺数である。
+/// - 空間計算量: O(V)
+pub(super) fn validate_tree<T>(g: &Graph<T>, root: usize) -> Result<(), NotATreeError> {
+    let n = g.vertex_count();
+
+    // root から到達できる頂点を反復深さ優先探索で辿り、親および各頂点の
+    // 子の本数を記録する。
+    let mut parent: Vec<Option<usize>> = vec![None; n];
+    let mut child_count = vec![0_usize; n];
+    let mut visited = vec![false; n];
+    visited[root] = true;
+    let mut visited_count = 1;
+
+    let mut stack = vec![root];
+    while let Some(u) = stack.pop() {
+        for (v, _) in g.edges(u) {
+            if !visited[v] {
+                visited[v] = true;
+                visited_count += 1;
+                parent[v] = Some(u);
+                child_count[u] += 1;
+                stack.push(v);
+            }
+        }
+    }
+
+    if visited_count < n {
+        return Err(NotATreeError::Disconnected);
+    }
+
+    // 各頂点の出次数が「親への1本 (根では0本) + 子の本数」とちょうど
+    // 一致することを確認する。多重辺や、対応する逆辺を欠いた辺があると、
+    // ここで不一致が生じる。
+    for u in 0..n {
+        let expected_out_degree = usize::from(parent[u].is_some()) + child_count[u];
+        if g.out_degree(u) != expected_out_degree {
+            return Err(NotATreeError::HasCycle);
+        }
+    }
+
+    Ok(())
+}
+
 impl<T> Graph<T> {
     /// `n` 頂点、辺を持たないグラフを生成する。
     ///

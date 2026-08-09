@@ -2,13 +2,25 @@ pub mod bin {
     // bin/ 配下の統合テストが共有するヘルパー (run_binary) を定義する。
     pub mod common;
 
+    pub mod codechef {
+        pub mod talca;
+    }
+
+    pub mod baekjoon {
+        pub mod bj15480_lca_and_query;
+    }
+
+
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
+        pub mod abc187_e_through_path;
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
         pub mod abc225_g_x;
+        pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
+        pub mod abc406_f_compare_tree_weights;
         pub mod arc085_e_mul;
         pub mod typical90_an_get_more_money;
         pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
@@ -27,6 +39,7 @@ pub mod bin {
         pub mod fps24_m_connected_graph;
         pub mod fps24_n_coin2;
         pub mod practice2_d_maxflow;
+        pub mod typical90_am_tree_distance;
     }
 
     pub mod aoj {
@@ -36,10 +49,12 @@ pub mod bin {
         pub mod grl_1_c_all_pairs_shortest_path;
         pub mod grl_1_c_all_pairs_shortest_path_johnson;
         pub mod grl_4_b_topological_sort;
+        pub mod grl_5_a_diameter_of_a_tree;
     }
 
     pub mod yukicoder {
         pub mod yuki2713_just_solitaire;
+        pub mod yuki650_matrix_tree_query;
     }
 
     pub mod codeforces {
@@ -47,7 +62,13 @@ pub mod bin {
     }
 
     pub mod poj {
+        pub mod poj1741_tree;
         pub mod poj2987_firing;
+    }
+
+    pub mod spoj {
+        pub mod qtree;
+        pub mod qtree2;
     }
 
     pub mod library_checker {
@@ -60,8 +81,10 @@ pub mod bin {
         pub mod exp_of_formal_power_series_sparse;
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
+        pub mod jump_on_tree;
         pub mod kth_term_of_linearly_recurrent_sequence;
         pub mod lca;
+        pub mod lca_by_euler_tour;
         pub mod log_of_formal_power_series;
         pub mod log_of_formal_power_series_sparse;
         pub mod minimum_spanning_tree;
@@ -71,6 +94,9 @@ pub mod bin {
         pub mod product_of_polynomial_sequence;
         pub mod scc;
         pub mod shortest_path;
+        pub mod tree_diameter;
         pub mod two_sat;
+        pub mod vertex_add_path_sum;
+        pub mod vertex_set_path_composite;
     }
 }
