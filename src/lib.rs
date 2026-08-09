@@ -28,12 +28,15 @@ pub mod graph {
     pub mod bipartite;
     pub mod bipartite_matching;
     pub mod builder;
+    pub mod centroid_decomposition;
     pub mod dfs;
     pub mod dijkstra;
     pub mod eulerian_path;
     pub mod floyd_warshall;
     pub mod flow_graph;
     pub mod graph;
+    pub mod hld;
+    pub mod hld_path_query;
     pub mod johnson;
     pub mod low_link;
     pub mod max_flow;
@@ -43,6 +46,7 @@ pub mod graph {
     pub mod project_selection;
     pub mod scc;
     pub mod topological_sort;
+    pub mod tree_diameter;
     pub mod two_sat;
     pub mod zero_one_bfs;
 }

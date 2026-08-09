@@ -1,9 +1,9 @@
 //! 強連結成分分解 (SCC) を提供するモジュールである。
 //!
-//! Kosaraju のアルゴリズムを用いる。まず元のグラフを深さ優先探索し、帰りがけ順
-//! (postorder) を求める。次に、辺をすべて逆向きにした転置グラフに対して、
-//! postorder の逆順 (完了時刻が遅い頂点から) に深さ優先探索を行う。このとき
-//! 得られる各探索木が、1つの強連結成分をなす。
+//! Tarjan のアルゴリズムを用いる。深さ優先探索を1回行うだけで、転置グラフを
+//! 構築する必要がない。各頂点について、探索順序 (`ord`) と、その頂点の部分木
+//! (逆辺を含む) から到達できる最も浅い探索順序 (`low`) を求める。`low[v]` が
+//! `ord[v]` に一致した時点で、v を根とする強連結成分が確定する。
 
 use super::graph;
 
@@ -80,13 +80,6 @@ impl Scc {
     }
 }
 
-/// スタック上で処理待ちの頂点を表す。`Enter` は初訪問時、`Leave` はその頂点の
-/// 子をすべて訪れ終えた後の処理を表す。
-enum Frame {
-    Enter(usize),
-    Leave(usize),
-}
-
 impl<T> graph::Graph<T> {
     /// 強連結成分分解 (SCC) を行う。
     ///
@@ -96,7 +89,7 @@ impl<T> graph::Graph<T> {
     /// # Complexity
     /// - 時間計算量: O(V + E)
     ///   - V は頂点数、E は辺数である。
-    /// - 空間計算量: O(V + E)
+    /// - 空間計算量: O(V)
     ///
     /// # Examples
     /// ```
@@ -118,63 +111,86 @@ impl<T> graph::Graph<T> {
     pub fn scc(&self) -> Scc {
         let n = self.vertex_count();
 
-        // 元のグラフを深さ優先探索し、帰りがけ順を求める。
-        let mut visited = vec![false; n];
-        let mut postorder = Vec::with_capacity(n);
-        for start in 0..n {
-            if visited[start] {
-                continue;
-            }
-            visited[start] = true;
-            let mut stack = vec![Frame::Enter(start)];
-            while let Some(frame) = stack.pop() {
-                match frame {
-                    Frame::Enter(u) => {
-                        stack.push(Frame::Leave(u));
-                        for (v, _) in self.edges(u) {
-                            if !visited[v] {
-                                visited[v] = true;
-                                stack.push(Frame::Enter(v));
-                            }
-                        }
-                    }
-                    Frame::Leave(u) => postorder.push(u),
-                }
-            }
-        }
+        const UNVISITED: usize = usize::MAX;
+        // ord[v]: 深さ優先探索での v の発見順序。未訪問なら UNVISITED。
+        let mut ord = vec![UNVISITED; n];
+        // low[v]: v の部分木 (後退辺を含む) から到達できる、最も浅い発見順序。
+        let mut low = vec![0_usize; n];
+        // 現在の探索経路上にあり、まだどの強連結成分にも確定していない頂点を、
+        // 発見順に保持するスタック。
+        let mut on_stack = vec![false; n];
+        let mut on_stack_list = Vec::with_capacity(n);
 
-        // 辺をすべて逆向きにした転置グラフを構築する。
-        let mut transposed = graph::Graph::new(n);
-        for u in 0..n {
-            for (v, _) in self.edges(u) {
-                transposed.add_edge(v, u, ());
-            }
-        }
-
-        // 完了時刻が遅い頂点から順に、転置グラフを深さ優先探索する。
-        // 1回の探索で訪れる頂点がちょうど1つの強連結成分をなす。
         const UNASSIGNED: usize = usize::MAX;
         let mut component_id = vec![UNASSIGNED; n];
         let mut num_components = 0;
-        for &start in postorder.iter().rev() {
-            if component_id[start] != UNASSIGNED {
+        let mut now_ord = 0;
+
+        // 「現在辺」ポインタ。探索経路上の各頂点について、次に調べる隣接辺の
+        // 添字を持つ。
+        let mut next_edge = vec![0_usize; n];
+        let mut dfs_stack = Vec::new();
+
+        for start in 0..n {
+            if ord[start] != UNVISITED {
                 continue;
             }
-            component_id[start] = num_components;
-            let mut stack = vec![start];
-            while let Some(u) = stack.pop() {
-                // u から転置グラフ上でたどれる未訪問の頂点 v は、u と同じ
-                // 強連結成分に属するので、同じ番号を割り当ててスタックに積む。
-                for (v, _) in transposed.edges(u) {
-                    if component_id[v] == UNASSIGNED {
-                        component_id[v] = num_components;
-                        stack.push(v);
+
+            dfs_stack.push(start);
+            ord[start] = now_ord;
+            low[start] = now_ord;
+            now_ord += 1;
+            on_stack_list.push(start);
+            on_stack[start] = true;
+
+            while let Some(&v) = dfs_stack.last() {
+                if next_edge[v] < self.edges[v].len() {
+                    let to = self.edges[v][next_edge[v]].0 as usize;
+                    next_edge[v] += 1;
+
+                    if ord[to] == UNVISITED {
+                        // 未訪問の頂点へは、そのまま探索を進める。
+                        dfs_stack.push(to);
+                        ord[to] = now_ord;
+                        low[to] = now_ord;
+                        now_ord += 1;
+                        on_stack_list.push(to);
+                        on_stack[to] = true;
+                    } else if on_stack[to] {
+                        // 現在の探索経路上にある頂点への辺 (後退辺、または
+                        // 横断辺) であれば、low を更新する。
+                        low[v] = low[v].min(ord[to]);
+                    }
+                } else {
+                    // v から出る辺をすべて調べ終えた。1つ前 (親) へ low を
+                    // 伝播したうえで、v を経路スタックから外す。
+                    dfs_stack.pop();
+                    if let Some(&parent) = dfs_stack.last() {
+                        low[parent] = low[parent].min(low[v]);
+                    }
+
+                    if low[v] == ord[v] {
+                        // v が強連結成分の根である。保持スタックを v まで
+                        // 遡り、その区間をまとめて1つの成分として確定する。
+                        loop {
+                            let u = on_stack_list.pop().unwrap();
+                            on_stack[u] = false;
+                            component_id[u] = num_components;
+                            if u == v {
+                                break;
+                            }
+                        }
+                        num_components += 1;
                     }
                 }
             }
-            // start から転置グラフ上で到達できる頂点をすべて訪れ終えたので、
-            // 1つの強連結成分が確定した。次の成分のために番号を1つ進める。
-            num_components += 1;
+        }
+
+        // 探索の完了が早い成分ほど小さい番号が割り振られている
+        // (縮約グラフのトポロジカル順序とは逆順) ため、昇順がトポロジカル
+        // 順序になるよう番号を反転する。
+        for id in &mut component_id {
+            *id = num_components - 1 - *id;
         }
 
         Scc {

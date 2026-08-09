@@ -359,8 +359,14 @@ impl BipartiteGraph {
             }
 
             if !advanced {
-                // u からはこれ以上増加パスを伸ばせない (行き止まり)。
+                // u からはこれ以上増加パスを伸ばせない (行き止まり) ため、
+                // スタックから外す。1つ手前の頂点から見て、u へ向かう辺は
+                // もう使えないと分かったため、次に試す辺へ進めておく。
+                // これを怠ると、同じ行き止まりの辺を無限に辿り直してしまう。
                 stack.pop();
+                if let Some(&parent) = stack.last() {
+                    iter[parent] += 1;
+                }
             }
         }
 
@@ -412,6 +418,29 @@ mod tests {
             let result = sut.hopcroft_karp();
             // Then
             assert_eq!(2, result.size());
+        }
+
+        /// Scenario: 2フェーズ目の増加パス探索で、行き止まりの子を持つ
+        /// 頂点を経由しても無限ループに陥らず、正しく完了する。
+        /// - Given: 1フェーズ目の後に左2が未マッチのまま残り、左2から
+        ///   見て最初に辿る辺の先 (左0) が行き止まりになる構成のグラフが
+        ///   ある (左0は右0のみにしか辺を持たないため、必ず行き止まりに
+        ///   なる)。
+        /// - When: 最大マッチングを求める。
+        /// - Then: 全頂点がマッチし、マッチングのサイズは3になる。
+        #[test]
+        fn does_not_loop_forever_when_augmenting_path_revisits_dead_end() {
+            // Given
+            let mut sut = BipartiteGraph::new(3, 3);
+            sut.add_edge(0, 0);
+            sut.add_edge(1, 1);
+            sut.add_edge(1, 2);
+            sut.add_edge(2, 0);
+            sut.add_edge(2, 1);
+            // When
+            let result = sut.hopcroft_karp();
+            // Then
+            assert_eq!(3, result.size());
         }
 
         /// Scenario: 左右の頂点数が異なり、全員をマッチさせられない場合、

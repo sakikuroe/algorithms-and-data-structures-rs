@@ -188,8 +188,35 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
     /// `ShortestPath<T>`: 還元コストでの最短距離と、経路復元に必要な情報
     ///
     /// # Complexity
-    /// - 時間計算量: O(E log V)
+    /// - 時間計算量: O(E log V) または O(V^2 + E) のうち、有利な方
+    ///   (詳細は [`dijkstra_with_potential_sparse`](Self::dijkstra_with_potential_sparse) /
+    ///   [`dijkstra_with_potential_dense`](Self::dijkstra_with_potential_dense) を参照)。
     fn dijkstra_with_potential(&self, s: usize, potential: &[T]) -> ShortestPath<T> {
+        let n = self.vertex_count();
+        let m: usize = self.graph.iter().map(Vec::len).sum();
+
+        // 二分ヒープ版の計算量 O(E log V) と、頂点ごとに未確定の最小距離を
+        // 線形走査する版の計算量 O(V^2 + E) を比較し、有利な方を選ぶ。
+        // 二部マッチング相当の密なグラフ (E が V^2 に近い) を最小費用流に
+        // 帰着させる用途では、後者の方が log 因子と定数倍の両面で有利になる。
+        let mut log2_v = 1;
+        while (1_usize << log2_v) < n.max(2) {
+            log2_v += 1;
+        }
+
+        if n.saturating_mul(n) <= m.saturating_mul(log2_v) {
+            self.dijkstra_with_potential_dense(s, potential)
+        } else {
+            self.dijkstra_with_potential_sparse(s, potential)
+        }
+    }
+
+    /// [`dijkstra_with_potential`](Self::dijkstra_with_potential) のうち、
+    /// 二分ヒープを用いる、疎なグラフに適した実装。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(E log V)
+    fn dijkstra_with_potential_sparse(&self, s: usize, potential: &[T]) -> ShortestPath<T> {
         let n = self.vertex_count();
         let mut dist: Vec<Option<T>> = vec![None; n];
         let mut prev_edge = vec![None; n];
@@ -234,6 +261,57 @@ impl<T: min_cost_flow_graph::FlowValue> MinCostFlowGraph<T> {
             }
         }
 
+        ShortestPath { dist, prev_edge }
+    }
+
+    /// [`dijkstra_with_potential`](Self::dijkstra_with_potential) のうち、
+    /// 二分ヒープを使わず、未確定の頂点のうち最小距離のものを毎回線形走査で
+    /// 選ぶ、密なグラフに適した実装。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(V^2 + E)
+    fn dijkstra_with_potential_dense(&self, s: usize, potential: &[T]) -> ShortestPath<T> {
+        let n = self.vertex_count();
+        // 未到達を表す番兵として T::MAX を使う。頂点ごとの最小距離を線形走査で
+        // 選ぶ内側のループが最も頻繁に実行されるため、そこでの `Option<T>` の
+        // 判定・分岐を避けることを優先した構成にしている。
+        let mut dist = vec![T::MAX; n];
+        let mut prev_edge = vec![None; n];
+        let mut settled = vec![false; n];
+        dist[s] = T::ZERO;
+
+        for _ in 0..n {
+            // 未確定の頂点のうち、距離が最小のものを選ぶ。
+            let mut u = None;
+            let mut best = T::MAX;
+            for v in 0..n {
+                if !settled[v] && dist[v] < best {
+                    best = dist[v];
+                    u = Some(v);
+                }
+            }
+            let Some(u) = u else {
+                break;
+            };
+            settled[u] = true;
+            let d = dist[u];
+
+            for (idx, edge) in self.graph[u].iter().enumerate() {
+                if edge.cap > T::ZERO {
+                    let reduced_cost = edge.cost + potential[u] - potential[edge.to];
+                    let nd = d + reduced_cost;
+                    if nd < dist[edge.to] {
+                        dist[edge.to] = nd;
+                        prev_edge[edge.to] = Some((u, idx));
+                    }
+                }
+            }
+        }
+
+        let dist = dist
+            .into_iter()
+            .map(|d| if d == T::MAX { None } else { Some(d) })
+            .collect();
         ShortestPath { dist, prev_edge }
     }
 }
