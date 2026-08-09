@@ -463,6 +463,15 @@ path = "src/bin/atcoder/bundled/typical90_an_get_more_money.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "ac-abc294-g-distance-queries-on-a-tree"
+path = "src/bin/atcoder/abc294_g_distance_queries_on_a_tree.rs"
+
+[[bin]]
+name = "ac-abc294-g-distance-queries-on-a-tree-bundled"
+path = "src/bin/atcoder/bundled/abc294_g_distance_queries_on_a_tree.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "ac-abc326-g-unlock-achievement"
 path = "src/bin/atcoder/abc326_g_unlock_achievement.rs"
 

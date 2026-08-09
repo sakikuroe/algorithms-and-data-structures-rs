@@ -18,6 +18,7 @@ pub mod bin {
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
         pub mod abc225_g_x;
+        pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
         pub mod abc406_f_compare_tree_weights;
         pub mod arc085_e_mul;
