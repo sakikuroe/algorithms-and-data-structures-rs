@@ -1,7 +1,7 @@
 """
 Library Checker / AtCoder / CodeChef / AOJ / Baekjoon / POJ / yukicoder /
-Codeforces 提出用に、
-src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces}/
+Codeforces / SPOJ 提出用に、
+src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces,spoj}/
 <slug>.rs を単一ファイルへバンドルし、続けて不要コードを枝刈りするスクリプトである。
 
 使い方:
@@ -12,11 +12,12 @@ src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces}
 新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs、
 src/bin/atcoder/<slug>.rs、src/bin/codechef/<slug>.rs、src/bin/aoj/<slug>.rs、
 src/bin/baekjoon/<slug>.rs、src/bin/poj/<slug>.rs、src/bin/yukicoder/<slug>.rs、
-または src/bin/codeforces/<slug>.rs を作成し (先頭 2 行が
+src/bin/codeforces/<slug>.rs、または src/bin/spoj/<slug>.rs を作成し (先頭 2 行が
 `// Library Checker: <題名>` / `// AtCoder: <題名>` / `// CodeChef: <題名>` /
 `// AOJ: <題名>` / `// Baekjoon: <題名>` / `// POJ: <題名>` / `// yukicoder: <題名>` /
-`// Codeforces: <題名>` と `// <URL>` になっている前提)、Cargo.toml にバンドル後の
-バイナリーを登録したうえで `python3 tools/bundle.py <slug>` を実行するだけでよい。
+`// Codeforces: <題名>` / `// SPOJ: <題名>` と `// <URL>` になっている前提)、
+Cargo.toml にバンドル後のバイナリーを登録したうえで
+`python3 tools/bundle.py <slug>` を実行するだけでよい。
 どのモジュールを取り込むかを手で指定する必要はない。
 
 バンドル後のバイナリーは生成物であってリポジトリーには含めないため、Cargo.toml へは
@@ -57,6 +58,7 @@ SRC_DIRS = {
     "POJ": REPO / "src/bin/poj",
     "yukicoder": REPO / "src/bin/yukicoder",
     "Codeforces": REPO / "src/bin/codeforces",
+    "SPOJ": REPO / "src/bin/spoj",
 }
 BIN_PREFIX = {
     "Library Checker": "lc",
@@ -67,6 +69,7 @@ BIN_PREFIX = {
     "POJ": "poj",
     "yukicoder": "yuki",
     "Codeforces": "cf",
+    "SPOJ": "spoj",
 }
 
 # 枝刈りを繰り返す上限。トレイト実装の除去が新たな dead_code を生むため、
@@ -292,14 +295,14 @@ def extract_source(src_path):
     lines = text.split("\n")
 
     title_match = re.match(
-        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ|yukicoder|Codeforces): (.+)$",
+        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ|yukicoder|Codeforces|SPOJ): (.+)$",
         lines[0],
     )
     if not title_match:
         raise RuntimeError(
             f"{src_path}: 1 行目が '// Library Checker: ...' / '// AtCoder: ...' / "
             "'// CodeChef: ...' / '// AOJ: ...' / '// Baekjoon: ...' / '// POJ: ...' / "
-            "'// yukicoder: ...' / '// Codeforces: ...' 形式ではない"
+            "'// yukicoder: ...' / '// Codeforces: ...' / '// SPOJ: ...' 形式ではない"
         )
     source, title = title_match.groups()
 

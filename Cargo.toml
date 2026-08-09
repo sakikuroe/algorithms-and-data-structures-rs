@@ -499,6 +499,24 @@ path = "src/bin/poj/bundled/poj2987_firing.rs"
 required-features = ["bundled"]
 
 [[bin]]
+name = "spoj-qtree"
+path = "src/bin/spoj/qtree.rs"
+
+[[bin]]
+name = "spoj-qtree-bundled"
+path = "src/bin/spoj/bundled/qtree.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "spoj-qtree2"
+path = "src/bin/spoj/qtree2.rs"
+
+[[bin]]
+name = "spoj-qtree2-bundled"
+path = "src/bin/spoj/bundled/qtree2.rs"
+required-features = ["bundled"]
+
+[[bin]]
 name = "yuki-yuki650-matrix-tree-query"
 path = "src/bin/yukicoder/yuki650_matrix_tree_query.rs"
 

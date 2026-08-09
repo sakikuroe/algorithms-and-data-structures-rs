@@ -65,6 +65,11 @@ pub mod bin {
         pub mod poj2987_firing;
     }
 
+    pub mod spoj {
+        pub mod qtree;
+        pub mod qtree2;
+    }
+
     pub mod library_checker {
         pub mod assignment;
         pub mod bipartitematching;
