@@ -1,80 +1,349 @@
+#!/usr/bin/env python3
 """
-Library Checker / AtCoder / CodeChef / AOJ / Baekjoon / POJ / yukicoder /
-Codeforces / SPOJ 提出用に、
-src/bin/{library_checker,atcoder,codechef,aoj,baekjoon,poj,yukicoder,codeforces,spoj}/
-<slug>.rs を単一ファイルへバンドルし、続けて不要コードを枝刈りするスクリプトである。
+anmitsu を path 依存で参照している cargo プロジェクトの解答を単一ファイルへ
+バンドルし、続けて不要コードを枝刈りするスクリプトである。
 
 使い方:
-    python3 tools/bundle.py <slug> [<slug> ...]    # 指定した問題をバンドル + 枝刈り
-    python3 tools/bundle.py --all                  # src/bin 以下の全問題
-    python3 tools/bundle.py --prune <path> <bin>   # 既存ファイルの枝刈りのみ行う
+    bundler                     # 対象を全件バンドル
+    bundler a                   # ファイル名で指定
+    bundler src/bin/a.rs        # 実行位置からの相対パスで指定
+    bundler --strip-docs        # ドキュメントコメントも取り除く
 
-新しい問題を追加する場合は、src/bin/library_checker/<slug>.rs、
-src/bin/atcoder/<slug>.rs、src/bin/codechef/<slug>.rs、src/bin/aoj/<slug>.rs、
-src/bin/baekjoon/<slug>.rs、src/bin/poj/<slug>.rs、src/bin/yukicoder/<slug>.rs、
-src/bin/codeforces/<slug>.rs、または src/bin/spoj/<slug>.rs を作成し (先頭 2 行が
-`// Library Checker: <題名>` / `// AtCoder: <題名>` / `// CodeChef: <題名>` /
-`// AOJ: <題名>` / `// Baekjoon: <題名>` / `// POJ: <題名>` / `// yukicoder: <題名>` /
-`// Codeforces: <題名>` / `// SPOJ: <題名>` と `// <URL>` になっている前提)、
-Cargo.toml にバンドル後のバイナリーを登録したうえで
-`python3 tools/bundle.py <slug>` を実行するだけでよい。
-どのモジュールを取り込むかを手で指定する必要はない。
+対象の指定には、src/bin からの相対パス、拡張子を除いたファイル名、実行位置からの
+相対パス、絶対パスのいずれも使える。
 
-バンドル後のバイナリーは生成物であってリポジトリーには含めないため、Cargo.toml へは
-`required-features = ["bundled"]` を添えて登録する。こうしておかないと、生成前の
-クリーンチェックアウトで cargo がパスを解決できず、`cargo test` 自体が失敗する。
+基準となるのは、このスクリプトの置き場所ではなく実行時のカレントディレクトリーで
+ある。そのため、このライブラリーのリポジトリーでも、anmitsu を参照している
+コンテスト用のプロジェクトでも、同じスクリプトをそのまま使うことができる。
 
-バンドルは、まず src/lib.rs のモジュールツリーをそのまま単一ファイルへ展開し、
-そのうえでコンパイラの診断を頼りに到達しないコードを削る、という手順で行う。
-必要なモジュールの判断をコンパイラに委ねているため、`log` が `inverse` を呼ぶ
-といった use 文に現れない依存関係や、`*` 演算子から Mul の実装に到達する依存関係も
-取りこぼさない。
+展開する anmitsu の所在は、実行位置の Cargo.toml の [dependencies] に書かれた
+path から解決する。実行位置自身が anmitsu である場合は、実行位置をそのまま用いる。
 
-枝刈りが働く前提として、展開後のトップレベルのモジュールには `pub` を付けずに
-出力している。`pub mod` にすると rustc が全アイテムを外部から到達可能とみなし、
-dead_code をひとつも報告しなくなるためである。
+バンドルの対象は、cargo が認識しているバイナリーターゲット、すなわち自動認識される
+src/bin/*.rs と src/bin/*/main.rs、および [[bin]] で登録されたものである。出力は
+src/bin/bundled/ の下へ、src/bin からの相対位置を保って書き出す。たとえば
+src/bin/library_checker/cycle_detection.rs は
+src/bin/bundled/library_checker/cycle_detection.rs となる。src/bin の外を指す
+[[bin]] は bundled/ の下での置き場所を決められないため対象から除き、その旨を表示する。
 
-main() 本体はこのスクリプトに複製せず、実行の都度 src/bin/**/<slug>.rs から
-読み込むため、実装を変更しても再バンドルするだけで常に最新の内容が反映される。
+ソースが anmitsu を参照していない場合は、ライブラリーを展開せずそのまま複写する。
+展開しても枝刈りですべて削られるだけであり、提出用のファイルが常に bundled/ の下に
+揃っていればよいためである。この場合は注記も付けず、元のファイルと同じ内容にする。
+
+展開したライブラリーはファイルの末尾に置き、その直前に出所とライセンスの注記を
+添える。読み手が数百行のライブラリーをまたがずに解答へ辿り着けるようにするため
+であり、Rust ではアイテムの記述順が問われないため本文の use はそのまま解決できる。
+ソースの側には手を加えないため、生成物の先頭は元のファイルと同じ内容になる。
+
+バンドルは、まず src/lib.rs のモジュールツリーを `mod anmitsu { ... }` として単一
+ファイルへ展開し、そのうえでコンパイラの診断を頼りに到達しないコードを削る、という
+手順で行う。必要なモジュールの判断をコンパイラに委ねているため、`log` が `inverse`
+を呼ぶといった use 文に現れない依存関係や、`*` 演算子から Mul の実装に到達する
+依存関係も取りこぼさない。
+
+`mod anmitsu` にまとめるのは、ソースの `use anmitsu::...` をそのまま残すためである。
+同名のローカルなモジュールと外部クレートがある場合、その名前で始まるパスはローカル
+のほうを指すと Rust の仕様で定められているため、利用側の Cargo.toml に anmitsu への
+依存が残っていても競合しない。
+
+枝刈りが働く前提として、この `mod anmitsu` には `pub` を付けずに出力している。
+`pub mod` にすると rustc が全アイテムを外部から到達可能とみなし、dead_code を
+ひとつも報告しなくなるためである。
+
+コンパイラの診断を得るには生成物をビルドする必要があるが、そのために利用側の
+Cargo.toml へ [[bin]] を登録させるのは煩わしい。そこで一時ディレクトリーに枝刈り
+専用の cargo パッケージを用意し、生成物をその src/main.rs としてビルドする。この
+パッケージには実行位置の edition と、anmitsu を除いた [dependencies] を写す。
+利用側の Cargo.toml は読むだけで、書き換えない。
+
+main() 本体はこのスクリプトに複製せず、実行の都度ソースから読み込むため、実装を
+変更しても再バンドルするだけで常に最新の内容が反映される。
 """
 
 import argparse
 import dataclasses
+import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+# バンドルの基準となる実行位置、展開する anmitsu の所在、枝刈り用の作業場、および
+# 実行位置の edition。いずれも実行時にしか決まらないため、configure() が設定する。
+PROJECT = None
+LIBRARY = None
+WORKDIR = None
+EDITION = None
 
-SRC_DIRS = {
-    "Library Checker": REPO / "src/bin/library_checker",
-    "AtCoder": REPO / "src/bin/atcoder",
-    "CodeChef": REPO / "src/bin/codechef",
-    "AOJ": REPO / "src/bin/aoj",
-    "Baekjoon": REPO / "src/bin/baekjoon",
-    "POJ": REPO / "src/bin/poj",
-    "yukicoder": REPO / "src/bin/yukicoder",
-    "Codeforces": REPO / "src/bin/codeforces",
-    "SPOJ": REPO / "src/bin/spoj",
-}
-BIN_PREFIX = {
-    "Library Checker": "lc",
-    "AtCoder": "ac",
-    "CodeChef": "cc",
-    "AOJ": "aoj",
-    "Baekjoon": "bj",
-    "POJ": "poj",
-    "yukicoder": "yuki",
-    "Codeforces": "cf",
-    "SPOJ": "spoj",
-}
+# 出力をまとめるディレクトリーの名前。src/bin からの相対位置をこの下に再現する。
+BUNDLED_DIR_NAME = "bundled"
+
+# 枝刈り用の作業場で、生成物を置く位置。cargo が自動認識するため登録は要らない。
+PROBE_REL_PATH = "src/main.rs"
 
 # 枝刈りを繰り返す上限。トレイト実装の除去が新たな dead_code を生むため、
 # 何も削れなくなるまで数回の往復が必要になる。
 MAX_PRUNE_ITERATIONS = 30
+
+# 展開したライブラリーの直前に置く注記。ジャッジで人が読む可能性を考えて英語とし、
+# 出所とライセンスを示す。直後の `mod anmitsu` だけを指す位置に置いているため、
+# どこからがライブラリーなのかを別途断る必要がない。複写しただけのファイルには
+# バンドルするものがないため、何も付けない。
+BUNDLE_NOTICE = (
+    "// The following is anmitsu (CC0-1.0), a Rust library for competitive\n"
+    "// programming, bundled into this file with unused items removed.\n"
+    "// https://github.com/sakikuroe/algorithms-and-data-structures-rs"
+)
+
+
+# =============================================================================
+# 実行位置の解決と枝刈り用の作業場
+# =============================================================================
+
+
+def read_manifest(directory):
+    path = directory / "Cargo.toml"
+    if not path.exists():
+        raise RuntimeError(
+            f"{directory} に Cargo.toml がない。cargo プロジェクトの直下で実行すること"
+        )
+    return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def resolve_library(project_dir, manifest):
+    """展開する anmitsu の所在を、実行位置の Cargo.toml から解決する。
+
+    実行位置が anmitsu 自身である場合、自分自身への依存は書かれていないため、
+    パッケージ名を手がかりに実行位置そのものを所在とみなす。
+    """
+    if manifest.get("package", {}).get("name") == "anmitsu":
+        return project_dir
+    spec = manifest.get("dependencies", {}).get("anmitsu")
+    if not isinstance(spec, dict) or "path" not in spec:
+        raise RuntimeError(
+            "Cargo.toml の [dependencies] に anmitsu の path 指定が見つからない。"
+            'anmitsu = { path = "..." } を追加すること'
+        )
+    # path は相対で書かれることがあるため、Cargo.toml のある位置を起点に解決する。
+    return (project_dir / spec["path"]).resolve()
+
+
+def resolve_edition(manifest):
+    edition = manifest.get("package", {}).get("edition")
+    if isinstance(edition, str):
+        return edition
+    # cargo 自身の既定は 2015 だが、それを仮定すると現代的なコードはまず通らない。
+    # 黙って選ぶと原因が分かりにくいため、仮定したことを表示する。
+    print("note: Cargo.toml に edition の指定がないため 2024 として扱う")
+    return "2024"
+
+
+def render_toml_value(value):
+    """依存の指定を、作業場の Cargo.toml へ書き戻せる形の TOML 値にする。"""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        # TOML の基本文字列は JSON の文字列と同じ書式であるため、そのまま使える。
+        return json.dumps(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(render_toml_value(item) for item in value) + "]"
+    if isinstance(value, dict):
+        body = ", ".join(f"{key} = {render_toml_value(item)}" for key, item in value.items())
+        return "{ " + body + " }"
+    raise RuntimeError(f"依存の指定に扱えない値が含まれている: {value!r}")
+
+
+def render_dependencies(project_dir, manifest):
+    """実行位置の [dependencies] を、anmitsu を除いて書き写す。
+
+    anmitsu を除くのは、その中身が生成物へ展開済みだからである。他の path 依存は
+    作業場から見た位置が変わってしまうため、絶対パスへ直したうえで写す。
+    """
+    lines = ["[dependencies]"]
+    for name, spec in manifest.get("dependencies", {}).items():
+        if name == "anmitsu":
+            continue
+        if isinstance(spec, dict) and "path" in spec:
+            spec = dict(spec)
+            spec["path"] = str((project_dir / spec["path"]).resolve())
+        lines.append(f"{name} = {render_toml_value(spec)}")
+    return "\n".join(lines) + "\n"
+
+
+def workspace_for(project_dir):
+    """作業場の位置を、実行位置ごとに分けて決める。
+
+    1 箇所に固定すると、依存の異なるプロジェクトを行き来するたびに Cargo.toml が
+    書き換わり、そのつど依存を再コンパイルすることになる。パスから作った短い
+    ハッシュを添えることで、名前が同じ別のプロジェクトどうしも衝突しない。
+    """
+    digest = hashlib.sha1(str(project_dir).encode("utf-8")).hexdigest()[:12]
+    return Path(tempfile.gettempdir()) / "bundle-py" / f"{project_dir.name}-{digest}"
+
+
+def ensure_workspace(project_dir, manifest, edition):
+    """枝刈り用の cargo パッケージを用意し、その位置を返す。"""
+    workdir = workspace_for(project_dir)
+    (workdir / "src").mkdir(parents=True, exist_ok=True)
+
+    content = (
+        "# tools/bundle.py が枝刈り用に生成した作業場である。手で編集しても、\n"
+        "# 次回の実行で上書きされる。\n"
+        "[package]\n"
+        'name = "bundle-probe"\n'
+        'version = "0.1.0"\n'
+        f'edition = "{edition}"\n'
+        "\n" + render_dependencies(project_dir, manifest)
+    )
+    manifest_path = workdir / "Cargo.toml"
+    # 内容が同じときに書き換えると、mtime の変化だけで cargo が依存を再コンパイル
+    # してしまう。変わったときにだけ書く。
+    if not manifest_path.exists() or manifest_path.read_text(encoding="utf-8") != content:
+        manifest_path.write_text(content, encoding="utf-8")
+
+    # 依存のバージョンを実行位置に揃えるため、初回だけ Cargo.lock を写す。以降は
+    # 作業場のものを cargo が保守するので、上書きすると解決をやり直させてしまう。
+    # なお、作業場の依存は実行位置から anmitsu を除いたものであり、写した
+    # Cargo.lock がそのまま使えるとは限らない。cargo が不足分を取得できるよう、
+    # ビルドには --offline を付けていない。
+    lock = project_dir / "Cargo.lock"
+    if lock.exists() and not (workdir / "Cargo.lock").exists():
+        shutil.copyfile(lock, workdir / "Cargo.lock")
+
+    return workdir
+
+
+def sync_to_workspace(path, force=False):
+    """生成物を作業場へ写す。
+
+    force を指定すると、内容が同じでも書き直して mtime を更新する。mono-items の
+    採取は cargo が実際に再コンパイルしたときにしか出力されないため、そちらの
+    呼び出しでは常に再コンパイルさせる必要がある。
+    """
+    target = WORKDIR / PROBE_REL_PATH
+    content = path.read_text(encoding="utf-8")
+    if force or not target.exists() or target.read_text(encoding="utf-8") != content:
+        target.write_text(content, encoding="utf-8")
+
+
+def configure(project_dir):
+    global PROJECT, LIBRARY, WORKDIR, EDITION
+
+    PROJECT = project_dir.resolve()
+    manifest = read_manifest(PROJECT)
+    LIBRARY = resolve_library(PROJECT, manifest)
+    if not (LIBRARY / "src" / "lib.rs").exists():
+        raise RuntimeError(f"anmitsu の所在として解決した {LIBRARY} に src/lib.rs がない")
+    EDITION = resolve_edition(manifest)
+    WORKDIR = ensure_workspace(PROJECT, manifest, EDITION)
+
+    print(f"project:   {PROJECT}")
+    print(f"library:   {LIBRARY}")
+    print(f"workspace: {WORKDIR}")
+    print()
+
+
+# =============================================================================
+# 対象の探索
+# =============================================================================
+
+
+def cargo_metadata(project_dir):
+    proc = subprocess.run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        capture_output=True, text=True, cwd=project_dir,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"cargo metadata に失敗した:\n{proc.stderr.strip()}")
+    return json.loads(proc.stdout)
+
+
+def discover_targets(project_dir):
+    """バンドルすべきバイナリーターゲットと、対象外にしたものを返す。
+
+    対象は cargo が認識しているバイナリーであり、自動認識される src/bin/*.rs と
+    src/bin/*/main.rs に加え、[[bin]] で登録されたものも含まれる。ただし出力先で
+    ある bundled/ の下は、生成物を再びバンドルしてしまうため除く。
+    """
+    metadata = cargo_metadata(project_dir)
+    manifest_path = (project_dir / "Cargo.toml").resolve()
+    bin_dir = project_dir / "src" / "bin"
+
+    targets = []
+    skipped = []
+    for package in metadata["packages"]:
+        if Path(package["manifest_path"]).resolve() != manifest_path:
+            continue
+        for target in package["targets"]:
+            if "bin" not in target["kind"]:
+                continue
+            src_path = Path(target["src_path"]).resolve()
+            try:
+                relative = src_path.relative_to(bin_dir)
+            except ValueError:
+                # src/bin の外にあるものは、bundled/ の下での置き場所を決められない。
+                skipped.append((target["name"], src_path))
+                continue
+            if relative.parts[0] == BUNDLED_DIR_NAME:
+                continue
+            targets.append((relative, src_path))
+    return sorted(targets), skipped
+
+
+def output_path_for(relative):
+    return PROJECT / "src" / "bin" / BUNDLED_DIR_NAME / relative
+
+
+def matches_pattern(relative, src_path, pattern):
+    """対象の指定として使える書き方を、まとめて受け付ける。
+
+    src/bin からの相対パス (`library_checker/cycle_detection.rs`)、拡張子を除いた
+    同じ形、ファイル名のみ (`cycle_detection`) に加えて、シェルの補完でそのまま
+    入力できる実行位置からの相対パス (`src/bin/a.rs`) と絶対パスも認める。
+    """
+    posix = relative.as_posix()
+    from_project = src_path.relative_to(PROJECT).as_posix()
+    candidates = {
+        posix,
+        posix.removesuffix(".rs"),
+        relative.stem,
+        from_project,
+        from_project.removesuffix(".rs"),
+    }
+    if pattern in candidates:
+        return True
+    # `./src/bin/a.rs` のような表記や絶対パスは、解決してから突き合わせる。
+    if "/" in pattern:
+        try:
+            return Path(pattern).resolve() == src_path
+        except OSError:
+            return False
+    return False
+
+
+def select_targets(targets, patterns):
+    if not patterns:
+        return targets
+    selected = []
+    for pattern in patterns:
+        matches = [entry for entry in targets if matches_pattern(*entry, pattern)]
+        if not matches:
+            raise RuntimeError(f"{pattern}: 対象が見つからない")
+        if len(matches) > 1:
+            # ファイル名だけでは絞り込めない場合、黙って 1 つ選ぶと意図しない
+            # ファイルを処理しかねないため、候補を示して止まる。
+            candidates = "\n".join(f"  {relative.as_posix()}" for relative, _ in matches)
+            raise RuntimeError(
+                f"{pattern}: 複数の対象に一致する。相対パスで指定すること\n{candidates}"
+            )
+        selected.append(matches[0])
+    return selected
 
 
 # =============================================================================
@@ -127,11 +396,11 @@ def discover_module_tree():
     アイテムは展開しない。波括弧の深さを数えることで、`mod X { ... }` の入れ子と
     関数本体の波括弧を区別している。
     """
-    lines = strip_cfg_test_mod((REPO / "src/lib.rs").read_text(encoding="utf-8")).split("\n")
+    lines = strip_cfg_test_mod((LIBRARY / "src/lib.rs").read_text(encoding="utf-8")).split("\n")
 
     root = []
     children = root
-    directory = REPO / "src"
+    directory = LIBRARY / "src"
     depth = 0
     # 開いている `mod X { ... }` を、抜けたときに復帰するための情報とともに積む。
     stack = []
@@ -256,13 +525,12 @@ def indent(text, level):
 
 
 def render_module(module, level):
-    """モジュールを入れ子の `mod` ブロックとして出力する。
+    """モジュールを入れ子の `pub mod` ブロックとして出力する。
 
-    トップレベルだけ `pub` を付けないのは、`pub mod` にすると rustc が
-    全アイテムを外部到達可能とみなして dead_code を報告しなくなるためである。
-    内側は `pub` のままでよく、外側が private であれば実効可視性は抑えられる。
+    どの階層にも `pub` を付けてよいのは、全体を包む `mod anmitsu` 自体が private
+    だからである ([`build_core`] を参照)。
     """
-    keyword = "mod" if level == 0 else "pub mod"
+    keyword = "pub mod"
     body_parts = []
     if module.path is not None:
         content = load(module.path, strip_mods=[child.name for child in module.children])
@@ -276,103 +544,59 @@ def render_module(module, level):
 
 
 def build_core():
-    return "\n\n".join(render_module(module, 0) for module in discover_module_tree())
+    """展開したライブラリー全体を `mod anmitsu { ... }` にまとめる。
 
+    こうしておくと、ソースの `use anmitsu::ds::union_find::UnionFind;` をそのまま
+    残せる。同名のローカルなモジュールと外部クレートがある場合、その名前で始まる
+    パスはローカルのほうを指すと Rust の仕様で定められているため、利用側の
+    Cargo.toml に anmitsu への依存が残っていても競合しない。
 
-def find_source_file(slug):
-    for source, directory in SRC_DIRS.items():
-        candidate = directory / f"{slug}.rs"
-        if candidate.exists():
-            return source, candidate
-    known = ", ".join(SRC_DIRS)
-    raise FileNotFoundError(
-        f"{slug}.rs が見つからない ({known} のいずれの下にも存在しない)"
-    )
-
-
-def extract_source(src_path):
-    text = src_path.read_text(encoding="utf-8")
-    lines = text.split("\n")
-
-    title_match = re.match(
-        r"^// (Library Checker|AtCoder|CodeChef|AOJ|Baekjoon|POJ|yukicoder|Codeforces|SPOJ): (.+)$",
-        lines[0],
-    )
-    if not title_match:
-        raise RuntimeError(
-            f"{src_path}: 1 行目が '// Library Checker: ...' / '// AtCoder: ...' / "
-            "'// CodeChef: ...' / '// AOJ: ...' / '// Baekjoon: ...' / '// POJ: ...' / "
-            "'// yukicoder: ...' / '// Codeforces: ...' / '// SPOJ: ...' 形式ではない"
-        )
-    source, title = title_match.groups()
-
-    url_match = re.match(r"^// (https?://\S+)$", lines[1])
-    if not url_match:
-        raise RuntimeError(f"{src_path}: 2 行目が URL のコメント行ではない")
-    url = url_match.group(1)
-
-    # 本文は、1・2 行目のヘッダーコメントに続く空行の直後から始まる。
-    # 以前は最初に現れる `use anmitsu::` の行を本文の開始位置としていたが、
-    # `use std::collections::{HashSet, VecDeque};` のように anmitsu 以外の
-    # use 文を先に書いている問題では、その行が本文から丸ごと欠落してしまう
-    # 不具合があった。
-    body_start = 2
-    while body_start < len(lines) and not lines[body_start].strip():
-        body_start += 1
-    body = "\n".join(lines[body_start:]).replace("anmitsu::", "")
-    return source, title, url, body.strip("\n") + "\n"
-
-
-def bin_name_for(source, slug):
-    return f"{BIN_PREFIX[source]}-{slug.replace('_', '-')}-bundled"
-
-
-def out_path_for(source, slug):
-    return SRC_DIRS[source] / "bundled" / f"{slug}.rs"
-
-
-def ensure_bin_registered(bin_name, out_path):
-    """バンドル後のバイナリーが Cargo.toml に登録されているかを確認する。
-
-    枝刈りは `cargo build` の診断を利用するため、登録がないと何も削れない。
-    cargo の分かりにくいエラーになる前に、追記すべき内容を示して中断する。
+    包む側に `pub` を付けないのは、`pub mod` にすると rustc が全アイテムを外部から
+    到達可能とみなし、dead_code をひとつも報告しなくなるためである。内側は `pub`
+    のままでよく、外側が private であれば実効可視性は抑えられる。
     """
-    manifest = (REPO / "Cargo.toml").read_text(encoding="utf-8")
-    if f'name = "{bin_name}"' in manifest:
-        return
-    snippet = (
-        f'[[bin]]\nname = "{bin_name}"\npath = "{out_path.relative_to(REPO)}"\n'
-        'required-features = ["bundled"]'
-    )
-    raise RuntimeError(
-        f"Cargo.toml に {bin_name} が登録されていない。"
-        "枝刈りは cargo の診断を用いるため、以下を Cargo.toml へ追記してから再実行すること。\n\n"
-        f"{snippet}\n"
-    )
+    body = "\n\n".join(render_module(module, 1) for module in discover_module_tree())
+    # 1 段深くなるぶん、ライブラリー内の `crate::` 起点のパスがずれる。展開した
+    # 部分にしか手を入れないため、解答側が書いた `crate::` には影響しない。
+    body = body.replace("crate::", "crate::anmitsu::")
+    return "mod anmitsu {\n" + body + "\n}"
 
 
-def generate(slug, core):
-    source, src_path = find_source_file(slug)
-    title, url, body = extract_source(src_path)[1:]
+def compose(source, core):
+    """バンドルした生成物の中身を組み立てる。
 
-    out_path = out_path_for(source, slug)
-    bin_name = bin_name_for(source, slug)
-    ensure_bin_registered(bin_name, out_path)
+    ソースをそのまま置き、その後ろに注記と展開したライブラリーを続ける。
+    ライブラリーを末尾へ回すのは、ファイルを開いた読み手が数百行の `mod anmitsu`
+    をまたがずに解答へ辿り着けるようにするためである。Rust ではアイテムの記述順は
+    問われないため、本文の `use anmitsu::...` は後ろにあるモジュールを問題なく
+    参照できる。
 
-    header = (
-        f"// {source}: {title}\n"
-        f"// {url}\n"
-        "//\n"
-        "// anmitsu クレートを単一ファイルへ展開したうえで、この問題から到達しない\n"
-        "// コードを tools/bundle.py が自動で枝刈りしたものである。ジャッジは外部\n"
-        "// クレートへの依存を解決できないため、このファイル単体で完結させている。\n\n"
-    )
-    content = header + core + "\n\n" + body
+    先頭には何も足さない。注記は `mod anmitsu` の直前にあれば足り、そこへ置く
+    ことで指す対象が直後のブロックに限られるためである。先頭に置くと、続く解答
+    そのものがライブラリーであるかのようにも読めてしまう。
+    """
+    return source.strip("\n") + "\n\n" + BUNDLE_NOTICE + "\n" + core + "\n"
 
+
+def write_output(out_path, content):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(content, encoding="utf-8")
-    print(f"generated {out_path.relative_to(REPO)} ({len(content.splitlines())} lines)")
-    return out_path, bin_name
+    print(
+        f"generated {out_path.relative_to(PROJECT)} ({len(content.splitlines())} lines)"
+    )
+
+
+def generate(source, out_path, core):
+    write_output(out_path, compose(source, core))
+
+
+def copy_source(source, out_path):
+    """anmitsu を使っていないソースを、手を加えずそのまま出力する。
+
+    バンドルするものが何もないため、注記も付けない。元のファイルと内容が一致して
+    いるほうが、提出前に見比べたときに分かりやすい。
+    """
+    write_output(out_path, source)
 
 
 # =============================================================================
@@ -489,23 +713,20 @@ REMOVABLE_DEAD_CODE_RE = re.compile(
 )
 
 
-def build_diagnostics(rel_path, bin_name):
+def build_diagnostics(path):
     """バンドル結果をビルドし、コンパイルの可否と dead_code の行番号を返す。
 
-    cargo が JSON で返す `file_name` はワークスペース相対パスであるため、
-    突き合わせる側も相対パスでなければならない。絶対パスを渡すと一致せず、
-    dead_code による枝刈りが黙って無効になる。
+    ビルドは、生成物を写した枝刈り用の作業場で行う。利用側の Cargo.toml へ
+    [[bin]] を登録しなくても診断を得られるようにするための仕組みである。
 
-    バンドル後のバイナリーは `bundled` feature の下に置かれているため、
-    ここで明示的に有効化する。有効化を忘れると cargo がターゲットを
-    解決できず、枝刈りが一切行われないまま終わる。
+    cargo が JSON で返す `file_name` はパッケージ相対パスであるため、突き合わせる
+    側も相対パスでなければならない。絶対パスを渡すと一致せず、dead_code による
+    枝刈りが黙って無効になる。
     """
+    sync_to_workspace(path)
     proc = subprocess.run(
-        [
-            "cargo", "build", "--bin", bin_name,
-            "--features", "bundled", "--message-format=json",
-        ],
-        capture_output=True, text=True, cwd=REPO,
+        ["cargo", "build", "--message-format=json"],
+        capture_output=True, text=True, cwd=WORKDIR,
     )
     dead_lines = []
     for line in proc.stdout.splitlines():
@@ -521,34 +742,40 @@ def build_diagnostics(rel_path, bin_name):
         if not REMOVABLE_DEAD_CODE_RE.match(message.get("message", "")):
             continue
         for span in message.get("spans", []):
-            if span.get("is_primary") and span.get("file_name") == rel_path:
+            if span.get("is_primary") and span.get("file_name") == PROBE_REL_PATH:
                 dead_lines.append(span["line_start"])
     return proc.returncode == 0, sorted(set(dead_lines))
 
 
-def build_mono_items(rel_path):
+def build_mono_items(path):
     # nightly の -Z print-mono-items=yes は、実際に単相化された (=生成される) アイテムを
     # 標準出力へ書き出す。これにより、dead_code lint では検出できない「trait 実装は
     # あるが、その型では一度も呼ばれていない」ケースを 1 回のビルドで判定できる。
+    #
+    # 素の rustc ではなく作業場の cargo を通すのは、外部クレートを解決させるため
+    # である。proconio のようなジャッジ側に用意されているクレートを使う解答では、
+    # rustc を直接呼ぶとその解決に失敗し、トレイト実装の枝刈りが常に見送られる。
     #
     # ファイルが (この関数を呼ぶ前の段階で) コンパイルエラーを起こしている場合、
     # 単相化の収集が最後まで走らず標準出力が不完全になる。その不完全な結果を
     # 「使われていない」と誤判定して usable な impl まで消してしまうと危険なので、
     # コンパイルが失敗した場合は None を返し、呼び出し側で今回の枝刈りを見送る。
-    #
-    # edition は Cargo.toml と揃える必要がある。ずれているとプローブが必ず失敗し、
-    # トレイト実装の枝刈りが常に見送られてしまう。
-    with tempfile.TemporaryDirectory() as workdir:
-        proc = subprocess.run(
-            [
-                "rustc", "+nightly", "--edition", "2024", "-O",
-                "-Z", "print-mono-items=yes", "--crate-type", "bin",
-                "-o", str(Path(workdir) / "probe"), rel_path,
-            ],
-            capture_output=True, text=True, cwd=REPO,
-        )
+    sync_to_workspace(path, force=True)
+    proc = subprocess.run(
+        [
+            "cargo", "+nightly", "rustc", "--release", "--",
+            "-Z", "print-mono-items=yes",
+        ],
+        capture_output=True, text=True, cwd=WORKDIR,
+    )
     if proc.returncode != 0:
         print("  (mono-items probe failed to compile; skipping this round)")
+        return None
+    if "MONO_ITEM" not in proc.stdout:
+        # cargo が再コンパイルを省略すると、ビルドは成功したまま出力だけが空になる。
+        # 空の結果は「どの実装も使われていない」と読めてしまい、そのまま進めると
+        # 使用中の実装まで消してしまうため、収穫のなかった回として見送る。
+        print("  (mono-items probe produced no output; skipping this round)")
         return None
     pairs = set()
     for line in proc.stdout.splitlines():
@@ -842,8 +1069,8 @@ def run_rustfmt(path):
     Rust の構文を正しく解釈する rustfmt に委ねる。
     """
     subprocess.run(
-        ["rustfmt", "--edition", "2024", str(path)],
-        capture_output=True, text=True, cwd=REPO, check=True,
+        ["rustfmt", "--edition", EDITION, str(path)],
+        capture_output=True, text=True, cwd=PROJECT, check=True,
     )
 
 
@@ -956,8 +1183,8 @@ def prune_orphans(path, original_names):
     return removed
 
 
-def prune_unused_impls(path, rel_path):
-    mono_pairs = build_mono_items(rel_path)
+def prune_unused_impls(path):
+    mono_pairs = build_mono_items(path)
     if mono_pairs is None:
         return 0
     lines = path.read_text(encoding="utf-8").split("\n")
@@ -1019,17 +1246,39 @@ def strip_empty_blocks(path):
     return removed
 
 
-def prune(out_path, bin_name):
+def prune_unused_impls_safely(path):
+    """トレイト実装の除去を試み、コンパイルが通らなくなった場合は取り消す。
+
+    単相化されているかどうかの判定は、型名の末尾どうしを比べる発見的なもので
+    あるため、まだ必要な実装を消してしまうことがある。ラウンド全体の巻き戻しに
+    任せると、同じラウンドで得られた dead_code の枝刈りまで道連れになるので、
+    この手順だけを個別に検証して切り分ける。
+    """
+    snapshot = path.read_text(encoding="utf-8")
+    removed = prune_unused_impls(path)
+    removed += strip_empty_blocks(path)
+    if removed == 0:
+        return 0
+    compiled, _ = build_diagnostics(path)
+    if not compiled:
+        path.write_text(snapshot, encoding="utf-8")
+        print("    unused-impl pruning broke the build; reverted this step")
+        return 0
+    return removed
+
+
+def prune(path, strip_docs=False):
     """バンドル結果から到達しないコードを、コンパイルが通らなくなるまで削る。
 
     枝刈りは診断を頼りにした発見的な処理であるため、削りすぎてコンパイルが
     通らなくなる可能性がある。そこで各ラウンドの開始時にビルドの成否を確認し、
     失敗していれば直前の正常な状態へ巻き戻して打ち切る。
+
+    strip_docs を指定すると、仕上げにドキュメントコメントも取り除く。既定で
+    残しているのは、提出物を読み返すときに各アイテムの説明があるほうが助かる
+    ためである。取り除くと分量はおよそ半分になる。
     """
-    path = Path(out_path)
-    if not path.is_absolute():
-        path = REPO / path
-    rel_path = str(path.relative_to(REPO))
+    label = path.relative_to(PROJECT)
 
     # 何が消えたのかを判定する基準として、枝刈り前の定義一覧を控えておく。
     original_names = collect_definitions(path.read_text(encoding="utf-8").split("\n"))
@@ -1037,10 +1286,10 @@ def prune(out_path, bin_name):
     total_removed = 0
     snapshot = None
     for iteration in range(MAX_PRUNE_ITERATIONS):
-        compiled, dead_lines = build_diagnostics(rel_path, bin_name)
+        compiled, dead_lines = build_diagnostics(path)
         if not compiled:
             if snapshot is None:
-                raise RuntimeError(f"{rel_path}: 生成した直後の時点でコンパイルが通らない")
+                raise RuntimeError(f"{label}: 生成した直後の時点でコンパイルが通らない")
             path.write_text(snapshot, encoding="utf-8")
             print(f"  iteration {iteration}: build broke; rolled back to the previous round")
             break
@@ -1053,8 +1302,15 @@ def prune(out_path, bin_name):
         # 殻を畳んでから孤立 import の検出を行う。
         removed += strip_empty_blocks(path)
         removed += prune_orphans(path, original_names)
-        removed += prune_unused_impls(path, rel_path)
-        removed += strip_empty_blocks(path)
+
+        # トレイト実装の除去へ進むのは、dead_code による枝刈りが収束してからに
+        # する。単相化されていない実装であっても、それを参照する関数がまだ残って
+        # いる間に消すと、参照先を失ってコンパイルが通らなくなるためである
+        # (`pow` が未使用のまま残っている状態で `*=` の実装を消す、など)。
+        # 実装を除去すると新たな dead_code が生じるため、次のラウンドで再び
+        # dead_code の除去に戻り、双方が何も削れなくなるまで往復する。
+        if removed == 0:
+            removed += prune_unused_impls_safely(path)
         total_removed += removed
         print(f"  iteration {iteration}: removed {removed} items")
         if removed == 0:
@@ -1062,14 +1318,15 @@ def prune(out_path, bin_name):
     else:
         print("  stopped after max iterations")
 
-    doc_lines_removed = strip_doc_comments(path)
+    doc_lines_removed = strip_doc_comments(path) if strip_docs else 0
     run_rustfmt(path)
     leading_blank_lines_removed = strip_leading_blank_lines_in_blocks(path)
-    compiled, _ = build_diagnostics(rel_path, bin_name)
+    compiled, _ = build_diagnostics(path)
     if not compiled:
-        raise RuntimeError(f"{rel_path}: 枝刈り後のファイルがコンパイルできない")
+        raise RuntimeError(f"{label}: 枝刈り後のファイルがコンパイルできない")
 
-    print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
+    if strip_docs:
+        print(f"  stripped {doc_lines_removed} doc-comment lines (///, //!)")
     print(f"  removed {leading_blank_lines_removed} leading blank lines left by pruning")
     print(f"  total items removed: {total_removed}")
     print(f"  {len(path.read_text(encoding='utf-8').splitlines())} lines remain")
@@ -1080,46 +1337,61 @@ def prune(out_path, bin_name):
 # =============================================================================
 
 
-def discover_slugs():
-    slugs = set()
-    for directory in SRC_DIRS.values():
-        for path in directory.glob("*.rs"):
-            slugs.add(path.stem)
-    return sorted(slugs)
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("slugs", nargs="*", help="バンドルする問題のスラッグ")
-    parser.add_argument("--all", action="store_true", help="src/bin 以下の全問題をバンドルする")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
-        "--prune", nargs=2, metavar=("PATH", "BIN_NAME"),
-        help="既存ファイルの枝刈りのみ行う (手動でバンドルしたファイル向け)",
+        "targets", nargs="*",
+        help="バンドルする対象。src/bin からの相対パス、または拡張子を除いた"
+             "ファイル名で指定する。省略すると対象を全件バンドルする",
+    )
+    parser.add_argument(
+        "--strip-docs", action="store_true",
+        help="生成物からドキュメントコメント (///, //!) を取り除く。分量はおよそ"
+             "半分になるが、各アイテムの説明は失われる",
     )
     args = parser.parse_args()
 
-    if args.prune:
-        path, bin_name = args.prune
-        print(f"### prune-only: {path} ({bin_name}) ###")
-        prune(path, bin_name)
+    try:
+        configure(Path.cwd())
+        targets, skipped = discover_targets(PROJECT)
+        for name, src_path in skipped:
+            print(f"skipped {name}: {src_path} は src/bin の外にあるため対象にできない")
+        if skipped:
+            print()
+        selected = select_targets(targets, args.targets)
+    except (RuntimeError, FileNotFoundError, json.JSONDecodeError) as error:
+        print(f"error: {error}")
+        sys.exit(1)
+
+    if not selected:
+        print("バンドルする対象がない")
         return
 
-    targets = discover_slugs() if args.all else args.slugs
-    if not targets:
-        parser.error("バンドルする問題のスラッグ、--all、--prune のいずれかを指定すること")
-
-    # モジュールツリーの展開結果は問題によらず共通であるため、一度だけ構築する。
-    core = build_core()
+    # モジュールツリーの展開結果は対象によらず共通であるため、実際に展開が必要に
+    # なった時点で一度だけ構築する。複写だけで済む場合は構築しない。
+    core = None
 
     failures = []
-    for slug in targets:
-        print(f"### {slug} ###")
+    for relative, src_path in selected:
+        print(f"### {relative.as_posix()} ###")
         try:
-            out_path, bin_name = generate(slug, core)
-            prune(out_path, bin_name)
-        except (RuntimeError, FileNotFoundError) as error:
+            source = src_path.read_text(encoding="utf-8")
+            out_path = output_path_for(relative)
+            if "anmitsu" not in source:
+                # ライブラリーを参照していないため、展開しても枝刈りですべて
+                # 削られるだけである。提出用のファイルが bundled/ の下に揃うよう、
+                # 複写だけを行う。
+                copy_source(source, out_path)
+            else:
+                if core is None:
+                    core = build_core()
+                generate(source, out_path, core)
+                prune(out_path, strip_docs=args.strip_docs)
+        except (RuntimeError, FileNotFoundError, subprocess.CalledProcessError) as error:
             print(f"  failed: {error}")
-            failures.append(slug)
+            failures.append(relative.as_posix())
         print()
 
     if failures:
