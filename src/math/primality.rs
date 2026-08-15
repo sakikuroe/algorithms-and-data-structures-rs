@@ -183,6 +183,171 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
     result
 }
 
+/// `n` の正の約数を昇順に列挙する。
+///
+/// # Args
+/// - `n` - 約数を求める対象の整数であり、`0` より大きい必要がある。
+///
+/// # Returns
+/// `n` の約数を昇順に格納した `Vec<u64>`。
+///
+/// # Complexity
+/// - 時間計算量: 期待値 $O(n^{1/4} \log n + d(n))$
+///   - 内部で呼び出す [`factorize`] の計算量が支配的であり、素因数分解の結果から
+///     約数を列挙する処理は約数の個数 $d(n)$ に比例した時間で行える。
+/// - 空間計算量: $O(d(n))$
+///   - 列挙された約数を保持するために、約数の個数に比例したメモリを使用する。
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::primality;
+///
+/// assert_eq!(vec![1], primality::divisors(1));
+/// assert_eq!(vec![1, 7], primality::divisors(7));
+/// assert_eq!(vec![1, 2, 3, 4, 6, 12], primality::divisors(12));
+/// ```
+#[must_use]
+pub fn divisors(n: u64) -> Vec<u64> {
+    debug_assert!(n >= 1);
+
+    // 約数の列挙結果を蓄積するためのベクタ。初期状態では、どんな n に対しても
+    // 約数である 1 のみを持つ。
+    let mut result = vec![1_u64];
+
+    // 素因数 p とその指数 e ごとに、それまでに求めた約数それぞれに
+    // p^0, p^1, ..., p^e を掛け合わせた値を、新たな約数集合として構築していく。
+    for (p, e) in factorize(n) {
+        let mut next = Vec::with_capacity(result.len() * (e + 1));
+        let mut power = 1_u64;
+        for _ in 0..=e {
+            for &d in &result {
+                next.push(d * power);
+            }
+            power *= p;
+        }
+        result = next;
+    }
+
+    result.sort_unstable();
+    result
+}
+
+/// オイラーの $\varphi$ 関数の値を計算する。
+///
+/// # Args
+/// - `n` - 計算対象の整数であり、`0` より大きい必要がある。
+///
+/// # Returns
+/// `1` から `n` までの整数のうち、`n` と互いに素であるものの個数。
+///
+/// # Complexity
+/// - 時間計算量: 期待値 $O(n^{1/4} \log n)$
+///   - 内部で呼び出す [`factorize`] の計算量が支配的である。
+/// - 空間計算量: $O(\log n)$
+///   - `n` が持つ相異なる素因数の個数に比例したメモリを使用する。
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::primality;
+///
+/// assert_eq!(1, primality::euler_phi(1));
+/// assert_eq!(6, primality::euler_phi(9));
+/// assert_eq!(16, primality::euler_phi(17));
+/// ```
+#[must_use]
+pub fn euler_phi(n: u64) -> u64 {
+    debug_assert!(n >= 1);
+
+    let mut result = n;
+    for p in factorize(n).into_keys() {
+        // 先に n を p で割ってから (p - 1) を掛けることで、掛け算を先に行う場合に
+        // 生じうる u64 のオーバーフローを避ける。result が p で割り切れることは、
+        // p が factorize(n) の素因数であることから数学的に保証されている。
+        result = result / p * (p - 1);
+    }
+    result
+}
+
+/// `p` を法として `a` が原始根であるかどうかを判定する。
+///
+/// # Args
+/// - `a` - 判定対象の整数であり、`0 <= a < p` を満たす必要がある。
+/// - `p` - 法であり、素数である必要がある。この契約に違反する場合、
+///   `debug_assert!` によりパニックする。
+///
+/// # Returns
+/// `a` が `p` を法とする原始根であれば `true`、そうでなければ `false`。
+///
+/// # Complexity
+/// - 時間計算量: 期待値 $O(p^{1/4} \log p)$
+///   - 内部で呼び出す [`factorize`] の計算量が支配的であり、`p - 1` の相異なる
+///     素因数それぞれについて [`modular_arithmetic::pow_mod`] を1回ずつ呼び出す。
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::primality;
+///
+/// assert!(primality::is_primitive_root(3, 7));
+/// assert!(!primality::is_primitive_root(2, 7));
+/// ```
+#[must_use]
+pub fn is_primitive_root(a: u64, p: u64) -> bool {
+    debug_assert!(is_prime(p));
+    debug_assert!(a < p);
+
+    // p = 2 の場合、乗法群 (Z/2Z)^* の位数は 1 であり、唯一の元である 1 が
+    // 原始根となる。
+    if p == 2 {
+        return a == 1;
+    }
+
+    // a が原始根であることは、a の位数 (乗法群における周期) が p - 1 と一致する
+    // ことと同値である。これはさらに、p - 1 の相異なる素因数 q それぞれについて
+    // a^((p-1)/q) != 1 (mod p) が成り立つことと同値であるため、この条件を判定する。
+    factorize(p - 1)
+        .into_keys()
+        .all(|q| modular_arithmetic::pow_mod(a, (p - 1) / q, p) != 1)
+}
+
+/// `p` を法とする原始根を1つ見つける。
+///
+/// # Args
+/// - `p` - 法であり、素数である必要がある。この契約に違反する場合、
+///   `debug_assert!` によりパニックする。
+///
+/// # Returns
+/// `p` を法とする原始根の1つ。最小のものであるとは限らない。
+///
+/// # Complexity
+/// - 時間計算量: 期待値 $O(p^{1/4} \log^2 p)$
+///   - 最小の原始根は $O(\log \log p)$ 個程度の候補を試せば見つかることが経験的に
+///     知られており、候補ごとに [`is_primitive_root`] による判定を行う。
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::primality;
+///
+/// assert_eq!(1, primality::find_primitive_root(2));
+/// assert!(primality::is_primitive_root(primality::find_primitive_root(7), 7));
+/// ```
+#[must_use]
+pub fn find_primitive_root(p: u64) -> u64 {
+    debug_assert!(is_prime(p));
+
+    if p == 2 {
+        return 1;
+    }
+
+    // 小さい候補から順に原始根であるかを判定し、最初に見つかったものを返す。
+    for a in 2.. {
+        if is_primitive_root(a, p) {
+            return a;
+        }
+    }
+
+    unreachable!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -389,6 +554,225 @@ mod tests {
                 // Then
                 assert_eq!(expected, result);
             }
+        }
+    }
+
+    // divisors のテスト: 戻り値を検証する。
+    mod divisors {
+        use super::*;
+
+        /// Scenario: 典型的な合成数に対して、昇順に並んだ約数の一覧を返す。
+        /// - Given: 複数の素因数からなる典型的な合成数がある。
+        /// - When: `divisors` を呼ぶ。
+        /// - Then: 期待した約数の一覧が昇順で返る。
+        #[test]
+        fn returns_sorted_divisors_for_typical_values() {
+            let cases = [
+                (12_u64, vec![1_u64, 2, 3, 4, 6, 12]),
+                (
+                    360,
+                    vec![
+                        1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90,
+                        120, 180, 360,
+                    ],
+                ),
+            ];
+
+            for (n, expected) in cases {
+                // Given, When
+                let result = divisors(n);
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: 素数の約数は `1` と自分自身のみになる。
+        /// - Given: 素数がいくつかある。
+        /// - When: `divisors` を呼ぶ。
+        /// - Then: `[1, n]` が返る。
+        #[test]
+        fn returns_one_and_itself_for_prime_numbers() {
+            let cases = [7_u64, 17, 998244353];
+
+            for n in cases {
+                // Given, When
+                let result = divisors(n);
+                // Then
+                assert_eq!(vec![1, n], result);
+            }
+        }
+
+        /// Scenario: `1` の約数は `1` のみになる (境界値)。
+        /// - Given: `1` がある。
+        /// - When: `divisors` を呼ぶ。
+        /// - Then: `[1]` が返る。
+        #[test]
+        fn returns_singleton_for_one() {
+            // Given, When
+            let result = divisors(1);
+            // Then
+            assert_eq!(vec![1], result);
+        }
+    }
+
+    // euler_phi のテスト: 戻り値を検証する。
+    mod euler_phi {
+        use super::*;
+
+        /// Scenario: 典型的な合成数に対して正しい `φ` の値を返す。
+        /// - Given: 複数の素因数からなる典型的な合成数がある。
+        /// - When: `euler_phi` を呼ぶ。
+        /// - Then: 期待した `φ` の値が返る。
+        #[test]
+        fn returns_correct_value_for_typical_values() {
+            let cases = [(12_u64, 4_u64), (9, 6)];
+
+            for (n, expected) in cases {
+                // Given, When
+                let result = euler_phi(n);
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: 素数 `p` に対しては `p - 1` を返す。
+        /// - Given: 素数がいくつかある。
+        /// - When: `euler_phi` を呼ぶ。
+        /// - Then: `p - 1` が返る。
+        #[test]
+        fn returns_predecessor_for_prime_numbers() {
+            let cases = [17_u64, 998244353];
+
+            for p in cases {
+                // Given, When
+                let result = euler_phi(p);
+                // Then
+                assert_eq!(p - 1, result);
+            }
+        }
+
+        /// Scenario: `1` に対しては `1` を返す (境界値)。
+        /// - Given: `1` がある。
+        /// - When: `euler_phi` を呼ぶ。
+        /// - Then: `1` が返る。
+        #[test]
+        fn returns_one_for_one() {
+            // Given, When
+            let result = euler_phi(1);
+            // Then
+            assert_eq!(1, result);
+        }
+
+        /// Scenario: 試し割りの閾値を超える大きな `n` でも、オーバーフローせずに
+        /// 正しい `φ` の値を返す (境界値)。
+        /// - Given: `factorize` が Pollard's rho 法の経路を通るような、大きな
+        ///   素因数からなる合成数がある。
+        /// - When: `euler_phi` を呼ぶ。
+        /// - Then: 期待した `φ` の値が返る。
+        #[test]
+        fn returns_correct_value_without_overflow_for_large_numbers() {
+            let cases = [
+                // 1000000007, 1000000009 はともに大きな素数であり、
+                // φ(p * q) = (p - 1) * (q - 1) である。
+                (1000000007_u64 * 1000000009, 1000000006_u64 * 1000000008),
+                // 999999999000000007 は 1e18 級の大きな素数であり、
+                // φ(2 * p) = p - 1 である。
+                (999999999000000007_u64 * 2, 999999999000000006_u64),
+            ];
+
+            for (n, expected) in cases {
+                // Given, When
+                let result = euler_phi(n);
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+    }
+
+    // is_primitive_root のテスト: 戻り値を検証する。
+    mod is_primitive_root {
+        use super::*;
+
+        /// Scenario: 原始根に対して `true` を返す。
+        /// - Given: 素数 `7` を法とする原始根 (位数が `6` となる元) がある。
+        /// - When: `is_primitive_root` を呼ぶ。
+        /// - Then: `true` が返る。
+        #[test]
+        fn returns_true_for_primitive_roots() {
+            let cases = [3_u64, 5];
+
+            for a in cases {
+                // Given, When
+                let result = is_primitive_root(a, 7);
+                // Then
+                assert!(result);
+            }
+        }
+
+        /// Scenario: 原始根でない元に対して `false` を返す。
+        /// - Given: 素数 `7` を法とする、原始根でない元 (位数が `6` 未満となる元) が
+        ///   いくつかある。
+        /// - When: `is_primitive_root` を呼ぶ。
+        /// - Then: `false` が返る。
+        #[test]
+        fn returns_false_for_non_primitive_roots() {
+            let cases = [1_u64, 2, 4, 6];
+
+            for a in cases {
+                // Given, When
+                let result = is_primitive_root(a, 7);
+                // Then
+                assert!(!result);
+            }
+        }
+
+        /// Scenario: 法が `2` の場合、`1` のみが原始根と判定される (境界値)。
+        /// - Given: 法が `2` であり、`a` が `0` または `1` である。
+        /// - When: `is_primitive_root` を呼ぶ。
+        /// - Then: `a` が `1` のときのみ `true` が返る。
+        #[test]
+        fn returns_true_only_for_one_when_modulus_is_two() {
+            let cases = [(0_u64, false), (1, true)];
+
+            for (a, expected) in cases {
+                // Given, When
+                let result = is_primitive_root(a, 2);
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+    }
+
+    // find_primitive_root のテスト: 戻り値を検証する。
+    mod find_primitive_root {
+        use super::*;
+
+        /// Scenario: 見つけた元が、実際に原始根としての性質を満たす。
+        /// - Given: 素数がいくつかある。
+        /// - When: `find_primitive_root` を呼ぶ。
+        /// - Then: 返った元が `is_primitive_root` で `true` と判定される。
+        #[test]
+        fn returns_value_satisfying_is_primitive_root_property() {
+            let cases = [7_u64, 13, 998244353];
+
+            for p in cases {
+                // Given, When
+                let result = find_primitive_root(p);
+                // Then
+                assert!(is_primitive_root(result, p));
+            }
+        }
+
+        /// Scenario: 法が `2` の場合、`1` を返す (境界値)。
+        /// - Given: 法が `2` である。
+        /// - When: `find_primitive_root` を呼ぶ。
+        /// - Then: `1` が返る。
+        #[test]
+        fn returns_one_when_modulus_is_two() {
+            // Given, When
+            let result = find_primitive_root(2);
+            // Then
+            assert_eq!(1, result);
         }
     }
 }
