@@ -78,6 +78,7 @@ pub mod bin {
         pub mod eulerian_trail_directed;
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
+        pub mod factorize;
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod jump_on_tree;
