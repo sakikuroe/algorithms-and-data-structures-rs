@@ -166,6 +166,81 @@ pub fn mod_inv(a: u64, m: u64) -> u64 {
     x.rem_euclid(m as i64) as u64
 }
 
+/// 中国剰余定理 (CRT) により、連立合同式 `x ≡ remainders[i] (mod moduli[i])`
+/// (`i = 0, ..., remainders.len() - 1`) を満たす `x` を求める。`moduli` が互いに
+/// 素であることを要求しない、一般の法に対応する。
+///
+/// # Args
+/// - `remainders` - 各合同式の右辺の列
+/// - `moduli` - 各合同式の法の列であり、`remainders` と同じ長さでなければならない。
+///   各要素は `0` より大きく `i64::MAX` 以下である必要がある。
+///
+/// # Returns
+/// 連立合同式を満たす `x` が存在する場合、`Some((r, m))` を返す。`m` は `moduli`
+/// 全体の最小公倍数であり、`r` は `[0, m)` の範囲の解で、`x ≡ r (mod m)` が元の
+/// 連立合同式全体と同値になる。連立合同式が矛盾し解が存在しない場合は `None` を
+/// 返す。`remainders` と `moduli` がともに空の場合、法 `1` の下では任意の整数が
+/// 合同であることから、「制約なし」を表す単位元として `Some((0, 1))` を返す。
+///
+/// # Complexity
+/// - 時間計算量: $O(n \log(\max(\text{moduli})))$
+///   - `n = remainders.len()` であり、隣接する 2 つの合同式を 1 つへまとめる処理を
+///     `n - 1` 回繰り返す。各マージは [`number_theory::gcd`]・[`number_theory::extended_gcd`]
+///     の計算が支配的である。
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::modular_arithmetic;
+///
+/// // 法が互いに素な場合
+/// assert_eq!(Some((23, 105)), modular_arithmetic::crt(&[2, 3, 2], &[3, 5, 7]));
+///
+/// // 法が互いに素でなくても解が存在する場合
+/// assert_eq!(Some((4, 6)), modular_arithmetic::crt(&[1, 4], &[3, 6]));
+///
+/// // 矛盾して解が存在しない場合
+/// assert_eq!(None, modular_arithmetic::crt(&[0, 1], &[2, 4]));
+/// ```
+#[must_use]
+pub fn crt(remainders: &[u64], moduli: &[u64]) -> Option<(u64, u64)> {
+    debug_assert_eq!(remainders.len(), moduli.len());
+    debug_assert!(moduli.iter().all(|&m| m > 0 && m <= i64::MAX as u64));
+
+    if remainders.is_empty() {
+        return Some((0, 1));
+    }
+
+    // (r, m) は、これまでに読んだ合同式をすべてまとめた結果を x ≡ r (mod m) の
+    // 形で保持する。最初の合同式は単独では矛盾しえないため、[0, m) に正規化した
+    // 上でそのまま初期値として採用する。
+    let mut r = (remainders[0] as i64).rem_euclid(moduli[0] as i64);
+    let mut m = moduli[0] as i64;
+
+    for i in 1..remainders.len() {
+        let (r1, m1) = (remainders[i] as i64, moduli[i] as i64);
+
+        // x ≡ r (mod m) と x ≡ r1 (mod m1) が両立するためには、(r1 - r) が
+        // g = gcd(m, m1) で割り切れる必要がある (CRT の一般形における可解条件)。
+        let g = number_theory::gcd(m as u128, m1 as u128) as i64;
+        if (r1 - r) % g != 0 {
+            return None;
+        }
+
+        // m * p + m1 * q == g を満たす p を用いて、2 つの合同式を単一の合同式
+        // x ≡ new_r (mod lcm) へまとめる。
+        let (p, _) = number_theory::extended_gcd(m, m1);
+        let lcm = m / g * m1;
+        let diff = (r1 - r) / g;
+        let new_r = r + m * (diff * p).rem_euclid(m1 / g);
+
+        // 得られた解を [0, lcm) の範囲に正規化し、次の合同式とのマージに備える。
+        r = new_r.rem_euclid(lcm);
+        m = lcm;
+    }
+
+    Some((r as u64, m as u64))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,6 +461,78 @@ mod tests {
             let result = mod_inv(1, 7);
             // Then
             assert_eq!(1, result);
+        }
+    }
+
+    // crt のテスト: 戻り値を検証する。
+    mod crt {
+        use super::*;
+
+        /// Scenario: 法が互いに素な複数の合同式に対して、統合された合同式を返す。
+        /// - Given: 互いに素な法を持つ 3 つの合同式がある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `Some((r, lcm))` の形で、元の連立合同式と同値な解が返る。
+        #[test]
+        fn returns_merged_congruence_for_pairwise_coprime_moduli() {
+            // Given, When
+            let result = crt(&[2, 3, 2], &[3, 5, 7]);
+            // Then
+            assert_eq!(Some((23, 105)), result);
+        }
+
+        /// Scenario: 法が互いに素でなくても解が存在すれば、統合された合同式を返す。
+        /// - Given: `gcd` が `1` より大きい法を持つ、矛盾しない合同式の組がある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `Some((r, lcm))` の形で、元の連立合同式と同値な解が返る。
+        #[test]
+        fn returns_merged_congruence_for_non_coprime_moduli_with_solution() {
+            let cases = [
+                (vec![1_u64, 4], vec![3_u64, 6], Some((4_u64, 6_u64))),
+                (vec![2, 5, 0], vec![4, 9, 10], Some((50, 180))),
+            ];
+
+            for (remainders, moduli, expected) in cases {
+                // Given, When
+                let result = crt(&remainders, &moduli);
+                // Then
+                assert_eq!(expected, result);
+            }
+        }
+
+        /// Scenario: 合同式が矛盾する場合、`None` を返す (異常系)。
+        /// - Given: `gcd` が `1` より大きい法を持ち、互いに矛盾する合同式の組がある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `None` が返る。
+        #[test]
+        fn returns_none_for_contradictory_congruences() {
+            // Given, When
+            let result = crt(&[0, 1], &[2, 4]);
+            // Then
+            assert!(result.is_none());
+        }
+
+        /// Scenario: 合同式が 1 つだけの場合、その合同式自身を返す (境界値)。
+        /// - Given: 合同式が 1 つだけある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `Some((remainders[0], moduli[0]))` が返る。
+        #[test]
+        fn returns_single_congruence_as_is_for_single_element() {
+            // Given, When
+            let result = crt(&[5], &[11]);
+            // Then
+            assert_eq!(Some((5, 11)), result);
+        }
+
+        /// Scenario: 合同式が 1 つもない場合、制約なしを表す単位元を返す (境界値)。
+        /// - Given: `remainders` と `moduli` がともに空である。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `Some((0, 1))` が返る。
+        #[test]
+        fn returns_identity_for_empty_input() {
+            // Given, When
+            let result = crt(&[], &[]);
+            // Then
+            assert_eq!(Some((0, 1)), result);
         }
     }
 }
