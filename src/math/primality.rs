@@ -4,6 +4,123 @@ use crate::math::modular_arithmetic;
 use crate::math::number_theory;
 use std::collections::HashMap;
 
+/// 奇数の法 `m` に対する、モンゴメリ乗算による高速なモジュラー演算を提供する。
+///
+/// `crate::math::modular_arithmetic` の `mul_mod`/`pow_mod` は `u128` への
+/// キャストと除算命令によって剰余を求めるが、モンゴメリ乗算はビットシフトと
+/// 乗算のみで剰余相当の計算ができるため、`is_prime`/`factorize` のように同じ法
+/// のもとで大量のモジュラー演算を繰り返す場面で大きく高速化できる。ただし奇数の
+/// 法にしか適用できないため、偶数の法も扱う汎用的な `modular_arithmetic` とは
+/// 独立させ、このモジュール内部でのみ用いる。
+///
+/// 値は「モンゴメリ表現」(`x * 2^64 mod m`) で扱う。[`Montgomery::encode`] で
+/// 通常表現から変換し、[`Montgomery::decode`] で通常表現へ戻す。
+/// [`Montgomery::mul`]/[`Montgomery::add`]/[`Montgomery::sub`] はいずれも
+/// モンゴメリ表現の値を受け取り、モンゴメリ表現の値を返す。
+struct Montgomery {
+    /// 奇数の法である。
+    m: u64,
+    /// `m * m_inv ≡ -1 (mod 2^64)` を満たす値であり、モンゴメリ簡約で使う。
+    m_inv: u64,
+    /// `2^128 mod m` であり、通常表現からモンゴメリ表現への変換で使う。
+    r2: u64,
+}
+
+impl Montgomery {
+    fn new(m: u64) -> Self {
+        debug_assert!(m % 2 == 1);
+
+        // ニュートン法により m * m_inv ≡ 1 (mod 2^64) を満たす m_inv を求める。
+        // 奇数 m は mod 2 で m_inv = m を満たすことを初期値とし、反復のたびに
+        // 正しい下位ビット数が倍化する (2, 4, 8, 16, 32, 64 ビットの精度で
+        // 収束するため、64 ビットに到達するには 6 回の反復で十分である)。
+        let mut m_inv = m;
+        for _ in 0..6 {
+            m_inv = m_inv.wrapping_mul(2u64.wrapping_sub(m.wrapping_mul(m_inv)));
+        }
+        // 上記で求めた m_inv は m * m_inv ≡ 1 (mod 2^64) を満たすため、
+        // モンゴメリ簡約が要求する ≡ -1 の形にするために符号を反転させる。
+        let m_inv = m_inv.wrapping_neg();
+
+        let r2 = (((1_u128 << 64) % m as u128) * ((1_u128 << 64) % m as u128) % m as u128) as u64;
+
+        Montgomery { m, m_inv, r2 }
+    }
+
+    /// `t` (`< m * 2^64`) を、モンゴメリ簡約により `t * 2^{-64} mod m` へ変換する。
+    ///
+    /// `m` は `u64` 全域 (最大 `2^64 - 1`) を取りうるため、`t + q * m` の計算は
+    /// `u128` の範囲 (`< 2^128`) を超える可能性がある。`overflowing_add` で
+    /// キャリー (2^128 の位) を検出し、それを結果の 2^64 の位として足し戻す
+    /// ことで、`u128` のまま桁あふれなく計算する。この結果 `a` は理論上
+    /// `[0, 2m)` に収まる (`m < 2^64` なので `2m < 2^65`) ため、`u128` の範囲
+    /// には余裕で収まり、最後に `m` 未満まで正規化すれば安全に `u64` へ戻せる。
+    #[inline(always)]
+    fn reduce(&self, t: u128) -> u64 {
+        let q = (t as u64).wrapping_mul(self.m_inv);
+        let (sum, carried) = t.overflowing_add(q as u128 * self.m as u128);
+        let mut a = (sum >> 64) | ((carried as u128) << 64);
+        if a >= self.m as u128 {
+            a -= self.m as u128;
+        }
+        a as u64
+    }
+
+    /// 通常表現の値 (`< m`) をモンゴメリ表現へ変換する。
+    #[inline(always)]
+    fn encode(&self, x: u64) -> u64 {
+        self.reduce(x as u128 * self.r2 as u128)
+    }
+
+    /// モンゴメリ表現の値を通常表現へ変換する。
+    #[inline(always)]
+    fn decode(&self, x: u64) -> u64 {
+        self.reduce(x as u128)
+    }
+
+    /// モンゴメリ表現の値同士の乗算を行う。
+    #[inline(always)]
+    fn mul(&self, x: u64, y: u64) -> u64 {
+        self.reduce(x as u128 * y as u128)
+    }
+
+    /// モンゴメリ表現の値同士の加算を行う。
+    #[inline(always)]
+    fn add(&self, x: u64, y: u64) -> u64 {
+        let (t, overflowed) = x.overflowing_add(y);
+        if overflowed || t >= self.m {
+            t.wrapping_sub(self.m)
+        } else {
+            t
+        }
+    }
+
+    /// モンゴメリ表現の値同士の減算を行う。
+    #[inline(always)]
+    fn sub(&self, x: u64, y: u64) -> u64 {
+        let (t, overflowed) = x.overflowing_sub(y);
+        if overflowed {
+            t.wrapping_add(self.m)
+        } else {
+            t
+        }
+    }
+
+    /// モンゴメリ表現の `base` を、通常表現の指数 `exp` で累乗する。
+    fn pow(&self, base: u64, mut exp: u64) -> u64 {
+        let mut result = self.encode(1);
+        let mut base = base;
+        while exp > 0 {
+            if exp & 1 == 1 {
+                result = self.mul(result, base);
+            }
+            base = self.mul(base, base);
+            exp >>= 1;
+        }
+        result
+    }
+}
+
 /// 決定的 Miller-Rabin 法により、`n` が素数かどうかを判定する。
 ///
 /// # Args
@@ -44,6 +161,10 @@ pub fn is_prime(n: u64) -> bool {
     let s = (n - 1).trailing_zeros();
     let d = (n - 1) >> s;
 
+    let mont = Montgomery::new(n);
+    let one = mont.encode(1);
+    let minus_one = mont.encode(n - 1);
+
     // 基底 a が n の合成数性の証拠にならない (= n が合成数であってもこの a だけでは
     // 見抜けない) 場合に true を返す。a^d ≡ 1 または a^(2^r * d) ≡ -1 (mod n) と
     // なる 0 <= r < s が存在するなら、a はフェルマーテストを ("合成数の証拠なし" の
@@ -54,14 +175,14 @@ pub fn is_prime(n: u64) -> bool {
             return true;
         }
 
-        let mut x = modular_arithmetic::pow_mod(a, d, n);
-        if x == 1 || x == n - 1 {
+        let mut x = mont.pow(mont.encode(a), d);
+        if x == one || x == minus_one {
             return true;
         }
 
         for _ in 1..s {
-            x = modular_arithmetic::mul_mod(x, x, n);
-            if x == n - 1 {
+            x = mont.mul(x, x);
+            if x == minus_one {
                 return true;
             }
         }
@@ -93,33 +214,63 @@ fn factorize_by_trial_division(mut n: u64) -> HashMap<u64, usize> {
     result
 }
 
-/// Pollard's rho 法 (Floyd の閉路検出) により、合成数 `n` の非自明な約数を 1 つ見つける。
+/// Pollard's rho 法 (Floyd の閉路検出、Brent の改良) により、合成数 `n` の
+/// 非自明な約数を 1 つ見つける。
+///
+/// 素朴な実装では `gcd(|x - y|, n)` をステップごとに計算するが、`gcd` は除算を
+/// 伴い比較的重い演算である。`gcd(a, n) = 1` かつ `gcd(b, n) = 1` ならば
+/// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
+/// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
+/// `1 / BATCH` に減らす。
 fn find_divisor(n: u64) -> u64 {
+    // gcd の呼び出し回数と、約数が見つかった後にバッチ内を逐次探索する
+    // コストとのバランスを取るための、経験的に妥当なバッチサイズである。
+    const BATCH: usize = 128;
+
     if n % 2 == 0 {
         return 2;
     }
 
+    let mont = Montgomery::new(n);
+
     // c を変えながら繰り返す。1 つの c で閉路検出が n 自身に退化した (d == n) 場合は
     // 別の c で仕切り直す。
     for c in 1.. {
-        let f = |x: u64| -> u64 {
-            modular_arithmetic::add_mod(modular_arithmetic::mul_mod(x, x, n), c % n, n)
-        };
+        let c = mont.encode(c % n);
+        let f = |x: u64| -> u64 { mont.add(mont.mul(x, x), c) };
 
-        let mut x = 2;
-        let mut y = 2;
-        let mut d = 1;
+        let mut x = mont.encode(2);
+        let mut y = mont.encode(2);
+        let mut product = mont.encode(1);
 
-        // x は f を 1 回、y は f を 2 回適用しながら進める (Floyd の閉路検出)。
-        // gcd(|x - y|, n) が 1 でない非自明な値になった時点で約数が見つかる。
-        while d == 1 {
-            x = f(x);
-            y = f(f(y));
-            d = number_theory::gcd(x.abs_diff(y) as u128, n as u128) as u64;
-        }
+        'batch: loop {
+            // このバッチで計算した差分の積の履歴 (モンゴメリ表現のまま) を保持
+            // しておき、gcd(積, n) が 1 でなくなった場合に、その中のどのステップ
+            // で約数が混入したかを逐次探索で特定する。モンゴメリ表現は mod n
+            // での線形なスケーリングに過ぎないため、通常表現に戻さずに減算・
+            // 乗算を行っても差分の積という関係は保たれる。
+            let mut history = Vec::with_capacity(BATCH);
+            for _ in 0..BATCH {
+                x = f(x);
+                y = f(f(y));
+                product = mont.mul(product, mont.sub(x, y));
+                history.push(product);
+            }
 
-        if d != n {
-            return d;
+            if number_theory::gcd(mont.decode(product) as u128, n as u128) == 1 {
+                continue;
+            }
+
+            let d = history
+                .into_iter()
+                .map(|p| number_theory::gcd(mont.decode(p) as u128, n as u128) as u64)
+                .find(|&d| d != 1)
+                .unwrap();
+
+            if d != n {
+                return d;
+            }
+            break 'batch;
         }
     }
 
