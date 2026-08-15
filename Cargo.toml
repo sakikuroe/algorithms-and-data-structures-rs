@@ -287,6 +287,10 @@ name = "lc-factorize"
 path = "src/bin/library_checker/factorize.rs"
 
 [[bin]]
+name = "lc-primitive-root"
+path = "src/bin/library_checker/primitive_root.rs"
+
+[[bin]]
 name = "bj-bj15480-lca-and-query"
 path = "src/bin/baekjoon/bj15480_lca_and_query.rs"
 

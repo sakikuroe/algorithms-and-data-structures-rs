@@ -99,6 +99,7 @@ pub mod bin {
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
         pub mod primality_test;
+        pub mod primitive_root;
         pub mod product_of_polynomial_sequence;
         pub mod range_affine_range_sum;
         pub mod range_kth_smallest;
