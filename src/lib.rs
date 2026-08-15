@@ -70,6 +70,7 @@ pub mod math {
     pub mod number_theory;
     pub mod primality;
     pub mod series;
+    pub mod sieve;
 }
 
 pub mod string {
