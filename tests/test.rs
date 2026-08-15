@@ -75,6 +75,7 @@ pub mod bin {
         pub mod bipartitematching;
         pub mod convolution_mod;
         pub mod cycle_detection;
+        pub mod enumerate_primes;
         pub mod eulerian_trail_directed;
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
