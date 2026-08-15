@@ -10,7 +10,6 @@ pub mod bin {
         pub mod bj15480_lca_and_query;
     }
 
-
     pub mod atcoder {
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
@@ -21,13 +20,8 @@ pub mod bin {
         pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
         pub mod abc406_f_compare_tree_weights;
-        pub mod arc085_e_mul;
-        pub mod typical90_an_get_more_money;
-        pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
-        pub mod typical90_bs_fuzzy_priority;
-        pub mod typical90_m_passing;
-        pub mod typical90_u_come_back_in_one_piece;
         pub mod abc422_g_balls_and_boxes;
+        pub mod arc085_e_mul;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
         pub mod fps24_c_sequence;
@@ -40,6 +34,11 @@ pub mod bin {
         pub mod fps24_n_coin2;
         pub mod practice2_d_maxflow;
         pub mod typical90_am_tree_distance;
+        pub mod typical90_an_get_more_money;
+        pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
+        pub mod typical90_bs_fuzzy_priority;
+        pub mod typical90_m_passing;
+        pub mod typical90_u_come_back_in_one_piece;
     }
 
     pub mod aoj {
@@ -91,6 +90,7 @@ pub mod bin {
         pub mod partition_function;
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
+        pub mod primality_test;
         pub mod product_of_polynomial_sequence;
         pub mod scc;
         pub mod shortest_path;

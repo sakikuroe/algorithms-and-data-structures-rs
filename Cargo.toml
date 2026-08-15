@@ -279,6 +279,10 @@ name = "lc-vertex-set-path-composite"
 path = "src/bin/library_checker/vertex_set_path_composite.rs"
 
 [[bin]]
+name = "lc-primality-test"
+path = "src/bin/library_checker/primality_test.rs"
+
+[[bin]]
 name = "bj-bj15480-lca-and-query"
 path = "src/bin/baekjoon/bj15480_lca_and_query.rs"
 
