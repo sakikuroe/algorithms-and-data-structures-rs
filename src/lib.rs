@@ -66,6 +66,7 @@ pub mod io {
 }
 
 pub mod math {
+    pub mod modular_arithmetic;
     pub mod number_theory;
 }
 
