@@ -183,6 +183,14 @@ name = "ac-abc209-d-collision"
 path = "src/bin/atcoder/abc209_d_collision.rs"
 
 [[bin]]
+name = "ac-abc142-d-disjoint-set-of-common-divisors"
+path = "src/bin/atcoder/abc142_d_disjoint_set_of_common_divisors.rs"
+
+[[bin]]
+name = "ac-abc177-e-coprime"
+path = "src/bin/atcoder/abc177_e_coprime.rs"
+
+[[bin]]
 name = "ac-typical90-u-come-back-in-one-piece"
 path = "src/bin/atcoder/typical90_u_come_back_in_one_piece.rs"
 
