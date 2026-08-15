@@ -12,7 +12,9 @@ pub mod bin {
 
     pub mod atcoder {
         pub mod abc075_c_bridge;
+        pub mod abc142_d_disjoint_set_of_common_divisors;
         pub mod abc176_d_wizard_in_maze;
+        pub mod abc177_e_coprime;
         pub mod abc187_e_through_path;
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
