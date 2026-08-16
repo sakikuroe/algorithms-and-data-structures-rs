@@ -1,10 +1,11 @@
 //! 素数判定・素因数分解に関連する機能を提供するモジュールである。
 
 use crate::math::modular_arithmetic;
-use crate::math::number_theory;
 use std::collections::HashMap;
+use std::mem;
 
-/// 奇数の法 `m` に対する、モンゴメリ乗算による高速なモジュラー演算を提供する。
+/// 奇数の法 `m` (`m < 2^62`) に対する、モンゴメリ乗算による高速なモジュラー
+/// 演算を提供する。
 ///
 /// `crate::math::modular_arithmetic` の `mul_mod`/`pow_mod` は `u128` への
 /// キャストと除算命令によって剰余を求めるが、モンゴメリ乗算はビットシフトと
@@ -14,13 +15,16 @@ use std::collections::HashMap;
 /// 独立させ、このモジュール内部でのみ用いる。
 ///
 /// 値は「モンゴメリ表現」(`x * 2^64 mod m`) で扱う。[`Montgomery::encode`] で
-/// 通常表現から変換し、[`Montgomery::decode`] で通常表現へ戻す。
-/// [`Montgomery::mul`]/[`Montgomery::add`]/[`Montgomery::sub`] はいずれも
-/// モンゴメリ表現の値を受け取り、モンゴメリ表現の値を返す。
+/// 通常表現から変換する (通常表現へ戻す `decode` は、これまでの利用箇所が
+/// いずれもモンゴメリ表現のまま扱えたため用意していない。必要になれば
+/// `fma(x, 1, 0)` で計算できる)。速度を優先し、[`Montgomery::fma`]/
+/// [`Montgomery::mul`] の結果は `[0, m)` へ正規化せず `[0, 2m)` の範囲のまま
+/// 返す。そのため、モンゴメリ表現の値同士を比較する際は単純な `==` ではなく
+/// [`Montgomery::eq`] を使う必要がある。
 struct Montgomery {
     /// 奇数の法である。
     m: u64,
-    /// `m * m_inv ≡ -1 (mod 2^64)` を満たす値であり、モンゴメリ簡約で使う。
+    /// `m * m_inv ≡ 1 (mod 2^64)` を満たす値であり、モンゴメリ簡約で使う。
     m_inv: u64,
     /// `2^128 mod m` であり、通常表現からモンゴメリ表現への変換で使う。
     r2: u64,
@@ -29,81 +33,68 @@ struct Montgomery {
 impl Montgomery {
     fn new(m: u64) -> Self {
         debug_assert!(m % 2 == 1);
+        debug_assert!(m < (1 << 62));
 
         // ニュートン法により m * m_inv ≡ 1 (mod 2^64) を満たす m_inv を求める。
-        // 奇数 m は mod 2 で m_inv = m を満たすことを初期値とし、反復のたびに
-        // 正しい下位ビット数が倍化する (2, 4, 8, 16, 32, 64 ビットの精度で
-        // 収束するため、64 ビットに到達するには 6 回の反復で十分である)。
-        let mut m_inv = m;
+        // 1 を初期値とし、反復のたびに正しい下位ビット数が倍化する
+        // (1, 2, 4, 8, 16, 32, 64 ビットの精度で収束するため、64 ビットに
+        // 到達するには 6 回の反復で十分である)。
+        let mut m_inv = 1_u64;
         for _ in 0..6 {
             m_inv = m_inv.wrapping_mul(2u64.wrapping_sub(m.wrapping_mul(m_inv)));
         }
-        // 上記で求めた m_inv は m * m_inv ≡ 1 (mod 2^64) を満たすため、
-        // モンゴメリ簡約が要求する ≡ -1 の形にするために符号を反転させる。
-        let m_inv = m_inv.wrapping_neg();
 
-        let r2 = (((1_u128 << 64) % m as u128) * ((1_u128 << 64) % m as u128) % m as u128) as u64;
+        let r_mod_m = ((1_u128 << 64) % m as u128) as u64;
+        let r2 = modular_arithmetic::mul_mod(r_mod_m, r_mod_m, m);
 
         Montgomery { m, m_inv, r2 }
     }
 
-    /// `t` (`< m * 2^64`) を、モンゴメリ簡約により `t * 2^{-64} mod m` へ変換する。
+    /// `a * b / 2^64 + c (mod m)` を計算する融合乗算加算 (fused multiply-add)。
     ///
-    /// `m` は `u64` 全域 (最大 `2^64 - 1`) を取りうるため、`t + q * m` の計算は
-    /// `u128` の範囲 (`< 2^128`) を超える可能性がある。`overflowing_add` で
-    /// キャリー (2^128 の位) を検出し、それを結果の 2^64 の位として足し戻す
-    /// ことで、`u128` のまま桁あふれなく計算する。この結果 `a` は理論上
-    /// `[0, 2m)` に収まる (`m < 2^64` なので `2m < 2^65`) ため、`u128` の範囲
-    /// には余裕で収まり、最後に `m` 未満まで正規化すれば安全に `u64` へ戻せる。
+    /// `a`, `b` は `[0, 2m)`、`c` は `[0, m)` の範囲である前提とする。結果は
+    /// `[0, 2m)` の範囲になり、正規化は行わない。乗算と加算を 1 回の簡約に
+    /// まとめ、かつ結果を毎回 `[0, m)` へ正規化しないことで、`u128` の比較や
+    /// 減算を伴わない `u64` の `wrapping_*` 演算のみで完結させている。
+    ///
+    /// `a, b < 2m` より `a * b < 4m^2` であり、これが `(m - c) * 2^64` 未満で
+    /// あれば `a * b + c * 2^64 < m * 2^64` となり、簡約結果は理論上
+    /// `[0, 2m)` に収まる。`c = 0` で呼ぶ [`Montgomery::mul`] ではこの条件は
+    /// `4m^2 < m * 2^64` すなわち `m < 2^62` に単純化でき、[`Montgomery::new`]
+    /// がこの上限を強制しているのはこのためである。`c` が `0` でない一般の
+    /// `fma` 呼び出しでは、`c` が `m` に近いほど条件は厳しくなる点に注意する。
     #[inline(always)]
-    fn reduce(&self, t: u128) -> u64 {
+    fn fma(&self, a: u64, b: u64, c: u64) -> u64 {
+        debug_assert!(a < self.m * 2);
+        debug_assert!(b < self.m * 2);
+        debug_assert!(c < self.m);
+
+        let t = a as u128 * b as u128;
+        let tc = ((t >> 64) as u64).wrapping_add(c);
         let q = (t as u64).wrapping_mul(self.m_inv);
-        let (sum, carried) = t.overflowing_add(q as u128 * self.m as u128);
-        let mut a = (sum >> 64) | ((carried as u128) << 64);
-        if a >= self.m as u128 {
-            a -= self.m as u128;
-        }
-        a as u64
+        let qm = ((q as u128 * self.m as u128) >> 64) as u64;
+        tc.wrapping_sub(qm).wrapping_add(self.m)
+    }
+
+    /// モンゴメリ表現の値同士の乗算を行う。
+    #[inline(always)]
+    fn mul(&self, a: u64, b: u64) -> u64 {
+        self.fma(a, b, 0)
     }
 
     /// 通常表現の値 (`< m`) をモンゴメリ表現へ変換する。
     #[inline(always)]
     fn encode(&self, x: u64) -> u64 {
-        self.reduce(x as u128 * self.r2 as u128)
+        self.mul(x, self.r2)
     }
 
-    /// モンゴメリ表現の値を通常表現へ変換する。
+    /// `[0, 2m)` の範囲にある 2 つのモンゴメリ表現の値が、mod `m` で等しいか
+    /// どうかを判定する。正規化していない値同士は、差が `0` または `m` の
+    /// いずれかであれば mod `m` で等しい。
     #[inline(always)]
-    fn decode(&self, x: u64) -> u64 {
-        self.reduce(x as u128)
-    }
-
-    /// モンゴメリ表現の値同士の乗算を行う。
-    #[inline(always)]
-    fn mul(&self, x: u64, y: u64) -> u64 {
-        self.reduce(x as u128 * y as u128)
-    }
-
-    /// モンゴメリ表現の値同士の加算を行う。
-    #[inline(always)]
-    fn add(&self, x: u64, y: u64) -> u64 {
-        let (t, overflowed) = x.overflowing_add(y);
-        if overflowed || t >= self.m {
-            t.wrapping_sub(self.m)
-        } else {
-            t
-        }
-    }
-
-    /// モンゴメリ表現の値同士の減算を行う。
-    #[inline(always)]
-    fn sub(&self, x: u64, y: u64) -> u64 {
-        let (t, overflowed) = x.overflowing_sub(y);
-        if overflowed {
-            t.wrapping_add(self.m)
-        } else {
-            t
-        }
+    fn eq(&self, a: u64, b: u64) -> bool {
+        let d = a.abs_diff(b);
+        d == 0 || d == self.m
     }
 
     /// モンゴメリ表現の `base` を、通常表現の指数 `exp` で累乗する。
@@ -114,8 +105,10 @@ impl Montgomery {
             if exp & 1 == 1 {
                 result = self.mul(result, base);
             }
-            base = self.mul(base, base);
             exp >>= 1;
+            if exp > 0 {
+                base = self.mul(base, base);
+            }
         }
         result
     }
@@ -132,8 +125,10 @@ impl Montgomery {
 /// # Complexity
 /// - 時間計算量: $O(\log^2 n)$
 ///   - 基底 `[2, 325, 9375, 28178, 450775, 9780504, 1795265022]` の 7 個それぞれについて
-///     $O(\log n)$ 回のモジュラー乗算を行う。この基底の組み合わせは `u64` の全域で
-///     決定的に正しい結果を返すことが知られている。
+///     $O(\log n)$ 回のモジュラー乗算を行う。この基底は `u64` の全域で決定的に
+///     正しい結果を返すことが知られているが、`n` が `4759123141` 未満の場合は
+///     基底 `[2, 7, 61]` の 3 個で決定的な判定に十分であることも知られており、
+///     その場合はこちらを用いて基底数を減らす。
 ///
 /// # Examples
 /// ```
@@ -157,6 +152,31 @@ pub fn is_prime(n: u64) -> bool {
         return false;
     }
 
+    // n がこの値未満であれば、基底 [2, 7, 61] の 3 個だけで決定的に判定できる
+    // ことが知られている。
+    const SMALL_WITNESSES_THRESHOLD: u64 = 4_759_123_141;
+    const SMALL_WITNESSES: [u64; 3] = [2, 7, 61];
+    const FULL_WITNESSES: [u64; 7] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022];
+
+    let witnesses: &[u64] = if n < SMALL_WITNESSES_THRESHOLD {
+        &SMALL_WITNESSES
+    } else {
+        &FULL_WITNESSES
+    };
+
+    // Montgomery は m < 2^62 のみに対応するため、それ以上の n では
+    // modular_arithmetic の汎用実装に切り替える。u64 全域のうち n >= 2^62 と
+    // なる割合は 4 分の 3 に上るが、Library Checker など実用上扱う入力の
+    // 多くは 10^18 (< 2^60) 程度までであり、高速な経路を通ることが多い。
+    if n < (1 << 62) {
+        is_prime_by_montgomery(n, witnesses)
+    } else {
+        is_prime_by_fallback(n, witnesses)
+    }
+}
+
+/// `n < 2^62` の場合に用いる、モンゴメリ乗算による高速な Miller-Rabin 法。
+fn is_prime_by_montgomery(n: u64, witnesses: &[u64]) -> bool {
     // n - 1 = 2^s * d (d は奇数) と分解する。
     let s = (n - 1).trailing_zeros();
     let d = (n - 1) >> s;
@@ -169,30 +189,54 @@ pub fn is_prime(n: u64) -> bool {
     // 見抜けない) 場合に true を返す。a^d ≡ 1 または a^(2^r * d) ≡ -1 (mod n) と
     // なる 0 <= r < s が存在するなら、a はフェルマーテストを ("合成数の証拠なし" の
     // 意味で) 通過する。
-    let passes_test = |a: u64| -> bool {
+    witnesses.iter().all(|&a| {
         let a = a % n;
         if a == 0 {
             return true;
         }
 
         let mut x = mont.pow(mont.encode(a), d);
-        if x == one || x == minus_one {
+        if mont.eq(x, one) || mont.eq(x, minus_one) {
             return true;
         }
 
         for _ in 1..s {
             x = mont.mul(x, x);
-            if x == minus_one {
+            if mont.eq(x, minus_one) {
                 return true;
             }
         }
 
         false
-    };
+    })
+}
 
-    [2, 325, 9375, 28178, 450775, 9780504, 1795265022]
-        .into_iter()
-        .all(passes_test)
+/// `n >= 2^62` の場合に用いる、`modular_arithmetic` の汎用実装による
+/// Miller-Rabin 法。判定のロジックは [`is_prime_by_montgomery`] と同じである。
+fn is_prime_by_fallback(n: u64, witnesses: &[u64]) -> bool {
+    let s = (n - 1).trailing_zeros();
+    let d = (n - 1) >> s;
+
+    witnesses.iter().all(|&a| {
+        let a = a % n;
+        if a == 0 {
+            return true;
+        }
+
+        let mut x = modular_arithmetic::pow_mod(a, d, n);
+        if x == 1 || x == n - 1 {
+            return true;
+        }
+
+        for _ in 1..s {
+            x = modular_arithmetic::mul_mod(x, x, n);
+            if x == n - 1 {
+                return true;
+            }
+        }
+
+        false
+    })
 }
 
 /// 試し割り法によって、閾値未満の合成数 `n` を素因数分解する。
@@ -214,63 +258,192 @@ fn factorize_by_trial_division(mut n: u64) -> HashMap<u64, usize> {
     result
 }
 
-/// Pollard's rho 法 (Floyd の閉路検出、Brent の改良) により、合成数 `n` の
-/// 非自明な約数を 1 つ見つける。
+/// `u64` 同士の最大公約数を、除算命令を使わずに求める (Stein のアルゴリズム、
+/// バイナリ GCD)。
+///
+/// `number_theory::gcd` はユークリッドの互除法により `%` (除算命令) で剰余を
+/// 求めるが、除算命令はシフトや乗算に比べて何倍も重い。バイナリ GCD は
+/// 「両方偶数なら 2 で割って `2 * gcd(x/2, y/2)`」「片方だけ偶数ならその値だけ
+/// 2 で割ってよい」「両方奇数なら差を取ると必ず偶数になるので次のステップに
+/// 戻れる」という 3 つの性質だけで計算でき、右シフト・比較・引き算のみで
+/// 完結する。`find_divisor` はバッチのたびに `gcd` を頻繁に呼ぶため、
+/// `number_theory::gcd` を書き換えず、この関数だけをここで使う。
+fn gcd_binary(mut x: u64, mut y: u64) -> u64 {
+    if x == 0 {
+        return y;
+    }
+    if y == 0 {
+        return x;
+    }
+
+    // x, y に共通する 2 の因数を先に取り除いておき、最後に掛け戻す。
+    let common_twos = (x | y).trailing_zeros();
+    x >>= x.trailing_zeros();
+
+    // 以降、x は常に奇数に保つ。y は毎回先頭で奇数化してから x と比較し、
+    // 大きい方から小さい方を引く (差は必ず偶数になり、次のループの先頭で
+    // 再び奇数化される)。x == y になった時点で、それが (2 の共通因数を除いた)
+    // 最大公約数である。
+    loop {
+        y >>= y.trailing_zeros();
+        if x == y {
+            break;
+        }
+        if x > y {
+            mem::swap(&mut x, &mut y);
+        }
+        y -= x;
+    }
+
+    x << common_twos
+}
+
+/// Pollard's rho 法 (Brent のサイクル検出) により、合成数 `n` の非自明な約数を
+/// 1 つ見つける。
+///
+/// Floyd のサイクル検出 (「亀と兎」を毎ステップ動かす方式) は 1 ステップあたり
+/// 3 回の関数評価 (`f(x)` を 1 回、`f(f(y))` で 2 回) を要するのに対し、Brent の
+/// 方式は一定間隔で固定する参照点 `x` との差分を追跡することで、1 ステップ
+/// あたり 1 回の関数評価で済む。さらに、素朴な実装が `gcd(|x - y|, n)` を毎
+/// ステップ計算するのに対し、`gcd(a, n) = 1` かつ `gcd(b, n) = 1` ならば
+/// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
+/// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
+/// `1 / BATCH` に減らす。
+fn find_divisor(n: u64) -> u64 {
+    if n % 2 == 0 {
+        return 2;
+    }
+
+    // Montgomery は m < 2^62 のみに対応するため、それ以上の n では
+    // modular_arithmetic の汎用実装に切り替える。u64 全域のうち n >= 2^62 と
+    // なる割合は 4 分の 3 に上るが、Library Checker など実用上扱う入力の
+    // 多くは 10^18 (< 2^60) 程度までであり、高速な経路を通ることが多い。
+    if n < (1 << 62) {
+        find_divisor_by_montgomery(n)
+    } else {
+        find_divisor_by_fallback(n)
+    }
+}
+
+/// `n < 2^62` の場合に用いる、モンゴメリ乗算による高速な Pollard's rho 法
+/// (Brent のサイクル検出)。
+fn find_divisor_by_montgomery(n: u64) -> u64 {
+    // gcd の呼び出し回数と、約数の混入位置を後から逐次探索するコストとの
+    // バランスを取るための、経験的に妥当なバッチサイズである。
+    const BATCH: usize = 512;
+
+    let mont = Montgomery::new(n);
+
+    // c を変えながら繰り返す。1 つの c で約数が見つからなかった場合は、
+    // 別の c (別の多項式 f(a) = a^2 + c) で仕切り直す。c は encode せず生の
+    // 値のまま使う。多項式定数の「意味」がモンゴメリ表現としてズレても、
+    // どのみち c は数列にサイクル構造を作れれば十分な値であり、最終的な
+    // gcd の結果には影響しない (gcd_binary に渡す直前の値についても同様)。
+    for c in 1..n {
+        let f = |a: u64| -> u64 { mont.fma(a, a, c) };
+
+        // x: 一定間隔 (バッチ境界) で更新する参照点。
+        // y: 毎ステップ f を適用して進めていく点。
+        // ys: 直近のバッチ開始時点の y の値。バッチ全体では gcd が n に退化
+        //     した場合に、この位置から 1 ステップずつ確認し直すための
+        //     巻き戻し地点として使う。
+        let (mut x, mut y, mut ys) = (0_u64, 0_u64, 0_u64);
+        // g: 直近に計算した gcd。1 である間は探索を続ける。
+        // product: バッチ内で蓄積する差分の積 (モンゴメリ表現のまま)。
+        // r: 参照点 x を切り替えるまでに進む合計ステップ数で、バッチが尽きる
+        //    たびに倍化していく。
+        // k: 現在の参照点のもとで、これまでに進んだステップ数。
+        let (mut g, mut product, mut r, mut k) = (1_u64, 1_u64, 1_usize, 0_usize);
+
+        while g == 1 {
+            x = y;
+            while k < r && g == 1 {
+                ys = y;
+                for _ in 0..BATCH.min(r - k) {
+                    y = f(y);
+                    // x, y はいずれも [0, 2n) の範囲のモンゴメリ表現の値
+                    // (Montgomery::fma は正規化を行わない) だが、差の絶対値
+                    // は [0, 2n) に収まるため、そのまま mul の入力に使える。
+                    product = mont.mul(product, x.abs_diff(y));
+                }
+                // モンゴメリの基数 R (= 2^64) は奇数の n と互いに素であるため、
+                // gcd(q * R mod n, n) == gcd(q, n) が成り立つ。decode (除算を
+                // 伴う) を経由せず、モンゴメリ表現のまま gcd を取ってよい。
+                g = gcd_binary(product, n);
+                k += BATCH;
+            }
+            k = r;
+            r <<= 1;
+        }
+
+        if g == n {
+            // バッチ単位の gcd が n に退化した場合、直近のバッチ開始地点まで
+            // 巻き戻し、1 ステップずつ gcd を確認して混入した位置を特定する。
+            g = 1;
+            y = ys;
+            while g == 1 {
+                y = f(y);
+                g = gcd_binary(x.abs_diff(y), n);
+            }
+        }
+
+        if g != n {
+            return g;
+        }
+    }
+
+    unreachable!()
+}
+
+/// `n >= 2^62` の場合に用いる、`modular_arithmetic` の汎用実装による
+/// Pollard's rho 法 (Floyd の閉路検出)。
 ///
 /// 素朴な実装では `gcd(|x - y|, n)` をステップごとに計算するが、`gcd` は除算を
 /// 伴い比較的重い演算である。`gcd(a, n) = 1` かつ `gcd(b, n) = 1` ならば
 /// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
 /// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
 /// `1 / BATCH` に減らす。
-fn find_divisor(n: u64) -> u64 {
-    // gcd の呼び出し回数と、約数が見つかった後にバッチ内を逐次探索する
-    // コストとのバランスを取るための、経験的に妥当なバッチサイズである。
+fn find_divisor_by_fallback(n: u64) -> u64 {
     const BATCH: usize = 128;
-
-    if n % 2 == 0 {
-        return 2;
-    }
-
-    let mont = Montgomery::new(n);
 
     // c を変えながら繰り返す。1 つの c で閉路検出が n 自身に退化した (d == n) 場合は
     // 別の c で仕切り直す。
     for c in 1.. {
-        let c = mont.encode(c % n);
-        let f = |x: u64| -> u64 { mont.add(mont.mul(x, x), c) };
+        let c = c % n;
+        let f = |x: u64| -> u64 {
+            modular_arithmetic::add_mod(modular_arithmetic::mul_mod(x, x, n), c, n)
+        };
 
-        let mut x = mont.encode(2);
-        let mut y = mont.encode(2);
-        let mut product = mont.encode(1);
+        let mut x = 2;
+        let mut y = 2;
+        let mut product = 1;
 
-        'batch: loop {
-            // このバッチで計算した差分の積の履歴 (モンゴメリ表現のまま) を保持
-            // しておき、gcd(積, n) が 1 でなくなった場合に、その中のどのステップ
-            // で約数が混入したかを逐次探索で特定する。モンゴメリ表現は mod n
-            // での線形なスケーリングに過ぎないため、通常表現に戻さずに減算・
-            // 乗算を行っても差分の積という関係は保たれる。
+        loop {
+            // このバッチで計算した差分の積の履歴を保持しておき、gcd(積, n) が
+            // 1 でなくなった場合に、その中のどのステップで約数が混入したかを
+            // 逐次探索で特定する。
             let mut history = Vec::with_capacity(BATCH);
             for _ in 0..BATCH {
                 x = f(x);
                 y = f(f(y));
-                product = mont.mul(product, mont.sub(x, y));
+                product = modular_arithmetic::mul_mod(product, x.abs_diff(y), n);
                 history.push(product);
             }
 
-            if number_theory::gcd(mont.decode(product) as u128, n as u128) == 1 {
+            if gcd_binary(product, n) == 1 {
                 continue;
             }
 
             let d = history
                 .into_iter()
-                .map(|p| number_theory::gcd(mont.decode(p) as u128, n as u128) as u64)
+                .map(|p| gcd_binary(p, n))
                 .find(|&d| d != 1)
                 .unwrap();
 
             if d != n {
                 return d;
             }
-            break 'batch;
+            break;
         }
     }
 
@@ -306,6 +479,15 @@ fn find_divisor(n: u64) -> u64 {
 pub fn factorize(n: u64) -> HashMap<u64, usize> {
     // 試し割り法が O(sqrt(n)) の時間で十分実用的に収まる閾値である。
     const TRIAL_DIVISION_THRESHOLD: u64 = 1_000_000_000;
+    // Pollard's rho に入る前に、この値未満の素因数を試し割りで先に取り除く
+    // 閾値である。Pollard's rho は大きな素因数の発見は得意だが、小さな
+    // 素因数の発見は試し割りに劣るため、事前に取り除いておくことで
+    // find_divisor (ひいては Montgomery のセットアップや Brent の探索) の
+    // 呼び出し回数を減らせる。ただし閾値を上げすぎると、この試し割り自体の
+    // コストが上回る。Library Checker `factorize` の全テストケースで計測した
+    // ところ、閾値なしで約 117ms、1000 では約 124ms (悪化) だったのに対し、
+    // 40 前後が約 111ms と最も速かった。
+    const SMALL_PRIME_LIMIT: u64 = 40;
 
     if n == 0 || n == 1 {
         return HashMap::new();
@@ -318,6 +500,16 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
     }
 
     let mut result = HashMap::new();
+    let n = extract_small_prime_factors(n, SMALL_PRIME_LIMIT, &mut result);
+
+    if n == 1 {
+        return result;
+    }
+    if is_prime(n) {
+        *result.entry(n).or_insert(0) += 1;
+        return result;
+    }
+
     let mut composites = vec![n];
 
     while let Some(m) = composites.pop() {
@@ -332,6 +524,20 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
     }
 
     result
+}
+
+/// `n` から `limit` 未満の素因数を試し割りで取り除き、`result` に積算した
+/// うえで、取り除いた後に残った値を返す。
+fn extract_small_prime_factors(mut n: u64, limit: u64, result: &mut HashMap<u64, usize>) -> u64 {
+    let mut p = 2;
+    while p < limit && p * p <= n {
+        while n % p == 0 {
+            *result.entry(p).or_insert(0) += 1;
+            n /= p;
+        }
+        p += 1;
+    }
+    n
 }
 
 /// `n` の正の約数を昇順に列挙する。
@@ -603,6 +809,26 @@ mod tests {
             assert!(prime_result);
             assert!(!composite_result);
         }
+
+        /// Scenario: `[2^62, 2^63)` の範囲にある素数を正しく判定できる (境界値)。
+        /// - Given: `[2^62, 2^63)` の範囲にある素数がある。
+        /// - When: `is_prime` を呼ぶ。
+        /// - Then: `true` が返る。
+        ///
+        /// この範囲は、モンゴメリ乗算の適用上限を誤って `2^63` としていた際に
+        /// 誤って `false` を返していた区間である (`m < 2^62` が正しい上限)。
+        #[test]
+        fn returns_true_for_primes_in_2_pow_62_to_2_pow_63() {
+            // Given
+            let n = 7094011965265554437_u64;
+            assert!(n >= 1 << 62 && n < 1 << 63);
+
+            // When
+            let result = is_prime(n);
+
+            // Then
+            assert!(result);
+        }
     }
 
     // factorize のテスト: 戻り値を検証する。
@@ -705,6 +931,47 @@ mod tests {
                 // Then
                 assert_eq!(expected, result);
             }
+        }
+
+        /// Scenario: `2^62` 以上の大きな素因数を含む合成数でも、モンゴメリ乗算
+        /// の適用範囲外として正しく処理できる (境界値)。
+        /// - Given: `2^62` 以上の大きな素数と `2` の積である合成数がある。
+        /// - When: `factorize` を呼ぶ。
+        /// - Then: 期待した素因数分解が返る。
+        #[test]
+        fn returns_correct_factorization_for_numbers_at_or_above_2_pow_62() {
+            // Given
+            // 4611686018427388039 は 2^62 を超える大きな素数である。
+            let p = 4611686018427388039_u64;
+            let n = p * 2;
+            assert!(p >= 1 << 62);
+
+            // When
+            let result = factorize(n);
+
+            // Then
+            assert_eq!(HashMap::from([(2, 1), (p, 1)]), result);
+        }
+
+        /// Scenario: `[2^62, 2^63)` の範囲にある素数を正しく素因数分解する (境界値)。
+        /// - Given: `[2^62, 2^63)` の範囲にある素数がある。
+        /// - When: `factorize` を呼ぶ。
+        /// - Then: `{n: 1}` が返る。
+        ///
+        /// この範囲は、モンゴメリ乗算の適用上限を誤って `2^63` としていた際に
+        /// `is_prime` が誤って `false` を返し、結果として Pollard's rho が
+        /// 存在しない非自明な約数を探し続けてハングしていた区間である。
+        #[test]
+        fn returns_itself_for_primes_in_2_pow_62_to_2_pow_63() {
+            // Given
+            let n = 7094011965265554437_u64;
+            assert!(n >= 1 << 62 && n < 1 << 63);
+
+            // When
+            let result = factorize(n);
+
+            // Then
+            assert_eq!(HashMap::from([(n, 1)]), result);
         }
     }
 
