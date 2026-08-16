@@ -56,6 +56,7 @@ pub mod io {
 }
 
 pub mod math {
+    pub mod kth_root;
     pub mod modular_arithmetic;
     pub mod number_theory;
     pub mod primality;

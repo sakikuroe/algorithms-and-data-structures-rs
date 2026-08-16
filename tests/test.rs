@@ -85,6 +85,7 @@ pub mod bin {
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod jump_on_tree;
+        pub mod kth_root_integer;
         pub mod kth_term_of_linearly_recurrent_sequence;
         pub mod lca;
         pub mod lca_by_euler_tour;
