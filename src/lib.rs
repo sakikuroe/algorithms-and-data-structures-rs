@@ -32,8 +32,8 @@ pub mod graph {
     pub mod dfs;
     pub mod dijkstra;
     pub mod eulerian_path;
-    pub mod floyd_warshall;
     pub mod flow_graph;
+    pub mod floyd_warshall;
     pub mod graph;
     pub mod hld;
     pub mod hld_path_query;
@@ -56,7 +56,12 @@ pub mod io {
 }
 
 pub mod math {
+    pub mod kth_root;
+    pub mod modular_arithmetic;
     pub mod number_theory;
+    pub mod primality;
+    pub mod series;
+    pub mod sieve;
 }
 
 pub mod string {
