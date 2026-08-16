@@ -303,6 +303,10 @@ name = "lc-enumerate-primes"
 path = "src/bin/library_checker/enumerate_primes.rs"
 
 [[bin]]
+name = "lc-kth-root-integer"
+path = "src/bin/library_checker/kth_root_integer.rs"
+
+[[bin]]
 name = "bj-bj15480-lca-and-query"
 path = "src/bin/baekjoon/bj15480_lca_and_query.rs"
 
