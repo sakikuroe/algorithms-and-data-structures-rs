@@ -294,5 +294,9 @@ path = "src/bin/codechef/talca.rs"
 name = "ac-abc035-c-othello"
 path = "src/bin/atcoder/abc035_c_othello.rs"
 
+[[bin]]
+name = "lc-range-affine-range-sum"
+path = "src/bin/library_checker/range_affine_range_sum.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
