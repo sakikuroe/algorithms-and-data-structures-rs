@@ -290,5 +290,9 @@ path = "src/bin/poj/poj1741_tree.rs"
 name = "cc-talca"
 path = "src/bin/codechef/talca.rs"
 
+[[bin]]
+name = "ac-abc035-c-othello"
+path = "src/bin/atcoder/abc035_c_othello.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"

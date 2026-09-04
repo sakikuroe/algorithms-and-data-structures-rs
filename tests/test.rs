@@ -11,6 +11,7 @@ pub mod bin {
     }
 
     pub mod atcoder {
+        pub mod abc035_c_othello;
         pub mod abc075_c_bridge;
         pub mod abc176_d_wizard_in_maze;
         pub mod abc187_e_through_path;
