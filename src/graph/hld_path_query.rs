@@ -414,8 +414,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::super::graph::Graph;
     use super::super::super::algebra::monoid::AffineMonoid;
+    use super::super::graph::Graph;
     use super::*;
 
     type Affine = AffineMonoid<998244353>;
@@ -681,7 +681,7 @@ mod tests {
             // 頂点0..5の値。畳み込みに関与するのは 5,3,1,4 のみである。
             let values = vec![
                 (1_u64, 0_u64),
-                (7, 1),  // 頂点1: f(x) = 7x+1
+                (7, 1), // 頂点1: f(x) = 7x+1
                 (1, 0),
                 (2, 3),  // 頂点3: f(x) = 2x+3
                 (11, 5), // 頂点4: f(x) = 11x+5

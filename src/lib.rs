@@ -32,8 +32,8 @@ pub mod graph {
     pub mod dfs;
     pub mod dijkstra;
     pub mod eulerian_path;
-    pub mod floyd_warshall;
     pub mod flow_graph;
+    pub mod floyd_warshall;
     pub mod graph;
     pub mod hld;
     pub mod hld_path_query;

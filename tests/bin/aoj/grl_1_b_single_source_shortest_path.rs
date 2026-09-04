@@ -14,10 +14,7 @@ mod aoj_grl_1_b_single_source_shortest_path {
     /// - Then: 各頂点への最短コスト (または `NEGATIVE CYCLE`) が期待通りである
     #[rstest]
     // - Given: 負の重みを持つ辺を含むが、負閉路は存在しないグラフである
-    #[case::sample_1(
-        "4 5 0\n0 1 2\n0 2 3\n1 2 -5\n1 3 1\n2 3 2\n",
-        "0\n2\n-3\n-1\n"
-    )]
+    #[case::sample_1("4 5 0\n0 1 2\n0 2 3\n1 2 -5\n1 3 1\n2 3 2\n", "0\n2\n-3\n-1\n")]
     // - Given: 始点 0 から到達可能な負閉路を含むグラフである
     #[case::sample_2_negative_cycle(
         "4 6 0\n0 1 2\n0 2 3\n1 2 -5\n1 3 1\n2 3 2\n3 1 0\n",

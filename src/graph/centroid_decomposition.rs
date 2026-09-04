@@ -156,12 +156,10 @@ impl CentroidDecomposition {
             let mut branches: Vec<Vec<usize>> = Vec::new();
             for &v in &component {
                 if v != c {
-                    let idx = *branch_index
-                        .entry(branch_of[v])
-                        .or_insert_with(|| {
-                            branches.push(Vec::new());
-                            branches.len() - 1
-                        });
+                    let idx = *branch_index.entry(branch_of[v]).or_insert_with(|| {
+                        branches.push(Vec::new());
+                        branches.len() - 1
+                    });
                     branches[idx].push(dist[v]);
                 }
             }
@@ -279,7 +277,8 @@ impl CentroidDecomposition {
             while let Some(u) = queue.pop_front() {
                 for (v, payload) in g.edges(u) {
                     if !blocked[v] && dist[v].is_none() {
-                        dist[v] = Some(dist[u].expect("u was already visited") + weight_of(payload));
+                        dist[v] =
+                            Some(dist[u].expect("u was already visited") + weight_of(payload));
                         // c 自身の隣接頂点なら新しい枝の入口、それ以外は
                         // 親と同じ枝に属する。
                         branch_of[v] = if u == c { v } else { branch_of[u] };
@@ -301,12 +300,10 @@ impl CentroidDecomposition {
             let mut branches: Vec<Vec<W>> = Vec::new();
             for &v in &component {
                 if v != c {
-                    let idx = *branch_index
-                        .entry(branch_of[v])
-                        .or_insert_with(|| {
-                            branches.push(Vec::new());
-                            branches.len() - 1
-                        });
+                    let idx = *branch_index.entry(branch_of[v]).or_insert_with(|| {
+                        branches.push(Vec::new());
+                        branches.len() - 1
+                    });
                     branches[idx].push(dist[v].expect("every vertex in component has a distance"));
                 }
             }
@@ -730,12 +727,16 @@ mod tests {
             };
             // When
             let mut count = 0_i64;
-            sut.for_each_component_by(&g, |&w| w, |_centroid, whole, branches| {
-                count += count_pairs(whole);
-                for branch in branches {
-                    count -= count_pairs(branch);
-                }
-            });
+            sut.for_each_component_by(
+                &g,
+                |&w| w,
+                |_centroid, whole, branches| {
+                    count += count_pairs(whole);
+                    for branch in branches {
+                        count -= count_pairs(branch);
+                    }
+                },
+            );
             // Then
             assert_eq!(8, count);
         }
