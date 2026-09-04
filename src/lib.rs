@@ -15,6 +15,7 @@ pub mod modulo998244353 {
 
 pub mod ds {
     pub mod segment_tree {
+        pub mod lazy_segment_tree;
         pub mod segment_tree_dense;
     }
     pub mod bit_vector;
