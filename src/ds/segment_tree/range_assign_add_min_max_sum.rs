@@ -101,6 +101,15 @@ impl monoid::Monoid for MinMaxSumMonoid {
     }
 }
 
+impl monoid::GeneratedMonoid for MinMaxSumMonoid {
+    type V = i64;
+
+    /// 1 要素の値をモノイド値 `(値, 値, 値, 1)` に埋め込む。
+    fn singleton(v: Self::V) -> Self::S {
+        (v, v, v, 1)
+    }
+}
+
 /// 区間代入と区間加算を統合した作用である。
 ///
 /// 内部的に `(assign: Option<i64>, add: i64)` を保持する。

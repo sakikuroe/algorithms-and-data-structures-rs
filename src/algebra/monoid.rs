@@ -11,6 +11,30 @@ pub trait Monoid: semi_group::SemiGroup {
     fn id() -> Self::S;
 }
 
+/// 基底集合からの埋め込みを持つモノイドである。
+///
+/// 自由モノイド $V^*$ から $(S, \oplus, e)$ への準同型
+/// $\varphi$ において、生成元 $(v) \in V^*$ の像
+/// $\varphi((v))$ を `singleton` として提供する。
+/// 遅延セグメント木が `from_values` で基底値のベクタから
+/// 木を構築するために使用する。
+pub trait GeneratedMonoid: Monoid {
+    /// 基底集合の型。自由モノイドのアルファベットに対応する。
+    type V;
+
+    /// 基底値をモノイド値に埋め込む。
+    ///
+    /// 自由モノイドの生成元 $(v)$ の準同型像 $\varphi((v))$ を
+    /// 返す。
+    ///
+    /// # Args
+    /// - `v` - 基底集合の元
+    ///
+    /// # Returns
+    /// 基底値 `v` に対応するモノイド値を返す。
+    fn singleton(v: Self::V) -> Self::S;
+}
+
 /// `i64` 型の最小値を求めるモノイドである.
 pub struct MinMonoid;
 

@@ -60,6 +60,15 @@ impl monoid::Monoid for RangeAffineFoldSumMonoid {
     }
 }
 
+impl monoid::GeneratedMonoid for RangeAffineFoldSumMonoid {
+    type V = modint::ModInt998244353;
+
+    /// 1 要素の値をモノイド値 `(値, 要素数 = 1)` に埋め込む。
+    fn singleton(v: Self::V) -> Self::S {
+        (v, 1)
+    }
+}
+
 /// アフィン変換 `f(x) = m * x + b` を遅延セグメント木の作用
 /// として表現する。
 ///

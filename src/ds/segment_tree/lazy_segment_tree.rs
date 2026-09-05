@@ -5,7 +5,7 @@
 //! 上の値を管理し、準同型写像 (`Hom` トレイト) を通じて区間に
 //! 対する作用を遅延的に適用する。
 
-use super::super::super::algebra::monoid;
+use super::super::super::algebra::monoid::{self, GeneratedMonoid};
 
 /// モノイドの値に対する準同型写像を表すトレイトである。
 ///
@@ -225,6 +225,38 @@ where
             data,
             lazy: vec![None; 2 * size],
         }
+    }
+
+    /// 基底値のベクタから遅延セグメント木を構築する。
+    ///
+    /// `GeneratedMonoid` の `singleton` を用いて各基底値を
+    /// モノイド値に変換し、木を構築する。
+    ///
+    /// # Args
+    /// - `v` - 基底値のベクタ
+    ///
+    /// # Returns
+    /// 基底値から構築された `SegmentTreeLazyDense` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: $O(n)$
+    /// - 空間計算量: $O(n)$
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::ds::segment_tree::bit_segment_tree;
+    ///
+    /// let mut seg = bit_segment_tree::BitSegTree::from_values(
+    ///     vec![true, false, true],
+    /// );
+    /// let data = seg.fold(0, 3);
+    /// assert_eq!(2, data.ones);
+    /// ```
+    pub fn from_values(v: Vec<M::V>) -> Self
+    where
+        M: GeneratedMonoid,
+    {
+        Self::from_vec(v.into_iter().map(M::singleton).collect())
     }
 
     /// 管理する要素数 (2 の冪に切り上げた内部サイズ) を返す。
