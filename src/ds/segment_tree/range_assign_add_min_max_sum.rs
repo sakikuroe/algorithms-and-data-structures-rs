@@ -581,4 +581,115 @@ mod tests {
             assert_eq!((25, 1, 13, 5), result);
         }
     }
+
+    // ランダムテスト: ナイーブ実装との照合を検証する。
+    mod random {
+        use super::*;
+        use rand::Rng;
+
+        /// ナイーブな配列実装。区間操作を愚直に O(n) で行う。
+        struct Naive {
+            a: Vec<i64>,
+        }
+
+        impl Naive {
+            fn new(a: Vec<i64>) -> Self {
+                Naive { a }
+            }
+
+            fn add(&mut self, l: usize, r: usize, v: i64) {
+                for x in &mut self.a[l..r] {
+                    *x += v;
+                }
+            }
+
+            fn assign(&mut self, l: usize, r: usize, v: i64) {
+                for x in &mut self.a[l..r] {
+                    *x = v;
+                }
+            }
+
+            fn fold(&self, l: usize, r: usize) -> (i64, i64, i64, usize) {
+                if l == r {
+                    return MinMaxSumMonoid::id();
+                }
+                let slice = &self.a[l..r];
+                (
+                    slice.iter().sum(),
+                    *slice.iter().min().unwrap(),
+                    *slice.iter().max().unwrap(),
+                    slice.len(),
+                )
+            }
+        }
+
+        /// Scenario: ランダムな操作列に対して、遅延セグメント木と
+        /// ナイーブ実装の fold 結果が一致する。
+        /// - Given: ランダムな初期値で構築した遅延セグメント木と
+        ///   ナイーブ実装がある。
+        /// - When: ランダムな区間加算・区間代入・区間 fold を
+        ///   繰り返す。
+        /// - Then: すべての fold 結果が一致する。
+        #[test]
+        fn matches_naive_implementation() {
+            let mut rng = rand::rng();
+            let n = 50;
+            let q = 500;
+            let value_range = -100..=100;
+
+            for _ in 0..20 {
+                // Given
+                let init: Vec<i64> =
+                    (0..n).map(|_| rng.random_range(value_range.clone())).collect();
+                let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                    init.iter().map(|&v| single(v)).collect(),
+                );
+                let mut naive = Naive::new(init);
+
+                for _ in 0..q {
+                    let l = rng.random_range(0..n);
+                    let r = rng.random_range(l..=n);
+
+                    match rng.random_range(0..3) {
+                        // When: 区間加算
+                        0 => {
+                            let v = rng.random_range(value_range.clone());
+                            sut.effect(l, r, AssignAddAction::add(v));
+                            naive.add(l, r, v);
+                        }
+                        // When: 区間代入
+                        1 => {
+                            let v = rng.random_range(value_range.clone());
+                            sut.effect(l, r, AssignAddAction::assign(v));
+                            naive.assign(l, r, v);
+                        }
+                        // When: 区間 fold
+                        _ => {
+                            // Then
+                            assert_eq!(
+                                naive.fold(l, r),
+                                sut.fold(l, r),
+                                "fold({}, {}) が一致しない",
+                                l,
+                                r,
+                            );
+                        }
+                    }
+                }
+
+                // Then: 最終状態ですべての部分区間が一致する。
+                for l in 0..n {
+                    for r in l..=n {
+                        assert_eq!(
+                            naive.fold(l, r),
+                            sut.fold(l, r),
+                            "最終 fold({}, {}) が一致しない",
+                            l,
+                            r,
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
