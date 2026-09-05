@@ -72,9 +72,7 @@ mod ac_typical90_bs_fuzzy_priority {
                 &constraints
             ));
         }
-        let unique = lines
-            .iter()
-            .collect::<std::collections::HashSet<&&str>>();
+        let unique = lines.iter().collect::<std::collections::HashSet<&&str>>();
         assert_eq!(3, unique.len());
     }
 
@@ -116,9 +114,7 @@ mod ac_typical90_bs_fuzzy_priority {
                 &constraints
             ));
         }
-        let unique = lines
-            .iter()
-            .collect::<std::collections::HashSet<&&str>>();
+        let unique = lines.iter().collect::<std::collections::HashSet<&&str>>();
         assert_eq!(10, unique.len());
     }
 }

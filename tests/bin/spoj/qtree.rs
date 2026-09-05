@@ -14,7 +14,10 @@ mod spoj_qtree {
     /// - When: spoj-qtree バイナリへ標準入力として渡す
     /// - Then: パス上の辺コストの最大値が期待値と一致する
     #[rstest]
-    #[case::official_sample("1\n\n3\n1 2 1\n2 3 2\nQUERY 1 2\nCHANGE 1 3\nQUERY 1 2\nDONE\n", "1\n3\n")]
+    #[case::official_sample(
+        "1\n\n3\n1 2 1\n2 3 2\nQUERY 1 2\nCHANGE 1 3\nQUERY 1 2\nDONE\n",
+        "1\n3\n"
+    )]
     #[case::multiple_test_cases(
         "2\n\n3\n1 2 1\n2 3 2\nQUERY 1 2\nCHANGE 1 3\nQUERY 1 2\nDONE\n\n4\n1 2 5\n2 3 3\n2 4 7\nQUERY 1 3\nQUERY 3 4\nQUERY 1 4\nDONE\n",
         "1\n3\n5\n7\n7\n"

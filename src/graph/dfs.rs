@@ -300,8 +300,7 @@ impl<T> graph::Graph<T> {
                         preorder.push(v);
                         first_occurrence[v] = euler_tour.len();
                         euler_tour.push(v);
-                        let next_neighbors =
-                            self.edges(v).map(|(w, _)| w).collect::<Vec<usize>>();
+                        let next_neighbors = self.edges(v).map(|(w, _)| w).collect::<Vec<usize>>();
                         stack.push((v, next_neighbors, 0));
                     }
                 } else {

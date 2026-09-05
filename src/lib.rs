@@ -15,6 +15,11 @@ pub mod modulo998244353 {
 
 pub mod ds {
     pub mod segment_tree {
+        pub mod bit_segment_tree;
+        pub mod lazy_segment_tree;
+        pub mod range_affine_range_sum;
+        pub mod range_assign_add_min_max_sum;
+        pub mod range_bitwise_xor_and_or;
         pub mod segment_tree_dense;
     }
     pub mod bit_vector;
@@ -32,8 +37,8 @@ pub mod graph {
     pub mod dfs;
     pub mod dijkstra;
     pub mod eulerian_path;
-    pub mod floyd_warshall;
     pub mod flow_graph;
+    pub mod floyd_warshall;
     pub mod graph;
     pub mod hld;
     pub mod hld_path_query;

@@ -45,17 +45,21 @@ fn main() {
         let cd = g.try_centroid_decomposition().unwrap();
 
         let mut answer = 0_i64;
-        cd.for_each_component_by(&g, |&w| w, |_centroid, whole, branches| {
-            let mut sorted_whole = whole.to_vec();
-            sorted_whole.sort_unstable();
-            answer += count_pairs_within(&sorted_whole, k);
+        cd.for_each_component_by(
+            &g,
+            |&w| w,
+            |_centroid, whole, branches| {
+                let mut sorted_whole = whole.to_vec();
+                sorted_whole.sort_unstable();
+                answer += count_pairs_within(&sorted_whole, k);
 
-            for branch in branches {
-                let mut sorted_branch = branch.clone();
-                sorted_branch.sort_unstable();
-                answer -= count_pairs_within(&sorted_branch, k);
-            }
-        });
+                for branch in branches {
+                    let mut sorted_branch = branch.clone();
+                    sorted_branch.sort_unstable();
+                    answer -= count_pairs_within(&sorted_branch, k);
+                }
+            },
+        );
 
         io.writeln(answer);
     }
