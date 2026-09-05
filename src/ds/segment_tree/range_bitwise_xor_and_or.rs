@@ -322,9 +322,7 @@ mod tests {
     /// Background: 要素数 5、値 [0b1010, 0b1100, 0b0110, 0b0011, 0b1001]
     /// の遅延セグメント木
     fn create_seg() -> RangeBitwiseXorAndOr {
-        RangeBitwiseXorAndOr::from_values(vec![
-            0b1010, 0b1100, 0b0110, 0b0011, 0b1001,
-        ])
+        RangeBitwiseXorAndOr::from_values(vec![0b1010, 0b1100, 0b0110, 0b0011, 0b1001])
     }
 
     // XorAndOrMonoid のテスト: モノイド演算を検証する。
@@ -781,8 +779,7 @@ mod tests {
         #[test]
         fn single_element_tree() {
             // Given
-            let mut sut =
-                RangeBitwiseXorAndOr::from_values(vec![0xDEAD]);
+            let mut sut = RangeBitwiseXorAndOr::from_values(vec![0xDEAD]);
             // When
             let result = sut.fold(0, 1);
             // Then
@@ -799,8 +796,7 @@ mod tests {
         #[test]
         fn all_zeros() {
             // Given
-            let mut sut =
-                RangeBitwiseXorAndOr::from_values(vec![0, 0, 0]);
+            let mut sut = RangeBitwiseXorAndOr::from_values(vec![0, 0, 0]);
             // When
             let result = sut.fold(0, 3);
             // Then
@@ -994,8 +990,7 @@ mod tests {
         #[test]
         fn empty_range_effect_is_noop() {
             // Given
-            let mut sut =
-                RangeBitwiseXorAndOr::from_values(vec![1, 2, 3]);
+            let mut sut = RangeBitwiseXorAndOr::from_values(vec![1, 2, 3]);
             let before = sut.fold(0, 3);
             // When
             sut.effect(1, 1, BitwiseAction::xor(0xFF));
@@ -1013,8 +1008,7 @@ mod tests {
         #[test]
         fn handles_max_values() {
             // Given
-            let mut sut =
-                RangeBitwiseXorAndOr::from_values(vec![u64::MAX, 0]);
+            let mut sut = RangeBitwiseXorAndOr::from_values(vec![u64::MAX, 0]);
             // When
             let result = sut.fold(0, 2);
             // Then
@@ -1092,10 +1086,8 @@ mod tests {
 
             for _ in 0..20 {
                 // Given
-                let init: Vec<u64> =
-                    (0..n).map(|_| rng.random_range(0..=0xFFFF)).collect();
-                let mut sut =
-                    RangeBitwiseXorAndOr::from_values(init.clone());
+                let init: Vec<u64> = (0..n).map(|_| rng.random_range(0..=0xFFFF)).collect();
+                let mut sut = RangeBitwiseXorAndOr::from_values(init.clone());
                 let mut naive = Naive::new(init);
 
                 for _ in 0..q {
