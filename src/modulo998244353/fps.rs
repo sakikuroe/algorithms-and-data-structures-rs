@@ -181,6 +181,32 @@ impl FPS {
         self.coeffs.len()
     }
 
+    /// 保持している項数が 0 であるかどうかを返す。
+    ///
+    /// # Args
+    /// 引数はない。
+    ///
+    /// # Returns
+    /// 項数が 0 のとき `true`、そうでないとき `false` を返す。
+    ///
+    /// # Panics
+    /// - この関数はパニックしない。
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1)
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::modulo998244353::fps;
+    ///
+    /// let fps = fps::FPS::new(vec![3]);
+    /// assert!(!fps.is_empty());
+    /// ```
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.coeffs.is_empty()
+    }
+
     /// 非ゼロ多項式なら最高次数を返す。
     ///
     /// # Args
@@ -512,7 +538,7 @@ impl FPS {
             "Integral requires degree + 1 < modulus"
         );
         assert!(
-            self.len() + 1 <= convolution::MAX_NTT_LEN,
+            self.len() < convolution::MAX_NTT_LEN,
             "Integral requires len + 1 <= MAX_NTT_LEN"
         );
         if self.is_zero() {
@@ -563,7 +589,7 @@ impl FPS {
     /// assert_eq!(fps::FPS::new(vec![1]), f);
     /// ```
     fn trim(&mut self) {
-        while self.coeffs.last().map_or(false, |c| *c == 0) {
+        while self.coeffs.last().is_some_and(|c| *c == 0) {
             self.coeffs.pop();
         }
         Self::assert_len_within_max_ntt_len(self.len());

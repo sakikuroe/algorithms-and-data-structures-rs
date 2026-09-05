@@ -1,21 +1,12 @@
-/// Calculates the greatest common divisor (GCD) of two non-negative integers.
 /// 2 つの非負整数の最大公約数（GCD）を計算する。
 ///
 /// # Args
 ///
-/// a: The first non-negative integer.
-///     最初の非負整数
-/// b: The second non-negative integer.
-///     ２つ目の非負整数
+/// a: 最初の非負整数
+/// b: ２つ目の非負整数
 ///
 /// # Returns
 ///
-/// The greatest common divisor of `a` and `b`.
-/// Specifically, for non-negative integers `a` and `b`:
-/// - If `a = 0` and `b = 0`, returns `0`.
-/// - If `a = 0` and `b > 0`, returns `b`.
-/// - If `a > 0` and `b = 0`, returns `a`.
-/// - If `a > 0` and `b > 0`, returns the largest positive integer that divides both `a` and `b`.
 /// `a` と `b` の最大公約数。
 /// 具体的には、非負整数 `a` と `b` に対して:
 /// - `a = 0` かつ `b = 0` の場合、`0` を返す。
@@ -25,10 +16,8 @@
 ///
 /// # Complexity
 ///
-/// Time: O(log(min(a, b)))
 /// 時間計算量: O(log(min(a, b)))
 ///
-/// Space: O(1)
 /// 空間計算量: O(1)
 ///
 /// # Examples
@@ -48,22 +37,15 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
     a
 }
 
-/// Calculates the least common multiple (LCM) of two non-negative integers.
 /// 2 つの非負整数の最小公倍数（LCM）を計算する。
 ///
 /// # Args
 ///
-/// a: The first non-negative integer.
-///     最初の非負整数
-/// b: The second non-negative integer.
-///     2 つ目の非負整数
+/// a: 最初の非負整数
+/// b: 2 つ目の非負整数
 ///
 /// # Returns
 ///
-/// Returns the least common multiple (LCM) of `a` and `b` (the smallest non-negative common multiple of `a` and `b`) as an `Option<u128>`.
-/// Specifically:
-/// - Returns `None` if the LCM of `a` and `b` overflows the `u128` range.
-/// - Otherwise, returns `Some(lcm_value)`, where `lcm_value` is the calculated LCM.
 /// `a` と `b` の最小公倍数 (`a` と `b` の非負な公倍数のうち、最小のもの) を `Option<u128>` で返す。
 /// 具体的には:
 /// - `a` と b の最小公倍数が `u128` の範囲を超過する場合、`None` を返す。
@@ -71,10 +53,8 @@ pub fn gcd(mut a: u128, mut b: u128) -> u128 {
 ///
 /// # Complexity
 ///
-/// Time: O(log(min(a, b)))
 /// 時間計算量: O(log(min(a, b)))
 ///
-/// Space: O(1)
 /// 空間計算量: O(1)
 ///
 /// # Examples

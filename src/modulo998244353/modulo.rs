@@ -707,8 +707,8 @@ mod tests {
             // Given
             let sut = create_table();
             // When, Then
-            for i in 1..sut.len() {
-                assert_eq!(1, mul(i as u32, sut[i]));
+            for (i, &v) in sut.iter().enumerate().skip(1) {
+                assert_eq!(1, mul(i as u32, v));
             }
         }
 

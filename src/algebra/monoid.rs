@@ -47,7 +47,7 @@ impl semi_group::SemiGroup for MinMonoid {
 
 impl Monoid for MinMonoid {
     fn id() -> Self::S {
-        std::i64::MAX
+        i64::MAX
     }
 }
 
@@ -63,7 +63,7 @@ impl semi_group::SemiGroup for MaxMonoid {
 
 impl Monoid for MaxMonoid {
     fn id() -> Self::S {
-        std::i64::MIN
+        i64::MIN
     }
 }
 
@@ -111,7 +111,7 @@ impl semi_group::SemiGroup for AndMonoid {
 
 impl Monoid for AndMonoid {
     fn id() -> Self::S {
-        std::u64::MAX
+        u64::MAX
     }
 }
 

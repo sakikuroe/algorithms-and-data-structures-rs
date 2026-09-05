@@ -47,8 +47,8 @@ fn main() {
     let q = io.u32() as usize;
 
     let mut seg = segment_tree_dense::SegmentTreeDense::<ValidStringMonoid>::new(n);
-    for i in 0..n {
-        seg.set(i, char_to_val(s[i]));
+    for (i, &c) in s.iter().enumerate().take(n) {
+        seg.set(i, char_to_val(c));
     }
     seg.build();
 

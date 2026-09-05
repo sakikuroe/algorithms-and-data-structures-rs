@@ -250,7 +250,7 @@ impl super::FPS {
         );
 
         // 対象範囲に非ゼロ項が無ければ、結果はゼロ多項式になる。
-        if self.len() == 0 {
+        if self.is_empty() {
             return Self { coeffs: Vec::new() };
         }
 
@@ -337,8 +337,9 @@ impl super::FPS {
         }
 
         // 元の正規化に戻すため、c^M を掛け戻す。
-        for idx in offset..target_len {
-            ans[idx] = modulo::mul(scaled_leading_power, ans[idx]);
+        for slot in ans.iter_mut().skip(offset) {
+            let v = *slot;
+            *slot = modulo::mul(scaled_leading_power, v);
         }
         let mut res = Self { coeffs: ans };
         res.trim();
@@ -550,7 +551,7 @@ mod tests {
                 assert_eq!(0, result.get(i));
             }
             assert_eq!(4, result.get(4));
-            assert_eq!(12 % 998244353, result.get(5));
+            assert_eq!(12, result.get(5));
             assert_eq!(9, result.get(6));
             for i in 7..=degree {
                 assert_eq!(0, result.get(i));

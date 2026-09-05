@@ -41,8 +41,7 @@ use super::lazy_segment_tree;
 /// assert_eq!(2, seg.fold(0, 5).ones);
 /// assert_eq!(2, seg.fold(0, 5).longest_ones);
 /// ```
-pub type BitSegTree =
-    lazy_segment_tree::SegmentTreeLazyDense<BitRangeMonoid, BitAction>;
+pub type BitSegTree = lazy_segment_tree::SegmentTreeLazyDense<BitRangeMonoid, BitAction>;
 
 /// 0/1 列の区間に関する統計情報を保持する構造体である。
 ///
@@ -364,9 +363,7 @@ mod tests {
 
     /// Background: [1, 0, 1, 1, 0] で構築した遅延セグメント木
     fn create_seg() -> BitSegTree {
-        BitSegTree::from_values(
-            vec![true, false, true, true, false],
-        )
+        BitSegTree::from_values(vec![true, false, true, true, false])
     }
 
     // BitRangeMonoid のテスト: モノイド演算を検証する。
@@ -426,10 +423,7 @@ mod tests {
             fn does_not_change_other_when_composed() {
                 // Given
                 let id = BitRangeMonoid::id();
-                let a = BitRangeMonoid::op(
-                    &BitRangeMonoid::op(&s(true), &s(false)),
-                    &s(true),
-                );
+                let a = BitRangeMonoid::op(&BitRangeMonoid::op(&s(true), &s(false)), &s(true));
                 // When / Then
                 assert_eq!(a, BitRangeMonoid::op(&id, &a));
                 assert_eq!(a, BitRangeMonoid::op(&a, &id));
@@ -458,22 +452,13 @@ mod tests {
                     BitAction::set(true),
                     BitAction::flip(),
                 ];
-                let x = BitRangeMonoid::op(
-                    &BitRangeMonoid::op(&s(true), &s(false)),
-                    &s(true),
-                );
+                let x = BitRangeMonoid::op(&BitRangeMonoid::op(&s(true), &s(false)), &s(true));
                 for &f in &actions {
                     for &g in &actions {
                         // When
                         let composed = f.composition(&g);
                         // Then
-                        assert_eq!(
-                            g.f(&f.f(&x)),
-                            composed.f(&x),
-                            "f={:?}, g={:?}",
-                            f,
-                            g,
-                        );
+                        assert_eq!(g.f(&f.f(&x)), composed.f(&x), "f={:?}, g={:?}", f, g,);
                     }
                 }
             }
@@ -557,8 +542,7 @@ mod tests {
         #[test]
         fn single_element_tree() {
             // Given
-            let mut sut =
-                BitSegTree::from_values(vec![true]);
+            let mut sut = BitSegTree::from_values(vec![true]);
             // When
             let result = sut.fold(0, 1);
             // Then
@@ -587,9 +571,7 @@ mod tests {
         #[test]
         fn all_same_value() {
             // Given
-            let mut sut = BitSegTree::from_values(
-                vec![true; 4],
-            );
+            let mut sut = BitSegTree::from_values(vec![true; 4]);
             // When
             let result = sut.fold(0, 4);
             // Then
@@ -694,8 +676,7 @@ mod tests {
         #[test]
         fn flip_on_single_element_tree() {
             // Given
-            let mut sut =
-                BitSegTree::from_values(vec![true]);
+            let mut sut = BitSegTree::from_values(vec![true]);
             // When
             sut.effect(0, 1, BitAction::flip());
             // Then
@@ -709,8 +690,7 @@ mod tests {
         #[test]
         fn set_on_single_element_tree() {
             // Given
-            let mut sut =
-                BitSegTree::from_values(vec![false]);
+            let mut sut = BitSegTree::from_values(vec![false]);
             // When
             sut.effect(0, 1, BitAction::set(true));
             // Then
@@ -724,9 +704,7 @@ mod tests {
         #[test]
         fn inversion_count_after_operations() {
             // Given
-            let mut sut = BitSegTree::from_values(
-                vec![true, true, false, false],
-            );
+            let mut sut = BitSegTree::from_values(vec![true, true, false, false]);
             assert_eq!(4, sut.fold(0, 4).inv);
             // When
             sut.effect(0, 2, BitAction::flip());
@@ -784,31 +762,55 @@ mod tests {
                 // 連続長を愚直に計算する。
                 let mut prefix_ones = 0;
                 for &v in slice {
-                    if v { prefix_ones += 1; } else { break; }
+                    if v {
+                        prefix_ones += 1;
+                    } else {
+                        break;
+                    }
                 }
                 let mut suffix_ones = 0;
                 for &v in slice.iter().rev() {
-                    if v { suffix_ones += 1; } else { break; }
+                    if v {
+                        suffix_ones += 1;
+                    } else {
+                        break;
+                    }
                 }
                 let mut longest_ones = 0;
                 let mut cur = 0;
                 for &v in slice {
-                    if v { cur += 1; } else { cur = 0; }
+                    if v {
+                        cur += 1;
+                    } else {
+                        cur = 0;
+                    }
                     longest_ones = std::cmp::max(longest_ones, cur);
                 }
 
                 let mut prefix_zeros = 0;
                 for &v in slice {
-                    if !v { prefix_zeros += 1; } else { break; }
+                    if !v {
+                        prefix_zeros += 1;
+                    } else {
+                        break;
+                    }
                 }
                 let mut suffix_zeros = 0;
                 for &v in slice.iter().rev() {
-                    if !v { suffix_zeros += 1; } else { break; }
+                    if !v {
+                        suffix_zeros += 1;
+                    } else {
+                        break;
+                    }
                 }
                 let mut longest_zeros = 0;
                 cur = 0;
                 for &v in slice {
-                    if !v { cur += 1; } else { cur = 0; }
+                    if !v {
+                        cur += 1;
+                    } else {
+                        cur = 0;
+                    }
                     longest_zeros = std::cmp::max(longest_zeros, cur);
                 }
 
@@ -840,8 +842,7 @@ mod tests {
 
             for _ in 0..20 {
                 // Given
-                let init: Vec<bool> =
-                    (0..n).map(|_| rng.random_bool(0.5)).collect();
+                let init: Vec<bool> = (0..n).map(|_| rng.random_bool(0.5)).collect();
                 let mut sut = BitSegTree::from_values(init.clone());
                 let mut naive = Naive::new(init);
 
