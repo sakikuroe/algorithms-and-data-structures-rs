@@ -17,6 +17,7 @@ pub mod ds {
     pub mod segment_tree {
         pub mod lazy_segment_tree;
         pub mod range_affine_range_sum;
+        pub mod range_assign_add_min_max_sum;
         pub mod segment_tree_dense;
     }
     pub mod bit_vector;
