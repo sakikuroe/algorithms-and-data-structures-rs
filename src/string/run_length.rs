@@ -1,36 +1,29 @@
-//! A trait for run-length encoding a sequence.
 //! run-length encoding および decoding を行うための trait である.
 
-/// A trait for run-length encode.
 /// run-length encoding を実装するための trait である.
 pub trait RunLengthEncode<T>
 where
     T: Eq + Clone,
 {
-    /// Performs run-length encoding on a inputed sequence.
     /// 入力列に対して run-length encoding を行う.
     ///
     /// # Args
-    /// - `self`: A reference to the sequence to be encoded.
-    ///   encoding 対象となる列への参照である.
+    /// - `self` - encoding 対象となる列への参照である.
     ///
     /// # Returns
-    /// `Vec<(T, usize)>`: Returns a vector of tuples, where each tuple contains an element and its frequency.
-    ///                    各要素とその出現回数のタプルからなるベクターを返す.
+    /// 各要素とその出現回数のタプルからなる `Vec<(T, usize)>` を返す.
     ///
     /// # Constraints
-    /// Constraints are not specified for this function.
     /// 制約は, 本関数に対して指定されていない.
     ///
     /// # Panics
-    /// This function does not panic.
     /// 本関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N), where N is the length of the input sequence.
-    ///   ここで N は入力された列の長さである.
-    /// - Space complexity: O(K), where K is the number of distinct elements in the input.
-    ///   ここで K は入力列に現れる異なる要素の種類数である.
+    /// - 時間計算量: $O(N)$
+    ///   - ここで $N$ は入力された列の長さである.
+    /// - 空間計算量: $O(K)$
+    ///   - ここで $K$ は入力列に現れる異なる要素の種類数である.
     ///
     /// # Examples
     /// ```rust
@@ -64,36 +57,30 @@ where
     }
 }
 
-/// A trait for run-length decoding a sequence.
 /// run-length decoding を行うための trait である.
 pub trait RunLengthDecode<T>
 where
     T: Eq + Clone,
 {
-    /// Decodes a run-length encoded sequence.
     /// run-length encoded された列を decoding する.
     ///
     /// # Args
-    /// - `self`: A reference to the run-length encoded sequence.
-    ///   run-length encoded された列への参照である.
+    /// - `self` - run-length encoded された列への参照である.
     ///
     /// # Returns
-    /// `Vec<T>`: Returns the decoded sequence as a vector of elements.
-    ///           decoded された列を要素のベクターとして返す.
+    /// decoded された列を要素のベクターとして格納した `Vec<T>` を返す.
     ///
     /// # Constraints
-    /// Constraints are not specified for this function.
     /// 制約は, 本関数に対して指定されていない.
     ///
     /// # Panics
-    /// This function does not panic.
     /// 本関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///   ここで N_decoded は decoded 後の列の総要素数である.
-    /// - Space complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///   ここで N_decoded は decoded 後の列の総要素数である.
+    /// - 時間計算量: $O(N_{decoded})$
+    ///   - ここで $N_{decoded}$ は decoded 後の列の総要素数である.
+    /// - 空間計算量: $O(N_{decoded})$
+    ///   - ここで $N_{decoded}$ は decoded 後の列の総要素数である.
     ///
     /// # Examples
     /// ```rust

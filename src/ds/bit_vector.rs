@@ -1,4 +1,3 @@
-/// Precomputed masks to efficiently extract the lower `k` bits of a `u64`.
 /// `u64` の下位 `k` ビットを効率的に抽出するための事前計算されたマスクである.
 const MASKS: [u64; u64::BITS as usize] = {
     let mut masks = [0_u64; u64::BITS as usize];
@@ -11,11 +10,8 @@ const MASKS: [u64; u64::BITS as usize] = {
     masks
 };
 
-/// A data structure to efficiently store and query a sequence of bits (0s and 1s).
 /// 0 と 1 からなるビット列を効率的に格納し, クエリを実行するためのデータ構造である.
 ///
-/// The `BitVector` precomputes cumulative sums of 1s in blocks of 64 bits
-/// to allow for fast `sum` queries.
 /// `BitVector` は 64 ビットのブロックごとに 1 の累積和を事前計算することで,
 /// 高速な `sum` クエリを可能にする.
 #[derive(Clone)]
@@ -30,34 +26,26 @@ pub struct BitVector {
 }
 
 impl BitVector {
-    /// Creates a new `BitVector`.
     /// 新しい `BitVector` を作成する.
     ///
     /// # Args
     ///
-    /// - `v`: A slice of `u8` where each element is either `0` or `1`.
-    ///   The length of `v` must be less than 2^{32} (=4294967296).
-    ///   `v`: 各要素が `0` または `1` である `u8` のスライスである.
+    /// - `v`: 各要素が `0` または `1` である `u8` のスライスである.
     ///   `v` の長さは `2^{32}` (=4294967296) 未満でなければならない.
     ///
     /// # Returns
     ///
-    /// A new `BitVector` instance.
     /// 新しい `BitVector` インスタンスを返す.
     ///
     /// # Panics
     ///
-    /// Panics if any element in `v` is not `0` or `1`.
-    /// Panics if the length of `v` is greater than or equal to 2^{32}.
     /// `v` のいずれかの要素が `0` または `1` でない場合にパニックする.
     /// `v` の長さが `2^{32}` 以上の場合にパニックする.
     ///
     /// # Complexity
     ///
-    /// - Time complexity: O(N), where N is the length of `v`.
-    ///   時間計算量: O(N) である. ここで N は `v` の長さである.
-    /// - Space complexity: O(N), where N is the length of `v`.
-    ///   空間計算量: O(N) である. ここで N は `v` の長さである.
+    /// - 時間計算量: O(N) である. ここで N は `v` の長さである.
+    /// - 空間計算量: O(N) である. ここで N は `v` の長さである.
     ///
     /// # Examples
     ///
@@ -115,30 +103,24 @@ impl BitVector {
         }
     }
 
-    /// Returns the number of 1s in the range `v[0..r)` (sum of `v[0..r)`).
     /// 範囲 `v[0..r)` における `1` の数 ( `v[0..r)` の和) を返す.
     ///
     /// # Args
     ///
-    /// - `r`: The upper bound of the range. `r` must be less than or equal to `len()`.
-    ///   `r`: 範囲の上限である. `r` は `len()` 以下でなければならない.
+    /// - `r`: 範囲の上限である. `r` は `len()` 以下でなければならない.
     ///
     /// # Returns
     ///
-    /// The sum of 1s in `v[0..r)`. Returns `0` if `r` is `0`.
     /// `v[0..r)` における `1` の合計を返す. `r` が `0` の場合は `0` を返す.
     ///
     /// # Panics
     ///
-    /// Panics if `r > len()`.
     /// `r > len()` の場合にパニックする.
     ///
     /// # Complexity
     ///
-    /// - Time complexity: O(1) due to precomputation.
-    ///   時間計算量: 事前計算により O(1) である.
-    /// - Space complexity: O(1) for the query itself.
-    ///   空間計算量: クエリ自体は O(1) である.
+    /// - 時間計算量: 事前計算により O(1) である.
+    /// - 空間計算量: クエリ自体は O(1) である.
     ///
     /// # Examples
     ///
@@ -179,20 +161,16 @@ impl BitVector {
         res as usize
     }
 
-    /// Returns the length of the BitVector.
     /// BitVector の長さを返す.
     ///
     /// # Returns
     ///
-    /// The length of the original bit sequence.
     /// 元のビット列の長さを返す.
     ///
     /// # Complexity
     ///
-    /// - Time complexity: O(1).
-    ///   時間計算量: O(1) である.
-    /// - Space complexity: O(1).
-    ///   空間計算量: O(1) である.
+    /// - 時間計算量: O(1) である.
+    /// - 空間計算量: O(1) である.
     ///
     /// # Examples
     ///
@@ -206,20 +184,16 @@ impl BitVector {
         self.len
     }
 
-    /// Checks if the BitVector is empty.
     /// BitVector が空かどうかを確認する.
     ///
     /// # Returns
     ///
-    /// `true` if the bit vector is empty, `false` otherwise.
     /// BitVector が空の場合は `true`, そうでない場合は `false` を返す.
     ///
     /// # Complexity
     ///
-    /// - Time complexity: O(1).
-    ///   時間計算量: O(1) である.
-    /// - Space complexity: O(1).
-    ///   空間計算量: O(1) である.
+    /// - 時間計算量: O(1) である.
+    /// - 空間計算量: O(1) である.
     ///
     /// # Examples
     ///

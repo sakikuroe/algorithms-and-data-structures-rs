@@ -1,4 +1,3 @@
-//! A segment tree data structure for range queries and updates.
 //! `Segment tree` の実装であり, range query と更新をサポートする.
 
 use super::super::super::algebra::monoid::Monoid;
@@ -8,7 +7,6 @@ use super::super::super::algebra::monoid::Monoid;
 #[cfg(test)]
 use super::super::super::algebra::{monoid, semi_group};
 
-/// A dense segment tree that supports range queries and updates.
 /// 密な `segment tree` であり, range query と更新をサポートする.
 #[derive(Clone)]
 pub struct SegmentTreeDense<M>
@@ -24,26 +22,20 @@ where
     M: Monoid,
     M::S: Clone,
 {
-    /// Creates a new `SegmentTreeDense` with capacity for `n` elements.
     /// `n` 個の要素に対応する `SegmentTreeDense` を生成する.
     ///
     /// # Args
-    /// - `n`: The size (number of leaves) of the segment tree.
-    ///   `segment tree` のサイズ (葉の数).
+    /// - `n` - `segment tree` のサイズ (葉の数).
     ///
     /// # Returns
-    /// `SegmentTreeDense<M>`: Returns a newly created segment tree instance.
-    ///                        新しい `segment tree` のインスタンスを返す.
+    /// `SegmentTreeDense<M>` - 新しい `segment tree` のインスタンスを返す.
     ///
     /// # Constraints
-    /// No specific constraints on `n`.
     /// `n` に関する制約はない.
     ///
     /// # Complexity
-    /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(n), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
+    /// - 時間計算量: $O(n)$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(n)$。ここで `n` は `segment tree` のサイズである.
     ///
     /// # Examples
     /// ```rust
@@ -60,20 +52,17 @@ where
         }
     }
 
-    /// Returns the size (number of leaves) of this segment tree.
     /// この `segment tree` のサイズ (葉の数) を返す.
     ///
     /// # Returns
-    /// `usize`: The size (number of leaves) of the segment tree.
-    ///          `segment tree` のサイズ (葉の数).
+    /// `usize` - `segment tree` のサイズ (葉の数).
     ///
     /// # Panics
-    /// This function does not panic.
     /// この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(1)$。
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -85,20 +74,17 @@ where
         self.len
     }
 
-    /// Returns true if the segment tree is empty.
     /// この `segment tree` が空であるかどうかを返す.
     ///
     /// # Returns
-    /// `bool`: True if the segment tree contains no elements.
-    ///         `segment tree` が要素を含まない場合に真.
+    /// `bool` - `segment tree` が要素を含まない場合に真.
     ///
     /// # Panics
-    /// This function does not panic.
     /// この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(1)$。
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -111,24 +97,19 @@ where
         self.len == 0
     }
 
-    /// Sets the value at index `idx` to `x`.
-    /// The update is lazy; use `build` or `update` to propagate changes to parent nodes.
     /// インデックス `idx` の値を `x` にセットする.
     /// この更新は遅延実行されるため, 上位ノードへ変更を反映するには `build` または `update` を使用する.
     ///
     /// # Args
-    /// - `idx`: The index to set.
-    ///   セット対象のインデックス.
-    /// - `x`: The new value.
-    ///   新しい値.
+    /// - `idx` - セット対象のインデックス.
+    /// - `x` - 新しい値.
     ///
     /// # Panics
-    /// Panics if `idx` >= `self.len()`.
     /// `idx` が `self.len()` 以上の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(1)$。
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -153,17 +134,14 @@ where
         self.data[idx] = x;
     }
 
-    /// Builds the segment tree by propagating the leaves' values up to their parent nodes.
     /// 葉に設定された値を親ノードへ伝播させて, `segment tree` を構築する.
     ///
     /// # Panics
-    /// This function does not panic.
     /// この関数はパニックしない.
     ///
     /// # Complexity
-    /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(n)$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -183,23 +161,18 @@ where
         }
     }
 
-    /// Updates the value at index `idx` to `x` and propagates this change up the tree.
     /// インデックス `idx` の値を `x` に更新し, 上位ノードへ変更を反映する.
     ///
     /// # Args
-    /// - `idx`: The index to update.
-    ///   更新対象のインデックス.
-    /// - `x`: The new value.
-    ///   新しい値.
+    /// - `idx` - 更新対象のインデックス.
+    /// - `x` - 新しい値.
     ///
     /// # Panics
-    /// Panics if `idx` >= `self.len()`.
     /// `idx` が `self.len()` 以上の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(\log(n))$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -230,24 +203,20 @@ where
         }
     }
 
-    /// Gets the value at index `idx`.
     /// インデックス `idx` の値を取得する.
     ///
     /// # Args
-    /// - `idx`: The index to retrieve.
-    ///   値を取得するインデックス.
+    /// - `idx` - 値を取得するインデックス.
     ///
     /// # Returns
-    /// `M::S`: The value at `idx`.
-    ///         `idx` の値.
+    /// `M::S` - `idx` の値.
     ///
     /// # Panics
-    /// Panics if `idx` >= `self.len()`.
     /// `idx` が `self.len()` 以上の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(1)$。
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -269,31 +238,23 @@ where
         self.data[idx].clone()
     }
 
-    /// Performs a range fold (query) on the interval `[l, r)`.
-    /// This operation aggregates the elements in the specified range using the monoid's binary operation `op`.
-    /// For example, if the operation is addition, this calculates `data[l] + data[l + 1] + ... + data[r - 1]`.
     /// 区間 `[l, r)` 上の値に対して `fold` (畳み込み) を行う `query` を実行する.
     /// この操作は, 指定された範囲の要素をモノイドの二項演算 `op` を用いて集約する.
     /// 例えば, 演算が加算の場合, `data[l] + data[l+1] + ... + data[r-1]` を計算する.
     ///
     /// # Args
-    /// - `l`: The start index of the range (inclusive).
-    ///   `query` 区間の開始インデックス (含む).
-    /// - `r`: The end index of the range (exclusive).
-    ///   `query` 区間の終了インデックス (含まない).
+    /// - `l` - `query` 区間の開始インデックス (含む).
+    /// - `r` - `query` 区間の終了インデックス (含まない).
     ///
     /// # Returns
-    /// `M::S`: The folded result of the interval `[l, r)`. It is the identity element `M::id()` if the range is empty.
-    ///         区間 `[l, r)` の畳み込み結果. 区間が空の場合, 単位元 `M::id()` となる.
+    /// `M::S` - 区間 `[l, r)` の畳み込み結果. 区間が空の場合, 単位元 `M::id()` となる.
     ///
     /// # Panics
-    /// Panics if `r > self.len()`.
     /// `r > self.len()` の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(\log(n))$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     ///
@@ -353,29 +314,22 @@ where
         }
     }
 
-    /// Finds the maximum `r` in `[l, self.len()]` such that `f` applied to the fold result
-    /// from `[l, r)` is `true`. Returns `self.len()` if no further extension is possible.
     /// 区間 `[l, self.len()]` 内で, `[l, r)` の `fold` 結果に対して述語 `f` が `true` を返すような
     /// 最大の `r` を探索する. 条件を満たす `r` がこれ以上存在しない場合は, `self.len()` を返す.
     ///
     /// # Args
-    /// - `l`: The start index of the range.
-    ///   範囲の開始インデックス.
-    /// - `f`: A function that takes a reference to `M::S` and returns a boolean.
-    ///   `M::S` への参照を受け取り, 真偽値を返す関数.
+    /// - `l` - 範囲の開始インデックス.
+    /// - `f` - `M::S` への参照を受け取り, 真偽値を返す関数.
     ///
     /// # Returns
-    /// `usize`: The maximum `r` such that `f(fold(l, r))` is `true`.
-    ///          `f(fold(l, r))` が `true` となる最大の `r`.
+    /// `usize` - `f(fold(l, r))` が `true` となる最大の `r`.
     ///
     /// # Panics
-    /// Panics if `f(&M::id())` is false or `l > self.len()`.
     /// `f(&M::id())` が `false` の場合, または `l > self.len()` の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(\log(n))$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust
@@ -440,29 +394,22 @@ where
         }
     }
 
-    /// Finds the minimum `l` in `[0, r]` such that `f` applied to the fold result
-    /// from `[l, r)` is `true`. Returns `0` if it cannot move further left.
     /// 区間 `[0, r]` 内で, `[l, r)` の `fold` 結果に対して述語 `f` が `true` を返すような
     /// 最小の `l` を探索する. 条件を満たす `l` がこれ以上存在しない場合は, `0` を返す.
     ///
     /// # Args
-    /// - `r`: The end index of the range.
-    ///   範囲の終了インデックス.
-    /// - `f`: A function that takes a reference to `M::S` and returns a boolean.
-    ///   `M::S` への参照を受け取り, 真偽値を返す関数.
+    /// - `r` - 範囲の終了インデックス.
+    /// - `f` - `M::S` への参照を受け取り, 真偽値を返す関数.
     ///
     /// # Returns
-    /// `usize`: The minimum `l` such that `f(fold(l, r))` is `true`.
-    ///          `f(fold(l, r))` が `true` となる最小の `l`.
+    /// `usize` - `f(fold(l, r))` が `true` となる最小の `l`.
     ///
     /// # Panics
-    /// Panics if `f(&M::id())` is false or `r > self.len()`.
     /// `f(&M::id())` が `false` の場合, または `r > self.len()` の場合にパニックする.
     ///
     /// # Complexity
-    /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///   ここで `n` は `segment tree` のサイズである.
-    /// - Space complexity: O(1).
+    /// - 時間計算量: $O(\log(n))$。ここで `n` は `segment tree` のサイズである.
+    /// - 空間計算量: $O(1)$。
     ///
     /// # Examples
     /// ```rust

@@ -1,6 +1,5 @@
 use super::bit_vector;
 
-/// A data structure that represents a sequence of values and supports fast ranking queries.
 /// 値のシーケンスを表現し, 高速な rank クエリをサポートするデータ構造である.
 #[derive(Clone)]
 pub struct WaveletMatrix {
@@ -10,41 +9,29 @@ pub struct WaveletMatrix {
 }
 
 impl WaveletMatrix {
-    /// Creates a new WaveletMatrix from a slice of `usize`.
     /// `usize` のスライスから新しい WaveletMatrix を作成する.
     ///
     /// # Args
-    /// - `v`: A slice of `usize` to be stored in the WaveletMatrix.
-    ///   WaveletMatrix に格納する `usize` のスライス.
+    /// - `v`: WaveletMatrix に格納する `usize` のスライス.
     ///
     /// # Returns
-    /// `WaveletMatrix`: A new instance of WaveletMatrix.
-    ///                  WaveletMatrix の新しいインスタンス.
+    /// `WaveletMatrix`: WaveletMatrix の新しいインスタンス.
     ///
     /// # Constraints
-    /// - `v` can contain any `usize` values.
-    ///   `v` は任意の `usize` 値を含むことができる.
-    /// - The length of `v` must not be excessively large, such that the number of unique
-    ///   elements causes `compress.len()` to exceed `usize` limits for bit calculations.
-    ///   `v` の長さは, ユニークな要素の数が `compress.len()` を `usize` のビット計算の
+    /// - `v` は任意の `usize` 値を含むことができる.
+    /// - `v` の長さは, ユニークな要素の数が `compress.len()` を `usize` のビット計算の
     ///   制限を超えるほどに過度に大きくない必要がある.
     ///
     /// # Panics
-    /// - This function may panic if `v` is extremely large and contains a vast number of
-    ///   unique elements, leading to the `height` calculation (`(1..).find(...)`)
-    ///   attempting to shift a bit beyond `usize::BITS - 1`, or if `(1_usize << i)`
-    ///   overflows during the search for `height`.
-    ///   この関数は, `v` が極めて大きく, 多数のユニークな要素を含み, `height` の計算
+    /// - この関数は, `v` が極めて大きく, 多数のユニークな要素を含み, `height` の計算
     ///   (`(1..).find(...)`) が `usize::BITS - 1` を超えるビットシフトを試みる場合,
     ///   または `height` の検索中に `(1_usize << i)` がオーバーフローするような値である
     ///   場合にパニックする可能性がある.
     ///
     /// # Complexity
-    /// - Time complexity: O(N log U), where N is the length of `v` and U is the number of
-    ///   distinct values in `v`.
+    /// - 時間計算量: O(N log U) である.
     ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
-    /// - Space complexity: O(N log U), where N is the length of `v` and U is the number of
-    ///   distinct values in `v`.
+    /// - 空間計算量: O(N log U) である.
     ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
     ///
     /// # Examples
@@ -121,34 +108,26 @@ impl WaveletMatrix {
         }
     }
 
-    /// Returns the count of elements `y` such that `y < upper` in the range `v[l..r]`.
     /// `v[l..r]` の範囲にある要素 `y` のうち, `y < upper` となるものの個数を返す.
     ///
     /// # Args
-    /// - `l`: The start index of the range (inclusive).
-    ///   範囲の開始インデックス (inclusive).
-    /// - `r`: The end index of the range (exclusive).
-    ///   範囲の終了インデックス (exclusive).
-    /// - `upper`: The upper bound value (exclusive).
-    ///   上限値 (exclusive).
+    /// - `l`: 範囲の開始インデックス (inclusive).
+    /// - `r`: 範囲の終了インデックス (exclusive).
+    /// - `upper`: 上限値 (exclusive).
     ///
     /// # Returns
-    /// `usize`: The number of elements less than `upper` in the specified range.
-    ///          指定された範囲内の `upper` 未満の要素数.
+    /// `usize`: 指定された範囲内の `upper` 未満の要素数.
     ///
     /// # Constraints
-    /// - `l` and `r` must be valid indices within the original sequence length
+    /// - `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
     ///   (`0 <= l, r <= original_len`).
-    ///   `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
-    /// - `upper` can be any `usize` value.
-    ///   `upper` は任意の `usize` 値である.
+    /// - `upper` は任意の `usize` 値である.
     ///
     /// # Panics
-    /// - None.
     /// - なし.
     ///
     /// # Complexity
-    /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
+    /// - 時間計算量: O(log U) である.
     ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count_less_than(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         if r <= l {
@@ -190,34 +169,26 @@ impl WaveletMatrix {
         res
     }
 
-    /// Returns the count of elements `y` such that `y >= lower` in the range `v[l..r]`.
     /// `v[l..r]` の範囲にある要素 `y` のうち, `y >= lower` となるものの個数を返す.
     ///
     /// # Args
-    /// - `l`: The start index of the range (inclusive).
-    ///   範囲の開始インデックス (inclusive).
-    /// - `r`: The end index of the range (exclusive).
-    ///   範囲の終了インデックス (exclusive).
-    /// - `lower`: The lower bound value (inclusive).
-    ///   下限値 (inclusive).
+    /// - `l`: 範囲の開始インデックス (inclusive).
+    /// - `r`: 範囲の終了インデックス (exclusive).
+    /// - `lower`: 下限値 (inclusive).
     ///
     /// # Returns
-    /// `usize`: The number of elements greater than or equal to `lower` in the specified range.
-    ///          指定された範囲内の `lower` 以上の要素数.
+    /// `usize`: 指定された範囲内の `lower` 以上の要素数.
     ///
     /// # Constraints
-    /// - `l` and `r` must be valid indices within the original sequence length
-    ///   `l` x `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
+    /// - `l` x `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
     ///   (`0 <= l , r <= original_len`).
-    /// - `lower` can be any `usize` value.
-    ///   `lower` は任意の `usize` 値である.
+    /// - `lower` は任意の `usize` 値である.
     ///
     /// # Panics
-    /// - None.
     /// - なし.
     ///
     /// # Complexity
-    /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
+    /// - 時間計算量: O(log U) である.
     ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count_more_than(&self, l: usize, r: usize, lower: usize) -> usize {
         if r <= l {
@@ -227,36 +198,27 @@ impl WaveletMatrix {
         (r - l) - self.count_less_than(l, r, lower)
     }
 
-    /// Returns the count of elements `y` such that `lower <= y < upper` in the range `v[l..r]`.
     /// `v[l..r]` の範囲にある要素 `y` のうち, `lower <= y < upper` となるものの個数を返す.
     ///
     /// # Args
-    /// - `l`: The start index of the range (inclusive).
-    ///   範囲の開始インデックス (inclusive).
-    /// - `r`: The end index of the range (exclusive).
-    ///   範囲の終了インデックス (exclusive).
-    /// - `lower`: The lower bound value (inclusive).
-    ///   下限値 (inclusive).
-    /// - `upper`: The upper bound value (exclusive).
-    ///   上限値 (exclusive).
+    /// - `l`: 範囲の開始インデックス (inclusive).
+    /// - `r`: 範囲の終了インデックス (exclusive).
+    /// - `lower`: 下限値 (inclusive).
+    /// - `upper`: 上限値 (exclusive).
     ///
     /// # Returns
-    /// `usize`: The number of elements in the range [`lower`, `upper`) in the specified range of `v`.
-    ///          `v` の指定された範囲内にある, [`lower`, `upper`) の範囲の要素数.
+    /// `usize`: `v` の指定された範囲内にある, [`lower`, `upper`) の範囲の要素数.
     ///
     /// # Constraints
-    /// - `l` and `r` must be valid indices within the original sequence length
-    ///   `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
+    /// - `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
     ///   (`0 <= l, r <= original_len`).
-    /// - `lower` and `upper` can be any `usize` values.
-    ///   `lower` と `upper` は任意の `usize` 値である.
+    /// - `lower` と `upper` は任意の `usize` 値である.
     ///
     /// # Panics
-    /// - None.
     /// - なし.
     ///
     /// # Complexity
-    /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
+    /// - 時間計算量: O(log U) である.
     ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count(&self, l: usize, r: usize, lower: usize, upper: usize) -> usize {
         if r <= l {
