@@ -22,6 +22,8 @@ pub mod bin {
         pub mod abc326_g_unlock_achievement;
         pub mod abc406_f_compare_tree_weights;
         pub mod abc422_g_balls_and_boxes;
+        pub mod abc441_g_takoyaki;
+        pub mod abc473_f_valid_string;
         pub mod arc085_e_mul;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
