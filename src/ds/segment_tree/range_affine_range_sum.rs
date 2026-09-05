@@ -12,6 +12,29 @@ use super::super::super::{
 };
 use super::lazy_segment_tree;
 
+/// 区間アフィン変換・区間和クエリ用の遅延セグメント木の
+/// 型エイリアスである。
+///
+/// # Examples
+/// ```
+/// use anmitsu::ds::segment_tree::range_affine_range_sum;
+/// use anmitsu::modulo998244353::modint;
+///
+/// let mut seg = range_affine_range_sum::RangeAffineRangeSum::from_vec(
+///     vec![(modint::ModInt998244353::new(1), 1)],
+/// );
+/// seg.effect(
+///     0, 1,
+///     range_affine_range_sum::AffineAction::add(
+///         modint::ModInt998244353::new(10),
+///     ),
+/// );
+/// let (sum, _) = seg.fold(0, 1);
+/// assert_eq!(11, sum.val());
+/// ```
+pub type RangeAffineRangeSum =
+    lazy_segment_tree::SegmentTreeLazyDense<RangeAffineFoldSumMonoid, AffineAction>;
+
 /// 区間和を `(値の総和, 要素数)` のペアとして保持する
 /// モノイドである。
 ///

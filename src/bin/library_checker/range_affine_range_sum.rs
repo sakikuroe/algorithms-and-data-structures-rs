@@ -1,7 +1,7 @@
 // Library Checker: Range Affine Range Sum
 // https://judge.yosupo.jp/problem/range_affine_range_sum
 
-use anmitsu::ds::segment_tree::{lazy_segment_tree, range_affine_range_sum};
+use anmitsu::ds::segment_tree::range_affine_range_sum;
 use anmitsu::io::fastio;
 use anmitsu::modulo998244353::modint;
 
@@ -17,10 +17,7 @@ fn main() {
         .collect::<Vec<_>>();
 
     // 区間アフィン変換・区間和の遅延セグメント木を構築する。
-    let mut seg = lazy_segment_tree::SegmentTreeLazyDense::<
-        range_affine_range_sum::RangeAffineFoldSumMonoid,
-        range_affine_range_sum::AffineAction,
-    >::from_vec(v);
+    let mut seg = range_affine_range_sum::RangeAffineRangeSum::from_vec(v);
 
     for _ in 0..q {
         let t = io.u32();
