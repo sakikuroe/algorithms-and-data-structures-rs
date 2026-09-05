@@ -44,14 +44,14 @@ const NAIVE_INTT_OMEGA_INV: [u32; NTT_NAIVE_LG_MAX + 1] = build_naive_intt_omega
 ///
 /// `table[lg][k][j]` は `(ω^k)^j` を表し、`ω` は長さ `2^lg` の原始根である。
 /// `k >= 2^lg` または `j >= 2^lg` の領域は未使用で 0 のままとする。
-const NAIVE_NTT_BASE_POWS: [[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD];
+static NAIVE_NTT_BASE_POWS: [[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD];
     NTT_NAIVE_LG_MAX + 1] = build_naive_ntt_base_pows();
 
 /// 愚直 INTT で用いる `(ω^{-j})^k` のテーブルである。
 ///
 /// `table[lg][j][k]` は `(ω^{-j})^k` を表し、`ω` は長さ `2^lg` の原始根である。
 /// `j >= 2^lg` または `k >= 2^lg` の領域は未使用で 0 のままとする。
-const NAIVE_INTT_BASE_POWS: [[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD];
+static NAIVE_INTT_BASE_POWS: [[[u32; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_THRESHOLD];
     NTT_NAIVE_LG_MAX + 1] = build_naive_intt_base_pows();
 
 /// 愚直 NTT/INTT で用いるビット反転のテーブルである。
@@ -1019,7 +1019,7 @@ mod tests {
         /// - Then: 元の入力と一致する。
         #[test]
         fn round_trip_with_ntt_matches_original_after_scaling() {
-            for lg in 0..=16 {
+            for (lg, &inv_len) in INVS.iter().enumerate().take(16 + 1) {
                 // Given
                 let len = 1usize << lg;
                 let input = gen_values(len, 999 + lg as u64);
@@ -1028,7 +1028,6 @@ mod tests {
                 // When
                 ntt(&mut actual);
                 intt(&mut actual);
-                let inv_len = INVS[lg];
                 actual
                     .iter_mut()
                     .for_each(|x| *x = modulo::mul(*x, inv_len));

@@ -155,7 +155,7 @@ impl super::FPS {
         // 逆元の計算は、Newton 法により精度を 2 倍ずつ増やしていく。
         let mut poly = self.coeffs.clone();
         let len = degree + 1;
-        let constant = *poly.get(0).unwrap_or(&0);
+        let constant = *poly.first().unwrap_or(&0);
         if constant == 0 {
             return None;
         }
@@ -202,7 +202,7 @@ impl super::FPS {
                 convolution_mont::standard_to_mont_scalar(modulo::inv(next_len as u32));
 
             unsafe {
-                convolution_mont::mul_pointwise_mont(&mut f_vals, &mut g_vals);
+                convolution_mont::mul_pointwise_mont(&mut f_vals, &g_vals);
                 convolution_mont::intt_mont(&mut f_vals);
                 convolution_mont::mul_scalar_mont(&mut f_vals, inv_ntt_len);
             }
@@ -210,13 +210,11 @@ impl super::FPS {
             // f*g の上半分から、Newton 更新に必要な項を抽出する。
             h_vals.clear();
             h_vals.resize(next_len, 0);
-            for i in 0..current_len {
-                h_vals[i] = f_vals[current_len + i];
-            }
+            h_vals[..current_len].copy_from_slice(&f_vals[current_len..current_len + current_len]);
 
             unsafe {
                 convolution_mont::ntt_mont(&mut h_vals);
-                convolution_mont::mul_pointwise_mont(&mut h_vals, &mut g_vals);
+                convolution_mont::mul_pointwise_mont(&mut h_vals, &g_vals);
                 convolution_mont::intt_mont(&mut h_vals);
                 convolution_mont::mul_scalar_mont(&mut h_vals, inv_ntt_len);
             }

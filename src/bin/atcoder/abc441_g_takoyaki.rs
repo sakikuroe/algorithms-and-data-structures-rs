@@ -63,11 +63,7 @@ impl lazy_segment_tree::Hom<PlateData> for PlateAction {
             // すべて 0 にリセットされる。もともと裏向きだった皿が
             // 表向きになり、加算値がそのまま最大値となる。
             PlateData {
-                max_up: if x.count_down > 0 {
-                    self.add
-                } else {
-                    i64::MIN
-                },
+                max_up: if x.count_down > 0 { self.add } else { i64::MIN },
                 count_up: x.count_down,
                 count_down: x.count_up,
             }
@@ -110,9 +106,11 @@ fn main() {
         count_up: 1,
         count_down: 0,
     };
-    let mut seg = lazy_segment_tree::SegmentTreeLazyDense::<PlateMonoid, PlateAction>::from_vec(
-        vec![init; n],
-    );
+    let mut seg =
+        lazy_segment_tree::SegmentTreeLazyDense::<PlateMonoid, PlateAction>::from_vec(vec![
+            init;
+            n
+        ]);
 
     for _ in 0..q {
         let t = io.u32();

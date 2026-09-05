@@ -472,8 +472,7 @@ mod tests {
         #[test]
         fn single_element_tree() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![42]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![42]);
             // When
             let result = sut.fold(0, 1);
             // Then
@@ -488,8 +487,7 @@ mod tests {
         #[test]
         fn empty_tree() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_vec(vec![]);
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(vec![]);
             // When
             let result = sut.fold(0, 0);
             // Then
@@ -503,8 +501,7 @@ mod tests {
         #[test]
         fn all_zeros() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             let result = sut.fold(0, 3);
             // Then
@@ -621,8 +618,7 @@ mod tests {
         #[test]
         fn empty_range_effect_is_noop() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3]);
             let before = sut.fold(0, 3);
             // When
             sut.effect(1, 1, AssignAddAction::add(100));
@@ -638,8 +634,7 @@ mod tests {
         #[test]
         fn add_on_single_element_tree() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![7]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
             sut.effect(0, 1, AssignAddAction::add(3));
             // Then
@@ -653,8 +648,7 @@ mod tests {
         #[test]
         fn assign_on_single_element_tree() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![7]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
             sut.effect(0, 1, AssignAddAction::assign(0));
             // Then
@@ -670,8 +664,7 @@ mod tests {
         #[test]
         fn mixed_operations_on_single_element_tree() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![0]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0]);
             // When
             sut.effect(0, 1, AssignAddAction::assign(5));
             sut.effect(0, 1, AssignAddAction::add(3));
@@ -688,8 +681,7 @@ mod tests {
         #[test]
         fn add_on_all_zeros() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             sut.effect(0, 3, AssignAddAction::add(5));
             // Then
@@ -703,8 +695,7 @@ mod tests {
         #[test]
         fn assign_zero_on_all_zeros() {
             // Given
-            let mut sut =
-                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             sut.effect(0, 3, AssignAddAction::assign(0));
             // Then
@@ -769,10 +760,10 @@ mod tests {
 
             for _ in 0..20 {
                 // Given
-                let init: Vec<i64> =
-                    (0..n).map(|_| rng.random_range(value_range.clone())).collect();
-                let mut sut =
-                    RangeAssignAddMinMaxSum::from_values(init.clone());
+                let init: Vec<i64> = (0..n)
+                    .map(|_| rng.random_range(value_range.clone()))
+                    .collect();
+                let mut sut = RangeAssignAddMinMaxSum::from_values(init.clone());
                 let mut naive = Naive::new(init);
 
                 for _ in 0..q {

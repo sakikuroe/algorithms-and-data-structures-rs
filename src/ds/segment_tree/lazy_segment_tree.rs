@@ -209,9 +209,7 @@ where
 
         // ベクタの各要素を対応する葉ノードに配置する。
         // 1-indexed のため、葉ノードの添字は `size` から始まる。
-        for i in 0..n {
-            data[size + i] = v[i].clone();
-        }
+        data[size..n + size].clone_from_slice(&v[..n]);
 
         // 内部ノードの値を子ノードの演算結果で構築する。
         // 葉から根へ向かってボトムアップに計算する。
@@ -269,6 +267,43 @@ where
     /// - 空間計算量: $O(1)$
     pub fn len(&self) -> usize {
         self.size
+    }
+
+    /// 管理する要素数が 0 であるかどうかを返す。
+    ///
+    /// 内部サイズは 2 の冪に切り上げられるため、空になることはなく、
+    /// 常に `false` を返す。`len` との対応のために用意している。
+    ///
+    /// # Returns
+    /// 常に `false` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: $O(1)$
+    /// - 空間計算量: $O(1)$
+    ///
+    /// # Examples
+    /// ```
+    /// # use anmitsu::{
+    /// #     algebra::monoid,
+    /// #     ds::segment_tree::lazy_segment_tree,
+    /// # };
+    /// # #[derive(Clone)]
+    /// # struct AddEffect(i64);
+    /// # impl lazy_segment_tree::Hom<i64> for AddEffect {
+    /// #     fn f(&self, x: &i64) -> i64 { x + self.0 }
+    /// #     fn composition(&self, other: &Self) -> Self {
+    /// #         AddEffect(self.0 + other.0)
+    /// #     }
+    /// # }
+    /// let seg = lazy_segment_tree::SegmentTreeLazyDense::<
+    ///     monoid::AddMonoid,
+    ///     AddEffect,
+    /// >::new(5);
+    /// assert!(!seg.is_empty());
+    /// ```
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 
     /// ノード `k` のデータに遅延作用を反映した値を返す。
@@ -607,7 +642,7 @@ where
             sm = t;
 
             // r が 2 の冪であれば先頭に到達している。
-            if r & r.wrapping_neg() == r {
+            if r.is_power_of_two() {
                 break;
             }
         }

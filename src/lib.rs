@@ -39,6 +39,9 @@ pub mod graph {
     pub mod eulerian_path;
     pub mod flow_graph;
     pub mod floyd_warshall;
+    // 汎用グラフ構造体を提供するモジュールであり、`graph::graph` という
+    // 名称は意図的であるため、clippy の警告を抑制する。
+    #[allow(clippy::module_inception)]
     pub mod graph;
     pub mod hld;
     pub mod hld_path_query;

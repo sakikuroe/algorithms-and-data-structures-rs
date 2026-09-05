@@ -194,12 +194,8 @@ impl BipartiteGraph {
         let mut match_left: Vec<Option<usize>> = vec![None; self.left_size()];
         let mut match_right: Vec<Option<usize>> = vec![None; self.right_size()];
 
-        loop {
-            let Some(level) = self.bfs_layers(&match_left, &match_right) else {
-                // 増加パスがもう存在しない。
-                break;
-            };
-
+        // 増加パスが存在する間、BFS で層を構築して DFS で一括拡張する。
+        while let Some(level) = self.bfs_layers(&match_left, &match_right) {
             // 「現在辺」ポインタ。同じフェーズの間、頂点ごとに使い回すことで、
             // 探索済みで行き止まりと分かった辺を再訪問しない。
             let mut iter = vec![0_usize; self.left_size()];

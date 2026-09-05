@@ -1,0 +1,56 @@
+# develop への PR に対して品質チェックを自動実行するワークフローである。
+#
+# PR の段階でフォーマット乱れやコンパイルエラー、テスト失敗を検出することで、
+# レビュー時は本質的な変更に集中でき、マージ後の手戻りを防ぐことができる。
+# 既存の自動マージワークフローには影響を与えず、4 つのジョブのいずれかが
+# 失敗した場合は PR のステータスチェック全体を失敗させる。
+name: PR checks
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  # コードが rustfmt の規約に従っているかを検証する。
+  # 差分がある場合はジョブを失敗させ、手動のフォーマット整理を不要にする。
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  # clippy の警告をエラーとして扱い、潜在的な問題を検出する。
+  # 新規コードの品質劣化を見逃さないことが目的である。
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all-targets -- -D warnings
+
+  # すべてのターゲットがコンパイルを通ることを確認する。
+  # テスト対象外のバイナリーやベンチマークの破損もここで検出する。
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --all-targets
+
+  # 単体テストおよびドキュメントテストがすべて通過することを検証する。
+  # 仕様のドキュメント化とリファクタリング時の安全性を保つことが目的である。
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all

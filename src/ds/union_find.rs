@@ -46,6 +46,26 @@ impl UnionFind {
         self.parent.len()
     }
 
+    /// `UnionFind` が要素を 1 つも管理していないかどうかを返す.
+    ///
+    /// # Returns
+    /// 要素数が 0 のとき `true` を, そうでなければ `false` を返す.
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(1).
+    /// - 空間計算量: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::union_find::UnionFind;
+    /// let uf = UnionFind::new(0);
+    /// assert!(uf.is_empty());
+    /// ```
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.parent.is_empty()
+    }
+
     /// 要素 `x` がその集合の根であるかどうかを判定する.
     ///
     /// # Args

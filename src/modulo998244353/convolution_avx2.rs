@@ -151,7 +151,7 @@ pub unsafe fn convolution_avx2(mut a: Vec<u32>, mut b: Vec<u32>) -> Vec<u32> {
         convolution_mont::standard_to_mont(&mut b);
         convolution_mont::ntt_mont(&mut a);
         convolution_mont::ntt_mont(&mut b);
-        convolution_mont::mul_pointwise_mont(&mut a, &mut b);
+        convolution_mont::mul_pointwise_mont(&mut a, &b);
         convolution_mont::intt_mont(&mut a);
 
         // `intt_mont` は正規化を行わないため、ここで `1/t` (Montgomery 表現) を

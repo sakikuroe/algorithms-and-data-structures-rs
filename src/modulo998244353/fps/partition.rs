@@ -44,7 +44,7 @@ fn should_add_term(kind: LogSeriesKind, j: usize) -> bool {
     match kind {
         LogSeriesKind::OnePlus => j % 2 == 1,
         LogSeriesKind::OneMinus => false,
-        LogSeriesKind::InvOnePlus => j % 2 == 0,
+        LogSeriesKind::InvOnePlus => j.is_multiple_of(2),
         LogSeriesKind::InvOneMinus => true,
     }
 }
@@ -108,8 +108,7 @@ fn build_log_series(
     let mut coeffs = vec![0_u32; target_len];
 
     // log(1 ± x^k) = Σ_{j>=1} sgn(j) * x^{k*j} / j を用いて、係数を畳み上げる。
-    for k in 1..target_len {
-        let count_k = counts[k];
+    for (k, &count_k) in counts.iter().enumerate().skip(1) {
         if count_k == 0 {
             continue;
         }
@@ -376,7 +375,11 @@ mod tests {
                 let mut coeffs = vec![0; degree + 1];
                 let mut t = 0_usize;
                 while a * t <= degree {
-                    coeffs[a * t] = if t % 2 == 0 { 1 } else { modulo::sub(0, 1) };
+                    coeffs[a * t] = if t.is_multiple_of(2) {
+                        1
+                    } else {
+                        modulo::sub(0, 1)
+                    };
                     t += 1;
                 }
                 fps(coeffs)
