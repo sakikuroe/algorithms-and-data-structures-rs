@@ -1,32 +1,3 @@
-// 既存コードの clippy 警告を一時的に許可する。
-// TODO: #58 で順次解消し、不要になった allow を削除する。
-#![allow(
-    clippy::clone_on_copy,
-    clippy::doc_lazy_continuation,
-    clippy::doc_overindented_list_items,
-    clippy::erasing_op,
-    clippy::get_first,
-    clippy::identity_op,
-    clippy::int_plus_one,
-    clippy::large_const_arrays,
-    clippy::legacy_numeric_constants,
-    clippy::len_without_is_empty,
-    clippy::manual_is_multiple_of,
-    clippy::manual_memcpy,
-    clippy::missing_safety_doc,
-    clippy::module_inception,
-    clippy::needless_range_loop,
-    clippy::needless_return,
-    clippy::new_without_default,
-    clippy::redundant_closure,
-    clippy::suspicious_arithmetic_impl,
-    clippy::type_complexity,
-    clippy::unnecessary_cast,
-    clippy::unnecessary_map_or,
-    clippy::unnecessary_mut_passed,
-    clippy::useless_vec
-)]
-
 pub mod algebra {
     pub mod monoid;
     pub mod semi_group;
@@ -68,6 +39,9 @@ pub mod graph {
     pub mod eulerian_path;
     pub mod flow_graph;
     pub mod floyd_warshall;
+    // 汎用グラフ構造体を提供するモジュールであり、`graph::graph` という
+    // 名称は意図的であるため、clippy の警告を抑制する。
+    #[allow(clippy::module_inception)]
     pub mod graph;
     pub mod hld;
     pub mod hld_path_query;

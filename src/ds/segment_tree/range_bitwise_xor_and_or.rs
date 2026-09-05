@@ -732,8 +732,8 @@ mod tests {
             // When
             let result = sut.fold(0, 5);
             // Then
-            let expected_xor = 0b1010 ^ 0b1100 ^ 0b0110 ^ 0b0011 ^ 0b1001;
-            let expected_and = 0b1010 & 0b1100 & 0b0110 & 0b0011 & 0b1001;
+            let expected_xor = 0b1010;
+            let expected_and = 0;
             let expected_or = 0b1010 | 0b1100 | 0b0110 | 0b0011 | 0b1001;
             assert_eq!(expected_xor, result.xor);
             assert_eq!(expected_and, result.and);
@@ -975,7 +975,7 @@ mod tests {
                 (0b1010 & 0b1100) | 0b0011,
                 (0b1100 & 0b1100) | 0b0011,
                 (0b0110 & 0b1100) | 0b0011,
-                (0b0011 & 0b1100) | 0b0011,
+                0b0011,
                 (0b1001 & 0b1100) | 0b0011,
             ];
             assert_eq!(vals.iter().fold(0, |a, b| a ^ b), result.xor);

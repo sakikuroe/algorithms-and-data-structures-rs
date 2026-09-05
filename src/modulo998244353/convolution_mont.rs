@@ -69,8 +69,8 @@ pub fn num_mont_table() -> &'static [u32] {
         .get_or_init(|| {
             let max_len = convolution::MAX_NTT_LEN;
             let mut table = vec![0_u32; max_len + 1];
-            for i in 0..=max_len {
-                table[i] = standard_to_mont_scalar(i as u32);
+            for (i, slot) in table.iter_mut().enumerate().take(max_len + 1) {
+                *slot = standard_to_mont_scalar(i as u32);
             }
             table.into_boxed_slice()
         })
@@ -472,7 +472,7 @@ pub fn ntt_doubling_powers_mont(n: usize) -> &'static [u32] {
     debug_assert!(2 * n <= convolution::MAX_NTT_LEN);
 
     NTT_DOUBLING_POWERS_MONT
-        .get_or_init(|| NttDoublingPowersMont::new())
+        .get_or_init(NttDoublingPowersMont::new)
         .powers(n)
 }
 
@@ -972,11 +972,10 @@ impl Ntt {
                 if p >= 8 {
                     // 半幅が 1 SIMD レーン (8 要素) 以上あるので、1 チャンクを
                     // 複数回の u32x8 ロードで素直に処理できる。
-                    for s in 0..chunks {
+                    for (s, &rot) in rots.iter().enumerate().take(chunks) {
                         let ptr = data.add(s * step);
 
                         // このチャンクの回転因子を全 lane にブロードキャストする。
-                        let rot = rots[s];
                         let rot_v = x86_64::_mm256_set1_epi32(rot as i32);
                         for i in (0..p).step_by(8) {
                             let l = x86_64::_mm256_loadu_si256(ptr.add(i).cast());
@@ -998,9 +997,8 @@ impl Ntt {
                         // 半幅が 4 なので、前半 4 要素・後半 4 要素で合わせて
                         // ちょうど 1 レーン (8 要素) に収まる。SIMD 化のオーバー
                         // ヘッドの方が大きいため、ここではスカラー演算で処理する。
-                        for s in 0..chunks {
+                        for (s, &rot) in rots.iter().enumerate().take(chunks) {
                             let ptr = data.add(8 * s);
-                            let rot = rots[s];
 
                             let l0 = *ptr.add(0);
                             let l1 = *ptr.add(1);
@@ -1169,10 +1167,9 @@ impl Ntt {
                 debug_assert!(irots.len() >= chunks);
                 if p >= 8 {
                     // 半幅が 1 SIMD レーン以上あるので、素直に u32x8 単位で処理する。
-                    for s in 0..chunks {
+                    for (s, &irot) in irots.iter().enumerate().take(chunks) {
                         let ptr = data.add(s * step);
 
-                        let irot = irots[s];
                         let irot_v = x86_64::_mm256_set1_epi32(irot as i32);
                         for i in (0..p).step_by(8) {
                             let l = x86_64::_mm256_loadu_si256(ptr.add(i).cast());
@@ -1192,9 +1189,8 @@ impl Ntt {
                     if p == 4 {
                         // p == 4 は前半 4 要素・後半 4 要素で 1 レーンに収まるため、
                         // SIMD 化のオーバーヘッドを避けてスカラー演算で処理する。
-                        for s in 0..chunks {
+                        for (s, &irot) in irots.iter().enumerate().take(chunks) {
                             let ptr = data.add(8 * s);
-                            let irot = irots[s];
 
                             let l0 = *ptr.add(0);
                             let l1 = *ptr.add(1);
@@ -1326,6 +1322,10 @@ impl Ntt {
 /// # Returns
 /// `()`: `a` を Montgomery 表現へ変換して in-place で更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a` は空ではなく長さが 2 の冪であり、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a` は空であってはならず、長さは 2 の冪である必要がある。
 /// - `a` の各要素は `convolution::MOD` 未満である。
@@ -1384,6 +1384,10 @@ pub unsafe fn standard_to_mont(a: &mut [u32]) {
 /// # Returns
 /// `()`: `a` を通常表現へ変換して in-place で更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a` は空ではなく長さが 2 の冪であり、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a` は空であってはならず、長さは 2 の冪である必要がある。
 /// - `a` の各要素は `convolution::MOD` 未満である。
@@ -1440,6 +1444,11 @@ pub unsafe fn mont_to_standard(a: &mut [u32]) {
 ///
 /// # Returns
 /// `()`: `a[i] *= b[i]` (Montgomery 乗算) を in-place で計算する。
+///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a.len() == b.len()` を満たし、空ではなく長さが 2 の冪であり、
+///   各要素は `convolution::MOD` 未満である。
 ///
 /// # Constraints
 /// - `a.len() == b.len()` を満たし、空であってはならない。
@@ -1499,6 +1508,11 @@ pub unsafe fn mul_pointwise_mont(a: &mut [u32], b: &[u32]) {
 /// # Returns
 /// `()`: `a[i] *= sc_mont` (Montgomery 乗算) を in-place で計算する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a` は空ではなく長さが 2 の冪であり、各要素は `convolution::MOD` 未満である。
+/// - `sc_mont` は `convolution::MOD` 未満の Montgomery 表現である。
+///
 /// # Constraints
 /// - `a` は空であってはならず、長さは 2 の冪である必要がある。
 /// - `a` の各要素は `convolution::MOD` 未満である。
@@ -1530,17 +1544,14 @@ pub unsafe fn mul_scalar_mont(a: &mut [u32], sc_mont: u32) {
         if n < AVX2_U32_LANES {
             if n == 1 {
                 a[0] = mul_mont(a[0], sc_mont);
-                return;
             } else if n == 2 {
                 a[0] = mul_mont(a[0], sc_mont);
                 a[1] = mul_mont(a[1], sc_mont);
-                return;
             } else if n == 4 {
                 a[0] = mul_mont(a[0], sc_mont);
                 a[1] = mul_mont(a[1], sc_mont);
                 a[2] = mul_mont(a[2], sc_mont);
                 a[3] = mul_mont(a[3], sc_mont);
-                return;
             }
         } else {
             let ntt = NTT.get_or_init(|| Ntt::new());
@@ -1558,12 +1569,16 @@ pub unsafe fn mul_scalar_mont(a: &mut [u32], sc_mont: u32) {
 /// # Returns
 /// `()`: `a` を in-place に更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a.len() == b.len()` を満たし、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a.len() == b.len()` を満たす。
-/// - `a` と `b` の各要素は `convolution::MOD` 未満である。
+/// - `a` と `b` の各要素は `convolution::MOD` 未満である.
 ///
 /// # Panics
-/// - この関数はパニックし得る (デバッグアサート)。
+/// - この関数はパニックし得る (デバッグアサート).
 ///
 /// # Complexity
 /// - Time complexity: O(n)
@@ -1613,12 +1628,16 @@ pub unsafe fn add_assign_mont(a: &mut [u32], b: &[u32]) {
 /// # Returns
 /// `()`: `a` を in-place に更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a.len() == b.len()` を満たし、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a.len() == b.len()` を満たす。
-/// - `a` と `b` の各要素は `convolution::MOD` 未満である。
+/// - `a` と `b` の各要素は `convolution::MOD` 未満である.
 ///
 /// # Panics
-/// - この関数はパニックし得る (デバッグアサート)。
+/// - この関数はパニックし得る (デバッグアサート).
 ///
 /// # Complexity
 /// - Time complexity: O(n)
@@ -1668,11 +1687,15 @@ pub unsafe fn sub_assign_mont(a: &mut [u32], b: &[u32]) {
 /// # Returns
 /// `()`: `a` を in-place に更新する。
 ///
-/// # Constraints
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
 /// - `a` の各要素は `convolution::MOD` 未満である。
 ///
+/// # Constraints
+/// - `a` の各要素は `convolution::MOD` 未満である.
+///
 /// # Panics
-/// - この関数はパニックしない。
+/// - この関数はパニックしない.
 ///
 /// # Complexity
 /// - Time complexity: O(n)
@@ -1702,8 +1725,9 @@ pub unsafe fn double_mont(a: &mut [u32]) {
         }
 
         // 端数はスカラー演算で処理する。
-        for i in end..n {
-            a[i] = modulo::add(a[i], a[i]);
+        for slot in a.iter_mut().take(n).skip(end) {
+            let v = *slot;
+            *slot = modulo::add(v, v);
         }
     }
 }
@@ -1717,12 +1741,16 @@ pub unsafe fn double_mont(a: &mut [u32]) {
 /// # Returns
 /// `()`: `a` を in-place に更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a.len() == b.len()` を満たし、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a.len() == b.len()` を満たす。
-/// - `a` と `b` の各要素は `convolution::MOD` 未満である。
+/// - `a` と `b` の各要素は `convolution::MOD` 未満である.
 ///
 /// # Panics
-/// - この関数はパニックし得る (デバッグアサート)。
+/// - この関数はパニックし得る (デバッグアサート).
 ///
 /// # Complexity
 /// - Time complexity: O(n)
@@ -1772,6 +1800,10 @@ pub unsafe fn rev_sub_assign_mont(a: &mut [u32], b: &[u32]) {
 /// # Returns
 /// `()`: `a` を NTT 変換後の値 (Montgomery 表現) で in-place に更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a` は空ではなく長さが 2 の冪であり、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a` は空であってはならず、長さは 2 の冪である必要がある。
 ///
@@ -1808,7 +1840,6 @@ pub unsafe fn ntt_mont(a: &mut [u32]) {
         if n < AVX2_U32_LANES {
             if n == 1 {
                 // n = 1 の DFT は恒等変換である。
-                return;
             } else if n == 2 {
                 // 長さ 2 の DFT は単純な和・差のみで、回転因子は不要である。
                 let t0 = modulo::add(a[0], a[1]);
@@ -1848,6 +1879,10 @@ pub unsafe fn ntt_mont(a: &mut [u32]) {
 /// # Returns
 /// `()`: `a` を逆 NTT 変換後の値 (Montgomery 表現、正規化なし) で in-place に更新する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a` は空ではなく長さが 2 の冪であり、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a` は空であってはならず、長さは 2 の冪である必要がある。
 ///
@@ -1873,7 +1908,6 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
         if n < AVX2_U32_LANES {
             if n == 1 {
                 // n = 1 の逆 DFT は恒等変換である。
-                return;
             } else if n == 2 {
                 // 入力: [A0、A1] (n=2 は bitrev が恒等)
                 // 出力: [2*a0、2*a1] (正規化なし)
@@ -1881,7 +1915,6 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
                 let t1 = modulo::sub(a[0], a[1]);
                 a[0] = t0;
                 a[1] = t1;
-                return;
             } else if n == 4 {
                 // `OMEGA_1_4_INV_MONT` は `ω^1` の逆元 (Montgomery 表現) であり、
                 // `MOD - OMEGA_1_4_MONT` として求まる (加法逆元 = 乗法逆元ではなく、
@@ -1899,8 +1932,6 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
                 a[2] = modulo::sub(e0, o0);
                 a[3] = modulo::sub(e1, t1);
                 a[1] = modulo::add(e1, t1);
-
-                return;
             } else {
                 // n は 2 の冪かつ `AVX2_U32_LANES = 8` 未満なので、1、2、4 以外はあり得ない。
                 unreachable!()
@@ -1920,6 +1951,11 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
 ///
 /// # Returns
 /// `()`: `a_ntt` の長さを `2n` に拡張し、後半 `n` 要素を計算して格納する。
+///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a_ntt.len()` は 0 ではない 2 の冪であり、`2 * a_ntt.len()` は
+///   `convolution::MAX_NTT_LEN` 以下であり、各要素は `convolution::MOD` 未満である。
 ///
 /// # Constraints
 /// - `a_ntt.len()` は 0 ではない 2 の冪である。
@@ -1961,6 +1997,11 @@ pub unsafe fn ntt_doubling(a_ntt: &mut Vec<u32>) {
 /// # Returns
 /// `()`: `a_ntt_mont` の長さを `2n` に拡張し、後半 `n` 要素を計算して格納する。
 ///
+/// # Safety
+/// - 呼び出し側は、実行環境で AVX2 が利用可能であることを保証する。
+/// - `a_ntt_mont.len()` は 0 ではない 2 の冪であり、`2 * a_ntt_mont.len()` は
+///   `convolution::MAX_NTT_LEN` 以下であり、各要素は `convolution::MOD` 未満である。
+///
 /// # Constraints
 /// - `a_ntt_mont.len()` は 0 ではない 2 の冪である。
 /// - `2 * a_ntt_mont.len()` は `convolution::MAX_NTT_LEN` を超えてはならない。
@@ -1999,7 +2040,7 @@ pub unsafe fn ntt_doubling_mont(a_ntt_mont: &mut Vec<u32>) {
         // "ねじる" と、ねじった多項式の `n` 乗根での評価値が、元の多項式の
         // 奇数番目の `2n` 乗根での評価値に一致する。
         let powers = NTT_DOUBLING_POWERS_MONT
-            .get_or_init(|| NttDoublingPowersMont::new())
+            .get_or_init(NttDoublingPowersMont::new)
             .powers(n);
         let mut twisted = coeffs;
         mul_pointwise_mont(&mut twisted, powers);

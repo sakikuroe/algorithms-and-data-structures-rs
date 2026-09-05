@@ -15,7 +15,7 @@ impl WaveletMatrix {
     ///
     /// # Args
     /// - `v`: A slice of `usize` to be stored in the WaveletMatrix.
-    ///        WaveletMatrix に格納する `usize` のスライス.
+    ///   WaveletMatrix に格納する `usize` のスライス.
     ///
     /// # Returns
     /// `WaveletMatrix`: A new instance of WaveletMatrix.
@@ -42,10 +42,10 @@ impl WaveletMatrix {
     /// # Complexity
     /// - Time complexity: O(N log U), where N is the length of `v` and U is the number of
     ///   distinct values in `v`.
-    ///                          ここで N は `v` の長さ, U は `v` のユニークな値の数である.
+    ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
     /// - Space complexity: O(N log U), where N is the length of `v` and U is the number of
     ///   distinct values in `v`.
-    ///                           ここで N は `v` の長さ, U は `v` のユニークな値の数である.
+    ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
     ///
     /// # Examples
     /// ```rust
@@ -87,10 +87,7 @@ impl WaveletMatrix {
         // `compress.len()` is the number of unique elements (U).
         // `(1..)` finds the smallest `i` such that `2^i >= U + 1`.
         // `1_usize << i` explicitly specifies `usize` for the bit shift to avoid type issues.
-        let height = (1..)
-            .find(|i| (1_usize << i) >= compress.len() + 1)
-            .unwrap()
-            + 1;
+        let height = (1..).find(|i| (1_usize << i) > compress.len()).unwrap() + 1;
 
         // Initialize bit_table; type is inferred from `BitVector::new`.
         let mut bit_table = Vec::new();
@@ -129,11 +126,11 @@ impl WaveletMatrix {
     ///
     /// # Args
     /// - `l`: The start index of the range (inclusive).
-    ///        範囲の開始インデックス (inclusive).
+    ///   範囲の開始インデックス (inclusive).
     /// - `r`: The end index of the range (exclusive).
-    ///        範囲の終了インデックス (exclusive).
+    ///   範囲の終了インデックス (exclusive).
     /// - `upper`: The upper bound value (exclusive).
-    ///            上限値 (exclusive).
+    ///   上限値 (exclusive).
     ///
     /// # Returns
     /// `usize`: The number of elements less than `upper` in the specified range.
@@ -152,7 +149,7 @@ impl WaveletMatrix {
     ///
     /// # Complexity
     /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
-    ///                          ここで U は元のシーケンスにおけるユニークな値の数である.
+    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count_less_than(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         if r <= l {
             return 0;
@@ -198,11 +195,11 @@ impl WaveletMatrix {
     ///
     /// # Args
     /// - `l`: The start index of the range (inclusive).
-    ///        範囲の開始インデックス (inclusive).
+    ///   範囲の開始インデックス (inclusive).
     /// - `r`: The end index of the range (exclusive).
-    ///        範囲の終了インデックス (exclusive).
+    ///   範囲の終了インデックス (exclusive).
     /// - `lower`: The lower bound value (inclusive).
-    ///            下限値 (inclusive).
+    ///   下限値 (inclusive).
     ///
     /// # Returns
     /// `usize`: The number of elements greater than or equal to `lower` in the specified range.
@@ -221,7 +218,7 @@ impl WaveletMatrix {
     ///
     /// # Complexity
     /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
-    ///                               ここで U は元のシーケンスにおけるユニークな値の数である.
+    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count_more_than(&self, l: usize, r: usize, lower: usize) -> usize {
         if r <= l {
             return 0;
@@ -235,13 +232,13 @@ impl WaveletMatrix {
     ///
     /// # Args
     /// - `l`: The start index of the range (inclusive).
-    ///        範囲の開始インデックス (inclusive).
+    ///   範囲の開始インデックス (inclusive).
     /// - `r`: The end index of the range (exclusive).
-    ///        範囲の終了インデックス (exclusive).
+    ///   範囲の終了インデックス (exclusive).
     /// - `lower`: The lower bound value (inclusive).
-    ///            下限値 (inclusive).
+    ///   下限値 (inclusive).
     /// - `upper`: The upper bound value (exclusive).
-    ///            上限値 (exclusive).
+    ///   上限値 (exclusive).
     ///
     /// # Returns
     /// `usize`: The number of elements in the range [`lower`, `upper`) in the specified range of `v`.
@@ -260,7 +257,7 @@ impl WaveletMatrix {
     ///
     /// # Complexity
     /// - Time complexity: O(log U), where U is the number of distinct values in the original sequence.
-    ///                          ここで U は元のシーケンスにおけるユニークな値の数である.
+    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
     pub fn count(&self, l: usize, r: usize, lower: usize, upper: usize) -> usize {
         if r <= l {
             return 0;

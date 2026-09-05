@@ -15,9 +15,9 @@ pub trait SemiGroup {
     ///
     /// # Args
     /// - `a`: The first operand.
-    ///        第一オペランド.
+    ///   第一オペランド.
     /// - `b`: The second operand.
-    ///        第二オペランド.
+    ///   第二オペランド.
     ///
     /// # Returns
     /// `Self::S`: Returns the result of the operation.

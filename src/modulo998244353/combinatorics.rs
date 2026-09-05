@@ -264,7 +264,7 @@ impl Combinatorics {
     ///
     /// # Complexity
     /// - 時間計算量: O(1) (`n` がテーブル範囲内の場合)、
-    /// それ以外は O(n - t + log MOD)
+    ///   それ以外は O(n - t + log MOD)
     /// - 空間計算量: O(1) (計算部分のみ)、ただし拡張時は O(m)
     ///
     /// # Examples
@@ -311,7 +311,7 @@ impl Combinatorics {
     ///
     /// # Complexity
     /// - 時間計算量: O(1) (`n % 998244353` がテーブル範囲内の場合)、
-    /// それ以外は O(log MOD)
+    ///   それ以外は O(log MOD)
     /// - 空間計算量: O(1) (計算部分のみ)、ただし拡張時は O(m)
     ///
     /// # Examples
@@ -446,6 +446,25 @@ impl Combinatorics {
             res *= modint::ModInt998244353::new(n - i as u64);
         }
         res
+    }
+}
+
+/// `Combinatorics` の既定値を提供する。
+impl Default for Combinatorics {
+    /// 既定値として、最小限のテーブルを持つ `Combinatorics` を返す。
+    ///
+    /// # Returns
+    /// `0!` と `inv_fact(0)` のみを持つ `Self` を返す。
+    ///
+    /// # Examples
+    /// ```
+    /// use anmitsu::modulo998244353::combinatorics;
+    ///
+    /// let mut comb = combinatorics::Combinatorics::default();
+    /// assert_eq!(1, comb.fact(0).val());
+    /// ```
+    fn default() -> Self {
+        Self::new()
     }
 }
 

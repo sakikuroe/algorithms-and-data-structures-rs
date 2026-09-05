@@ -36,9 +36,9 @@ impl BitVector {
     /// # Args
     ///
     /// - `v`: A slice of `u8` where each element is either `0` or `1`.
-    ///        The length of `v` must be less than 2^{32} (=4294967296).
+    ///   The length of `v` must be less than 2^{32} (=4294967296).
     ///   `v`: 各要素が `0` または `1` である `u8` のスライスである.
-    ///        `v` の長さは `2^{32}` (=4294967296) 未満でなければならない.
+    ///   `v` の長さは `2^{32}` (=4294967296) 未満でなければならない.
     ///
     /// # Returns
     ///
@@ -55,9 +55,9 @@ impl BitVector {
     /// # Complexity
     ///
     /// - Time complexity: O(N), where N is the length of `v`.
-    ///                    時間計算量: O(N) である. ここで N は `v` の長さである.
+    ///   時間計算量: O(N) である. ここで N は `v` の長さである.
     /// - Space complexity: O(N), where N is the length of `v`.
-    ///                     空間計算量: O(N) である. ここで N は `v` の長さである.
+    ///   空間計算量: O(N) である. ここで N は `v` の長さである.
     ///
     /// # Examples
     ///
@@ -136,9 +136,9 @@ impl BitVector {
     /// # Complexity
     ///
     /// - Time complexity: O(1) due to precomputation.
-    ///                    時間計算量: 事前計算により O(1) である.
+    ///   時間計算量: 事前計算により O(1) である.
     /// - Space complexity: O(1) for the query itself.
-    ///                     空間計算量: クエリ自体は O(1) である.
+    ///   空間計算量: クエリ自体は O(1) である.
     ///
     /// # Examples
     ///
@@ -190,9 +190,9 @@ impl BitVector {
     /// # Complexity
     ///
     /// - Time complexity: O(1).
-    ///                    時間計算量: O(1) である.
+    ///   時間計算量: O(1) である.
     /// - Space complexity: O(1).
-    ///                     空間計算量: O(1) である.
+    ///   空間計算量: O(1) である.
     ///
     /// # Examples
     ///
@@ -217,9 +217,9 @@ impl BitVector {
     /// # Complexity
     ///
     /// - Time complexity: O(1).
-    ///                    時間計算量: O(1) である.
+    ///   時間計算量: O(1) である.
     /// - Space complexity: O(1).
-    ///                     空間計算量: O(1) である.
+    ///   空間計算量: O(1) である.
     ///
     /// # Examples
     ///
@@ -310,7 +310,7 @@ mod tests {
         #[test]
         fn returns_zero_for_all_zero_bit_vector() {
             // Given
-            let sut = BitVector::new(&vec![0; 100]);
+            let sut = BitVector::new(&[0; 100]);
             // When, Then
             for r in 0..=100 {
                 assert_eq!(0, sut.rank(r));
@@ -324,7 +324,7 @@ mod tests {
         #[test]
         fn returns_r_for_all_one_bit_vector() {
             // Given
-            let sut = BitVector::new(&vec![1; 100]);
+            let sut = BitVector::new(&[1; 100]);
             // When, Then
             for r in 0..=100 {
                 assert_eq!(r, sut.rank(r));

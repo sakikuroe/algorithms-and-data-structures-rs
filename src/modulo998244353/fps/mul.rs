@@ -201,7 +201,7 @@ impl super::FPS {
     /// ```
     fn trim_coeffs(coeffs: &mut Vec<u32>) {
         // 末尾から 0 を削除し、最高次の係数が非 0 となるように正規化する。
-        while coeffs.last().map_or(false, |c| *c == 0) {
+        while coeffs.last().is_some_and(|c| *c == 0) {
             coeffs.pop();
         }
     }

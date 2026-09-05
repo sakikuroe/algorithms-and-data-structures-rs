@@ -133,7 +133,7 @@ fn bostan_mori_scalar(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
 /// // AVX2 依存のため、直接の使用例は省略する。
 /// ```
 #[cfg(target_arch = "x86_64")]
-fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
+fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, mut k: usize) -> u32 {
     use super::super::{convolution, convolution_mont};
     use std::arch;
 
@@ -149,7 +149,6 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
         return bostan_mori_scalar(p, q, k);
     }
 
-    let mut k = k as usize;
     if k < n {
         let mut p = p.coeffs.clone();
         let mut q = q.coeffs.clone();
@@ -178,7 +177,7 @@ fn bostan_mori_avx2(p: &super::FPS, q: &super::FPS, k: usize) -> u32 {
         debug_assert_eq!(2 * n, p.len());
         debug_assert_eq!(2 * n, q.len());
 
-        if k % 2 == 0 {
+        if k.is_multiple_of(2) {
             for i in 0..n {
                 let p0 = p[2 * i];
                 let p1 = p[2 * i + 1];

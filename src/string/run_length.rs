@@ -12,7 +12,7 @@ where
     ///
     /// # Args
     /// - `self`: A reference to the sequence to be encoded.
-    ///           encoding 対象となる列への参照である.
+    ///   encoding 対象となる列への参照である.
     ///
     /// # Returns
     /// `Vec<(T, usize)>`: Returns a vector of tuples, where each tuple contains an element and its frequency.
@@ -28,9 +28,9 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(N), where N is the length of the input sequence.
-    ///                          ここで N は入力された列の長さである.
+    ///   ここで N は入力された列の長さである.
     /// - Space complexity: O(K), where K is the number of distinct elements in the input.
-    ///                           ここで K は入力列に現れる異なる要素の種類数である.
+    ///   ここで K は入力列に現れる異なる要素の種類数である.
     ///
     /// # Examples
     /// ```rust
@@ -75,7 +75,7 @@ where
     ///
     /// # Args
     /// - `self`: A reference to the run-length encoded sequence.
-    ///           run-length encoded された列への参照である.
+    ///   run-length encoded された列への参照である.
     ///
     /// # Returns
     /// `Vec<T>`: Returns the decoded sequence as a vector of elements.
@@ -91,9 +91,9 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///                    ここで N_decoded は decoded 後の列の総要素数である.
+    ///   ここで N_decoded は decoded 後の列の総要素数である.
     /// - Space complexity: O(N_decoded), where N_decoded is the total number of elements in the decoded sequence.
-    ///                     ここで N_decoded は decoded 後の列の総要素数である.
+    ///   ここで N_decoded は decoded 後の列の総要素数である.
     ///
     /// # Examples
     /// ```rust

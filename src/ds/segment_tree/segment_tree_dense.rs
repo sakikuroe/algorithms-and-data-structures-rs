@@ -29,7 +29,7 @@ where
     ///
     /// # Args
     /// - `n`: The size (number of leaves) of the segment tree.
-    ///        `segment tree` のサイズ (葉の数).
+    ///   `segment tree` のサイズ (葉の数).
     ///
     /// # Returns
     /// `SegmentTreeDense<M>`: Returns a newly created segment tree instance.
@@ -41,9 +41,9 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///                          ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(n), where `n` is the size of the segment tree.
-    ///                           ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     ///
     /// # Examples
     /// ```rust
@@ -85,6 +85,32 @@ where
         self.len
     }
 
+    /// Returns true if the segment tree is empty.
+    /// この `segment tree` が空であるかどうかを返す.
+    ///
+    /// # Returns
+    /// `bool`: True if the segment tree contains no elements.
+    ///         `segment tree` が要素を含まない場合に真.
+    ///
+    /// # Panics
+    /// This function does not panic.
+    /// この関数はパニックしない.
+    ///
+    /// # Complexity
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_dense};
+    /// let seg = segment_tree_dense::SegmentTreeDense::<monoid::AddMonoid>::new(0);
+    /// assert!(seg.is_empty());
+    /// ```
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Sets the value at index `idx` to `x`.
     /// The update is lazy; use `build` or `update` to propagate changes to parent nodes.
     /// インデックス `idx` の値を `x` にセットする.
@@ -92,9 +118,9 @@ where
     ///
     /// # Args
     /// - `idx`: The index to set.
-    ///          セット対象のインデックス.
+    ///   セット対象のインデックス.
     /// - `x`: The new value.
-    ///        新しい値.
+    ///   新しい値.
     ///
     /// # Panics
     /// Panics if `idx` >= `self.len()`.
@@ -136,7 +162,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(n), where `n` is the size of the segment tree.
-    ///                          ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -162,9 +188,9 @@ where
     ///
     /// # Args
     /// - `idx`: The index to update.
-    ///          更新対象のインデックス.
+    ///   更新対象のインデックス.
     /// - `x`: The new value.
-    ///        新しい値.
+    ///   新しい値.
     ///
     /// # Panics
     /// Panics if `idx` >= `self.len()`.
@@ -172,7 +198,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -209,7 +235,7 @@ where
     ///
     /// # Args
     /// - `idx`: The index to retrieve.
-    ///          値を取得するインデックス.
+    ///   値を取得するインデックス.
     ///
     /// # Returns
     /// `M::S`: The value at `idx`.
@@ -252,9 +278,9 @@ where
     ///
     /// # Args
     /// - `l`: The start index of the range (inclusive).
-    ///        `query` 区間の開始インデックス (含む).
+    ///   `query` 区間の開始インデックス (含む).
     /// - `r`: The end index of the range (exclusive).
-    ///        `query` 区間の終了インデックス (含まない).
+    ///   `query` 区間の終了インデックス (含まない).
     ///
     /// # Returns
     /// `M::S`: The folded result of the interval `[l, r)`. It is the identity element `M::id()` if the range is empty.
@@ -266,7 +292,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -304,10 +330,10 @@ where
 
         // Fold elements within [l, r).
         while l < r {
-            if l % 2 == 0 {
+            if l.is_multiple_of(2) {
                 sum_l = M::op(&sum_l, &self.data[l]);
             }
-            if r % 2 == 0 {
+            if r.is_multiple_of(2) {
                 sum_r = M::op(&self.data[r - 1], &sum_r);
             }
             l /= 2;
@@ -334,9 +360,9 @@ where
     ///
     /// # Args
     /// - `l`: The start index of the range.
-    ///        範囲の開始インデックス.
+    ///   範囲の開始インデックス.
     /// - `f`: A function that takes a reference to `M::S` and returns a boolean.
-    ///        `M::S` への参照を受け取り, 真偽値を返す関数.
+    ///   `M::S` への参照を受け取り, 真偽値を返す関数.
     ///
     /// # Returns
     /// `usize`: The maximum `r` such that `f(fold(l, r))` is `true`.
@@ -348,7 +374,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -421,9 +447,9 @@ where
     ///
     /// # Args
     /// - `r`: The end index of the range.
-    ///        範囲の終了インデックス.
+    ///   範囲の終了インデックス.
     /// - `f`: A function that takes a reference to `M::S` and returns a boolean.
-    ///        `M::S` への参照を受け取り, 真偽値を返す関数.
+    ///   `M::S` への参照を受け取り, 真偽値を返す関数.
     ///
     /// # Returns
     /// `usize`: The minimum `l` such that `f(fold(l, r))` is `true`.
@@ -435,7 +461,7 @@ where
     ///
     /// # Complexity
     /// - Time complexity: O(log(n)), where `n` is the size of the segment tree.
-    ///                               ここで `n` は `segment tree` のサイズである.
+    ///   ここで `n` は `segment tree` のサイズである.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -809,17 +835,19 @@ mod tests {
             let initial_data = vec![1, 2, 3, 4, 5];
             let n = initial_data.len();
             let sut = create_dense_tree::<monoid::AddMonoid>(&initial_data);
-            let cases: [(usize, fn(&i64) -> bool, usize); 5] = [
+            // 述語の型を関数ポインタに統一するため、`as fn` で変換する。
+            // 複雑な型注釈を避け、型推論で配列の型を定める。
+            let cases = [
                 // l=1 から総和が 10 未満: [1,4) = 2+3+4=9, [1,5)=14
-                (1, |&sum| sum < 10, 4),
+                (1, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 4),
                 // l=0 から総和が 6 以下: [0,3) = 1+2+3=6, [0,4)=10
-                (0, |&sum| sum <= 6, 3),
+                (0, (|&sum: &i64| sum <= 6) as fn(&i64) -> bool, 3),
                 // 述語が常に true の場合は末尾まで伸びる。
-                (0, |&_sum| true, n),
+                (0, (|&_sum: &i64| true) as fn(&i64) -> bool, n),
                 // 述語が単位元に対してのみ true の場合は開始位置から動かない。
-                (0, |&sum| sum == 0, 0),
+                (0, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, 0),
                 // 開始位置が末尾の場合は末尾がそのまま返る。
-                (n, |&_sum| true, n),
+                (n, (|&_sum: &i64| true) as fn(&i64) -> bool, n),
             ];
             // When, Then
             for (l, f, expected) in cases {
@@ -842,17 +870,19 @@ mod tests {
             let initial_data = vec![1, 2, 3, 4, 5];
             let n = initial_data.len();
             let mut sut = create_dense_tree::<monoid::AddMonoid>(&initial_data);
-            let cases: [(usize, fn(&i64) -> bool, usize); 5] = [
+            // 述語の型を関数ポインタに統一するため、`as fn` で変換する。
+            // 複雑な型注釈を避け、型推論で配列の型を定める。
+            let cases = [
                 // r=4 まで総和が 10 未満: [1,4) = 2+3+4=9, [0,4)=10
-                (4, |&sum| sum < 10, 1),
+                (4, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 1),
                 // r=5 まで総和が 15 以下: [0,5) = 15
-                (5, |&sum| sum <= 15, 0),
+                (5, (|&sum: &i64| sum <= 15) as fn(&i64) -> bool, 0),
                 // 述語が常に true の場合は先頭まで縮む。
-                (n, |&_sum| true, 0),
+                (n, (|&_sum: &i64| true) as fn(&i64) -> bool, 0),
                 // 述語が単位元に対してのみ true の場合は終了位置から動かない。
-                (n, |&sum| sum == 0, n),
+                (n, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, n),
                 // 終了位置が先頭の場合は先頭がそのまま返る。
-                (0, |&_sum| true, 0),
+                (0, (|&_sum: &i64| true) as fn(&i64) -> bool, 0),
             ];
             // When, Then
             for (r, f, expected) in cases {

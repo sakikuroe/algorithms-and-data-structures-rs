@@ -681,7 +681,9 @@ impl ops::Div for ModInt998244353 {
         let inv_rhs = rhs
             .inv()
             .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
-        self * inv_rhs
+        // 逆元との積が商になる。積は (MOD-1)^2 未満で u64 に収まるため、
+        // `wrapping_mul` は通常の乗算と一致し、`new` で法による還元を行う。
+        Self::new((self.val as u64).wrapping_mul(inv_rhs.val as u64))
     }
 }
 
@@ -719,11 +721,9 @@ impl ops::Div<u32> for ModInt998244353 {
     /// ```
     fn div(self, rhs: u32) -> Self::Output {
         // rhs を ModInt998244353 に変換したうえで、除算演算子に処理を委譲する。
+        // 委譲先で逆元による乗算として商を求めるため、結果は直接の逆元計算と一致する。
         let rhs_mod = ModInt998244353::new(rhs as u64);
-        let inv_rhs = rhs_mod
-            .inv()
-            .unwrap_or_else(|| panic!("Division by zero is not allowed for ModInt998244353"));
-        self * inv_rhs
+        self / rhs_mod
     }
 }
 
@@ -1473,7 +1473,7 @@ mod tests {
             let sut = ModInt998244353::new(12345);
 
             // When
-            let mut cloned = sut.clone();
+            let mut cloned = sut;
             cloned -= 1_u32;
 
             // Then

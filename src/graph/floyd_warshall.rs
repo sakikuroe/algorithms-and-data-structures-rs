@@ -116,15 +116,15 @@ impl<T> graph::Graph<T> {
         }
         // グラフに実際に存在する辺 u -> v を、dist[u][v] の初期値として反映する。
         // 同じ頂点対に複数の辺 (多重辺) があれば、最も小さい重みを採用する。
-        for u in 0..n {
+        for (u, row) in dist.iter_mut().enumerate() {
             for (v, payload) in self.edges(u) {
                 let w = weight_of(payload);
-                let is_better = match dist[u][v] {
+                let is_better = match row[v] {
                     Some(cur) => w < cur,
                     None => true,
                 };
                 if is_better {
-                    dist[u][v] = Some(w);
+                    row[v] = Some(w);
                 }
             }
         }
@@ -138,17 +138,44 @@ impl<T> graph::Graph<T> {
             for i in 0..n {
                 // i から k へ到達できなければ、k を経由する経路も考えられない。
                 let Some(dik) = dist[i][k] else { continue };
-                for j in 0..n {
-                    let Some(dkj) = dist[k][j] else { continue };
-                    // i -> k -> j という、k を経由する経路のコスト。これが
-                    // これまでの dist[i][j] より小さければ更新する。
-                    let via_k = dik + dkj;
-                    let is_better = match dist[i][j] {
-                        Some(cur) => via_k < cur,
-                        None => true,
+                if i == k {
+                    // 同じ行を読み書きするため、単一の可変借用で走査する。
+                    // 各列は独立に更新されるため、順次処理でも結果は変わらない。
+                    for cell in dist[i].iter_mut() {
+                        let Some(dkj) = *cell else { continue };
+                        // i -> k -> j という、k を経由する経路のコスト。これが
+                        // これまでの dist[i][j] より小さければ更新する。
+                        let via_k = dik + dkj;
+                        let is_better = match *cell {
+                            Some(cur) => via_k < cur,
+                            None => true,
+                        };
+                        if is_better {
+                            *cell = Some(via_k);
+                        }
+                    }
+                } else {
+                    // 異なる行を同時に借用するため、重ならない範囲に分割する。
+                    // k 行は更新されないため、不変参照で共有できる。
+                    let (row_i, row_k) = if i < k {
+                        let (head, tail) = dist.split_at_mut(k);
+                        (&mut head[i], &tail[0])
+                    } else {
+                        let (head, tail) = dist.split_at_mut(i);
+                        (&mut tail[0], &head[k])
                     };
-                    if is_better {
-                        dist[i][j] = Some(via_k);
+                    for (cell, &dkj_opt) in row_i.iter_mut().zip(row_k.iter()) {
+                        let Some(dkj) = dkj_opt else { continue };
+                        // i -> k -> j という、k を経由する経路のコスト。これが
+                        // これまでの dist[i][j] より小さければ更新する。
+                        let via_k = dik + dkj;
+                        let is_better = match *cell {
+                            Some(cur) => via_k < cur,
+                            None => true,
+                        };
+                        if is_better {
+                            *cell = Some(via_k);
+                        }
                     }
                 }
             }
