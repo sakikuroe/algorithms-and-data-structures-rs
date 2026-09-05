@@ -475,28 +475,47 @@ impl Hld {
     /// # Complexity
     /// - 時間計算量: O(log V) (ならし)
     ///   - V は頂点数である。
-    pub fn vertex_edge_path_ranges(&self, u: usize, v: usize) -> Vec<(usize, usize, PathDirection)> {
+    pub fn vertex_edge_path_ranges(
+        &self,
+        u: usize,
+        v: usize,
+    ) -> Vec<(usize, usize, PathDirection)> {
         let climb = self.climb_to_lca(u, v, false);
         // u_ranges/v_ranges のうち、LCA 合流時に追加された最後の1件だけは
         // 拡張しない対象として特定する (どちらか一方にしか存在しない)。
-        let u_no_extend_idx = (climb.merge_extends_u && climb.merge_pushed)
-            .then(|| climb.u_ranges.len() - 1);
-        let v_no_extend_idx = (!climb.merge_extends_u && climb.merge_pushed)
-            .then(|| climb.v_ranges.len() - 1);
+        let u_no_extend_idx =
+            (climb.merge_extends_u && climb.merge_pushed).then(|| climb.u_ranges.len() - 1);
+        let v_no_extend_idx =
+            (!climb.merge_extends_u && climb.merge_pushed).then(|| climb.v_ranges.len() - 1);
 
         let mut ranges: Vec<(usize, usize, PathDirection)> = climb
             .u_ranges
             .into_iter()
             .enumerate()
             .map(|(i, (l, r))| {
-                let doubled_l = if Some(i) == u_no_extend_idx { 2 * l } else { 2 * l - 1 };
+                let doubled_l = if Some(i) == u_no_extend_idx {
+                    2 * l
+                } else {
+                    2 * l - 1
+                };
                 (doubled_l, 2 * r - 1, PathDirection::Reversed)
             })
             .collect();
-        ranges.extend(climb.v_ranges.into_iter().enumerate().rev().map(|(i, (l, r))| {
-            let doubled_l = if Some(i) == v_no_extend_idx { 2 * l } else { 2 * l - 1 };
-            (doubled_l, 2 * r - 1, PathDirection::Forward)
-        }));
+        ranges.extend(
+            climb
+                .v_ranges
+                .into_iter()
+                .enumerate()
+                .rev()
+                .map(|(i, (l, r))| {
+                    let doubled_l = if Some(i) == v_no_extend_idx {
+                        2 * l
+                    } else {
+                        2 * l - 1
+                    };
+                    (doubled_l, 2 * r - 1, PathDirection::Forward)
+                }),
+        );
         ranges
     }
 

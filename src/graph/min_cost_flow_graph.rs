@@ -188,7 +188,13 @@ impl<T: FlowValue> MinCostFlowGraph<T> {
         let (from, index) = self.pos[i];
         let edge = &self.graph[from][index];
         let reverse = &self.graph[edge.to][edge.rev];
-        (from, edge.to, edge.cap + reverse.cap, edge.cost, reverse.cap)
+        (
+            from,
+            edge.to,
+            edge.cap + reverse.cap,
+            edge.cost,
+            reverse.cap,
+        )
     }
 }
 
