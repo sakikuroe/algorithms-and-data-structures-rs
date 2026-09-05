@@ -607,7 +607,7 @@ where
             sm = t;
 
             // r が 2 の冪であれば先頭に到達している。
-            if r & r.wrapping_neg() == r {
+            if r.is_power_of_two() {
                 break;
             }
         }
