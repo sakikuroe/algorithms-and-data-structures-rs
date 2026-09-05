@@ -30,12 +30,8 @@ use super::lazy_segment_tree;
 /// };
 ///
 /// let mut seg =
-///     range_assign_add_min_max_sum::RangeAssignAddMinMaxSum::from_vec(
-///         vec![
-///             range_assign_add_min_max_sum::single(3),
-///             range_assign_add_min_max_sum::single(1),
-///             range_assign_add_min_max_sum::single(4),
-///         ],
+///     range_assign_add_min_max_sum::RangeAssignAddMinMaxSum::from_values(
+///         vec![3, 1, 4],
 ///     );
 /// // 区間 [0, 3) に 10 を加算する。
 /// seg.effect(0, 3, AssignAddAction::add(10));
@@ -46,25 +42,6 @@ use super::lazy_segment_tree;
 /// ```
 pub type RangeAssignAddMinMaxSum =
     lazy_segment_tree::SegmentTreeLazyDense<MinMaxSumMonoid, AssignAddAction>;
-
-/// 1 つの要素を表すモノイド値を生成する。
-///
-/// # Args
-/// - `v` - 要素の値
-///
-/// # Returns
-/// `(sum, min, max, count) = (v, v, v, 1)` を返す。
-///
-/// # Examples
-/// ```
-/// use anmitsu::ds::segment_tree::range_assign_add_min_max_sum;
-///
-/// let elem = range_assign_add_min_max_sum::single(42);
-/// assert_eq!((42, 42, 42, 1), elem);
-/// ```
-pub fn single(v: i64) -> (i64, i64, i64, usize) {
-    (v, v, v, 1)
-}
 
 /// 区間の総和・最小値・最大値・要素数を保持するモノイドである。
 ///
@@ -128,12 +105,8 @@ impl monoid::GeneratedMonoid for MinMaxSumMonoid {
 /// };
 ///
 /// let mut seg =
-///     range_assign_add_min_max_sum::RangeAssignAddMinMaxSum::from_vec(
-///         vec![
-///             range_assign_add_min_max_sum::single(1),
-///             range_assign_add_min_max_sum::single(2),
-///             range_assign_add_min_max_sum::single(3),
-///         ],
+///     range_assign_add_min_max_sum::RangeAssignAddMinMaxSum::from_values(
+///         vec![1, 2, 3],
 ///     );
 /// // 全区間を 10 に代入する。
 /// seg.effect(0, 3, AssignAddAction::assign(10));
@@ -269,9 +242,7 @@ mod tests {
 
     /// Background: 要素数 5、値 [1, 2, 3, 4, 5] の遅延セグメント木
     fn create_seg() -> RangeAssignAddMinMaxSum {
-        RangeAssignAddMinMaxSum::from_vec(
-            vec![1, 2, 3, 4, 5].into_iter().map(single).collect(),
-        )
+        RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3, 4, 5])
     }
 
     // MinMaxSumMonoid のテスト: モノイド演算を検証する。
@@ -501,9 +472,8 @@ mod tests {
         #[test]
         fn single_element_tree() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(42)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![42]);
             // When
             let result = sut.fold(0, 1);
             // Then
@@ -533,9 +503,8 @@ mod tests {
         #[test]
         fn all_zeros() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(0), single(0), single(0)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             let result = sut.fold(0, 3);
             // Then
@@ -652,9 +621,8 @@ mod tests {
         #[test]
         fn empty_range_effect_is_noop() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(1), single(2), single(3)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3]);
             let before = sut.fold(0, 3);
             // When
             sut.effect(1, 1, AssignAddAction::add(100));
@@ -670,9 +638,8 @@ mod tests {
         #[test]
         fn add_on_single_element_tree() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(7)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
             sut.effect(0, 1, AssignAddAction::add(3));
             // Then
@@ -686,9 +653,8 @@ mod tests {
         #[test]
         fn assign_on_single_element_tree() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(7)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
             sut.effect(0, 1, AssignAddAction::assign(0));
             // Then
@@ -704,9 +670,8 @@ mod tests {
         #[test]
         fn mixed_operations_on_single_element_tree() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(0)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![0]);
             // When
             sut.effect(0, 1, AssignAddAction::assign(5));
             sut.effect(0, 1, AssignAddAction::add(3));
@@ -723,9 +688,8 @@ mod tests {
         #[test]
         fn add_on_all_zeros() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(0), single(0), single(0)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             sut.effect(0, 3, AssignAddAction::add(5));
             // Then
@@ -739,9 +703,8 @@ mod tests {
         #[test]
         fn assign_zero_on_all_zeros() {
             // Given
-            let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                vec![single(0), single(0), single(0)],
-            );
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
             sut.effect(0, 3, AssignAddAction::assign(0));
             // Then
@@ -808,9 +771,8 @@ mod tests {
                 // Given
                 let init: Vec<i64> =
                     (0..n).map(|_| rng.random_range(value_range.clone())).collect();
-                let mut sut = RangeAssignAddMinMaxSum::from_vec(
-                    init.iter().map(|&v| single(v)).collect(),
-                );
+                let mut sut =
+                    RangeAssignAddMinMaxSum::from_values(init.clone());
                 let mut naive = Naive::new(init);
 
                 for _ in 0..q {
