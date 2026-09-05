@@ -477,6 +477,54 @@ mod tests {
             // Then
             assert_eq!(MinMaxSumMonoid::id(), result);
         }
+
+        /// Scenario: 要素数 1 の木で fold できる。
+        /// - Given: [42] で構築したセグメント木がある。
+        /// - When: [0, 1) を fold する。
+        /// - Then: (42, 42, 42, 1) になる。
+        #[test]
+        fn single_element_tree() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(42)],
+            );
+            // When
+            let result = sut.fold(0, 1);
+            // Then
+            assert_eq!((42, 42, 42, 1), result);
+        }
+
+        /// Scenario: 空ベクタから構築した木で空区間を fold すると
+        /// 単位元が返る。
+        /// - Given: 空ベクタで構築したセグメント木がある。
+        /// - When: [0, 0) を fold する。
+        /// - Then: 単位元が返る。
+        #[test]
+        fn empty_tree() {
+            // Given
+            let mut sut =
+                RangeAssignAddMinMaxSum::from_vec(vec![]);
+            // When
+            let result = sut.fold(0, 0);
+            // Then
+            assert_eq!(MinMaxSumMonoid::id(), result);
+        }
+
+        /// Scenario: 全要素が 0 の木を正しく fold できる。
+        /// - Given: [0, 0, 0] で構築したセグメント木がある。
+        /// - When: 全区間を fold する。
+        /// - Then: (0, 0, 0, 3) になる。
+        #[test]
+        fn all_zeros() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(0), single(0), single(0)],
+            );
+            // When
+            let result = sut.fold(0, 3);
+            // Then
+            assert_eq!((0, 0, 0, 3), result);
+        }
     }
 
     // effect のテスト: 区間更新後の状態変化を検証する。
@@ -579,6 +627,109 @@ mod tests {
             let result = sut.fold(0, 5);
             // Then
             assert_eq!((25, 1, 13, 5), result);
+        }
+
+        /// Scenario: 空区間への effect は状態を変えない。
+        /// - Given: [1, 2, 3] のセグメント木がある。
+        /// - When: 空区間 [1, 1) に加算と代入を適用する。
+        /// - Then: fold 結果が初期状態と変わらない。
+        #[test]
+        fn empty_range_effect_is_noop() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(1), single(2), single(3)],
+            );
+            let before = sut.fold(0, 3);
+            // When
+            sut.effect(1, 1, AssignAddAction::add(100));
+            sut.effect(1, 1, AssignAddAction::assign(100));
+            // Then
+            assert_eq!(before, sut.fold(0, 3));
+        }
+
+        /// Scenario: 要素数 1 の木に加算を適用できる。
+        /// - Given: [7] で構築したセグメント木がある。
+        /// - When: [0, 1) に +3 を加算する。
+        /// - Then: (10, 10, 10, 1) になる。
+        #[test]
+        fn add_on_single_element_tree() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(7)],
+            );
+            // When
+            sut.effect(0, 1, AssignAddAction::add(3));
+            // Then
+            assert_eq!((10, 10, 10, 1), sut.fold(0, 1));
+        }
+
+        /// Scenario: 要素数 1 の木に代入を適用できる。
+        /// - Given: [7] で構築したセグメント木がある。
+        /// - When: [0, 1) に 0 を代入する。
+        /// - Then: (0, 0, 0, 1) になる。
+        #[test]
+        fn assign_on_single_element_tree() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(7)],
+            );
+            // When
+            sut.effect(0, 1, AssignAddAction::assign(0));
+            // Then
+            assert_eq!((0, 0, 0, 1), sut.fold(0, 1));
+        }
+
+        /// Scenario: 要素数 1 の木に代入と加算を連続で
+        /// 適用できる。
+        /// - Given: [0] で構築したセグメント木がある。
+        /// - When: 代入 5 → 加算 +3 → 代入 -1 → 加算 +1 の
+        ///   順に適用する。
+        /// - Then: 最終値は 0 になり (0, 0, 0, 1) が返る。
+        #[test]
+        fn mixed_operations_on_single_element_tree() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(0)],
+            );
+            // When
+            sut.effect(0, 1, AssignAddAction::assign(5));
+            sut.effect(0, 1, AssignAddAction::add(3));
+            sut.effect(0, 1, AssignAddAction::assign(-1));
+            sut.effect(0, 1, AssignAddAction::add(1));
+            // Then
+            assert_eq!((0, 0, 0, 1), sut.fold(0, 1));
+        }
+
+        /// Scenario: 全要素 0 に加算すると正しく反映される。
+        /// - Given: [0, 0, 0] で構築したセグメント木がある。
+        /// - When: 全区間に +5 を加算する。
+        /// - Then: (15, 5, 5, 3) になる。
+        #[test]
+        fn add_on_all_zeros() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(0), single(0), single(0)],
+            );
+            // When
+            sut.effect(0, 3, AssignAddAction::add(5));
+            // Then
+            assert_eq!((15, 5, 5, 3), sut.fold(0, 3));
+        }
+
+        /// Scenario: 全要素 0 に 0 を代入しても状態が変わらない。
+        /// - Given: [0, 0, 0] で構築したセグメント木がある。
+        /// - When: 全区間に 0 を代入する。
+        /// - Then: (0, 0, 0, 3) のまま変化しない。
+        #[test]
+        fn assign_zero_on_all_zeros() {
+            // Given
+            let mut sut = RangeAssignAddMinMaxSum::from_vec(
+                vec![single(0), single(0), single(0)],
+            );
+            // When
+            sut.effect(0, 3, AssignAddAction::assign(0));
+            // Then
+            assert_eq!((0, 0, 0, 3), sut.fold(0, 3));
         }
     }
 
