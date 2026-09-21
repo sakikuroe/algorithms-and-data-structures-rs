@@ -23,7 +23,7 @@ fn main() {
         let d = io.u32() as usize;
         let inside = c.div_ceil(2)..d.div_ceil(2);
         let answer =
-            wavelet_matrix.count(inside.clone(), d + 1..) + wavelet_matrix.count(inside, ..c);
+            wavelet_matrix.count(inside.clone(), d + 1..) + wavelet_matrix.count(inside, 1..c);
         io.writeln(answer as u64);
     }
     io.flush();
