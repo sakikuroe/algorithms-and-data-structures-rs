@@ -253,6 +253,29 @@ mod tests {
         }
     }
 
+    // 大規模入力のテスト: 明らかな二次計算量を検出する。
+    mod large_input {
+        use super::*;
+
+        /// Scenario: 要素数が十分に大きい入力を構築してクエリを実行する。
+        /// - Given: 100,000 個の異なる値を持つシーケンスがある。
+        /// - When: `WaveletMatrix` を構築し、代表的なクエリを実行する。
+        /// - Then: 現実的な時間で完了し、結果が正しい。
+        #[test]
+        fn builds_and_queries_large_input() {
+            // Given
+            let data = (0..100_000).collect::<Vec<_>>();
+            // When
+            let sut = WaveletMatrix::new(&data);
+            // Then
+            assert_eq!(100_000, sut.len());
+            assert_eq!(Some(99_999), sut.get(99_999));
+            assert_eq!(25_000, sut.count(.., 50_000..75_000));
+            assert_eq!(Some(50_000), sut.get_kth_smallest(.., .., 50_000));
+            assert_eq!(Some(99_999), sut.get_kth_largest(.., .., 0));
+        }
+    }
+
     // count のテスト: 戻り値を検証する。
     mod count {
         use super::*;
@@ -270,6 +293,9 @@ mod tests {
             assert_eq!(3, sut.count(2..7, 5..=8));
             assert_eq!(5, sut.count(.., 5..));
             assert_eq!(2, sut.count(.., ..=2));
+            let start = 8;
+            let end = 3;
+            assert_eq!(0, sut.count(start..end, ..));
         }
 
         /// Scenario: `usize::MAX` を含む値範囲を正しく扱う。
@@ -301,6 +327,9 @@ mod tests {
             // When, Then
             assert_eq!(3, sut.count_less_than(0..8, 5));
             assert_eq!(5, sut.count_more_than(0..8, 5));
+            let start = 8;
+            let end = 3;
+            assert_eq!(0, sut.count_more_than(start..end, 5));
         }
     }
 

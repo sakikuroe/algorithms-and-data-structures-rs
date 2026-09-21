@@ -311,6 +311,23 @@ mod tests {
     mod sum {
         use super::*;
 
+        /// Scenario: 空のシーケンスに対する和クエリを処理する。
+        /// - Given: 空の `WaveletMatrixWithSum` がある。
+        /// - When: 空の範囲と 0 個の順位和を求める。
+        /// - Then: 空の和として `0` または `Some(0)` を返す。
+        #[test]
+        fn handles_empty_sequence() {
+            // Given
+            let sut = WaveletMatrixWithSum::new(&[]);
+            // When, Then
+            assert_eq!(0, sut.get_sum(.., ..));
+            assert_eq!(Some(0), sut.get_sum_k_smallest(.., 0));
+            assert_eq!(Some(0), sut.get_sum_k_largest(.., 0));
+            let lower = 1;
+            let upper = 0;
+            assert_eq!(0, sut.get_sum_distance_to_range(.., lower..=upper));
+        }
+
         /// Scenario: 値範囲、順位、距離に関する和を返す。
         /// - Given: 重複値を含む `WaveletMatrixWithSum` がある。
         /// - When: 各種の和クエリを求める。
@@ -340,6 +357,23 @@ mod tests {
             // When, Then
             assert_eq!(None, sut.get_sum_k_smallest(.., 9));
             assert_eq!(None, sut.get_sum_k_largest(.., 9));
+        }
+
+        /// Scenario: 要素数が十分に大きい入力を構築して和クエリを実行する。
+        /// - Given: 100,000 個の異なる値を持つシーケンスがある。
+        /// - When: `WaveletMatrixWithSum` を構築し、全体和と順位和を求める。
+        /// - Then: 現実的な時間で完了し、結果が正しい。
+        #[test]
+        fn builds_and_sums_large_input() {
+            // Given
+            let data = (0..100_000).collect::<Vec<_>>();
+            let expected_total = 100_000_usize * 99_999 / 2;
+            // When
+            let sut = WaveletMatrixWithSum::new(&data);
+            // Then
+            assert_eq!(expected_total, sut.get_sum(.., ..));
+            assert_eq!(10 * 11 / 2, sut.get_sum_k_smallest(.., 11).unwrap());
+            assert_eq!(99_989 * 11 + 55, sut.get_sum_k_largest(.., 11).unwrap());
         }
     }
 }

@@ -16,7 +16,13 @@ where
         Bound::Unbounded => len,
     };
 
-    (start.min(len), end.min(len))
+    let start = start.min(len);
+    let end = end.min(len);
+    if start > end {
+        (end, end)
+    } else {
+        (start, end)
+    }
 }
 
 /// 値の範囲をソート済み値の添字範囲へ変換する。
