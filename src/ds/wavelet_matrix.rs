@@ -1,97 +1,47 @@
-use super::bit_vector;
+use std::ops::RangeBounds;
 
-/// 値のシーケンスを表現し, 高速な rank クエリをサポートするデータ構造である.
+use super::{bit_vector, wavelet_matrix_range};
+
+/// 値のシーケンスを表現し、範囲内の値の順位クエリをサポートするデータ構造である。
 #[derive(Clone)]
 pub struct WaveletMatrix {
-    height: usize,
-    bit_table: Vec<bit_vector::BitVector>,
-    sorted_v: Vec<usize>,
+    pub(super) height: usize,
+    pub(super) bit_table: Vec<bit_vector::BitVector>,
+    pub(super) sorted_v: Vec<usize>,
+    pub(super) len: usize,
 }
 
 impl WaveletMatrix {
-    /// `usize` のスライスから新しい WaveletMatrix を作成する.
+    /// `usize` のスライスから新しい `WaveletMatrix` を作成する。
     ///
     /// # Args
-    /// - `v`: WaveletMatrix に格納する `usize` のスライス.
+    /// - `v`: 格納する値のスライス。
     ///
     /// # Returns
-    /// `WaveletMatrix`: WaveletMatrix の新しいインスタンス.
-    ///
-    /// # Constraints
-    /// - `v` は任意の `usize` 値を含むことができる.
-    /// - `v` の長さは, ユニークな要素の数が `compress.len()` を `usize` のビット計算の
-    ///   制限を超えるほどに過度に大きくない必要がある.
-    ///
-    /// # Panics
-    /// - この関数は, `v` が極めて大きく, 多数のユニークな要素を含み, `height` の計算
-    ///   (`(1..).find(...)`) が `usize::BITS - 1` を超えるビットシフトを試みる場合,
-    ///   または `height` の検索中に `(1_usize << i)` がオーバーフローするような値である
-    ///   場合にパニックする可能性がある.
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(N log U) である.
-    ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
-    /// - 空間計算量: O(N log U) である.
-    ///   ここで N は `v` の長さ, U は `v` のユニークな値の数である.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
-    ///
-    /// let data = vec![10, 5, 20, 15, 5, 10, 25];
-    /// let wm = WaveletMatrix::new(&data);
-    ///
-    /// // Query count of elements < 15 in range [0, 7)
-    /// // Original sequence: [10, 5, 20, 15, 5, 10, 25]
-    /// // Elements less than 15: 10, 5, 5, 10. Total count is 4.
-    /// assert_eq!(4, wm.count_less_than(0, 7, 15));
-    ///
-    /// // Query count of elements >= 10 in range [0, 4)
-    /// // Subsequence: [10, 5, 20, 15]
-    /// // Elements greater than or equal to 10: 10, 20, 15. Total count is 3.
-    /// assert_eq!(3, wm.count_more_than(0, 4, 10));
-    ///
-    /// // Query count of elements in [5, 15) in range [1, 6)
-    /// // Subsequence: [5, 20, 15, 5, 10]
-    /// // Elements in [5, 15): 5, 5, 10. Total count is 3.
-    /// assert_eq!(3, wm.count(1, 6, 5, 15));
-    /// ```
+    /// 値を座標圧縮して構築した `WaveletMatrix`。
     pub fn new(v: &[usize]) -> Self {
-        // Arrange
         let mut sorted_v = v.to_vec();
         sorted_v.sort_unstable();
         sorted_v.dedup();
 
-        // Compress values to indices (0 to unique_count - 1).
-        // `partition_point` returns the index where elements are no longer less than `x`,
-        // effectively finding the rank of `x` in `sorted_v`.
         let mut compress = v
             .iter()
             .map(|&x| sorted_v.partition_point(|&y| y < x))
             .collect::<Vec<_>>();
+        let height = if sorted_v.is_empty() {
+            1
+        } else {
+            usize::BITS as usize - sorted_v.len().leading_zeros() as usize
+        };
+        let mut bit_table = Vec::with_capacity(height);
 
-        // Calculate height: number of bits required to represent the maximum compressed value.
-        // `compress.len()` is the number of unique elements (U).
-        // `(1..)` finds the smallest `i` such that `2^i >= U + 1`.
-        // `1_usize << i` explicitly specifies `usize` for the bit shift to avoid type issues.
-        let height = (1..).find(|i| (1_usize << i) > compress.len()).unwrap() + 1;
-
-        // Initialize bit_table; type is inferred from `BitVector::new`.
-        let mut bit_table = Vec::new();
-
-        // Build the bit_table layer by layer, from most significant bit to least significant bit.
         for i in (0..height).rev() {
-            // Act: Create a BitVector for the current bit position.
-            // This BitVector stores the i-th bit of each compressed value.
             bit_table.push(bit_vector::BitVector::new(
                 &compress
                     .iter()
                     .map(|&x| ((x >> i) & 1) as u8)
                     .collect::<Vec<_>>(),
             ));
-
-            // Rearrange `compress` to move elements with 0 at the i-th bit to the front,
-            // and elements with 1 to the back. This prepares for the next level.
             compress = compress
                 .iter()
                 .filter(|&x| ((x >> i) & 1) == 0)
@@ -100,138 +50,173 @@ impl WaveletMatrix {
                 .collect::<Vec<_>>();
         }
 
-        // Assert
-        WaveletMatrix {
+        Self {
             height,
             bit_table,
             sorted_v,
+            len: v.len(),
         }
     }
 
-    /// `v[l..r]` の範囲にある要素 `y` のうち, `y < upper` となるものの個数を返す.
+    /// 元のシーケンスの要素数を返す。
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// 元のシーケンスが空であるかを返す。
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// 元のシーケンスの `index` 番目の値を返す。
     ///
-    /// # Args
-    /// - `l`: 範囲の開始インデックス (inclusive).
-    /// - `r`: 範囲の終了インデックス (exclusive).
-    /// - `upper`: 上限値 (exclusive).
-    ///
-    /// # Returns
-    /// `usize`: 指定された範囲内の `upper` 未満の要素数.
-    ///
-    /// # Constraints
-    /// - `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
-    ///   (`0 <= l, r <= original_len`).
-    /// - `upper` は任意の `usize` 値である.
-    ///
-    /// # Panics
-    /// - なし.
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である.
-    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
-    pub fn count_less_than(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
-        if r <= l {
-            return 0;
+    /// 範囲外のインデックスに対しては `None` を返す。
+    pub fn get(&self, index: usize) -> Option<usize> {
+        if index >= self.len {
+            return None;
         }
 
-        // Arrange
-        // Find the compressed index for `upper`. All values less than `upper`
-        // will have compressed indices less than `upper_idx`.
-        let upper_idx = self.sorted_v.partition_point(|&x| x < upper);
-        let mut res = 0;
-
-        // Act & Assert
-        // Iterate through bit layers from MSB to LSB.
+        let mut position = index;
+        let mut compressed_value = 0;
         for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
-            // Calculate ranks of `l` and `r` (count of 1s up to l/r) in the current bit_vector.
-            let rank_l = bit.rank(l);
-            let rank_r = bit.rank(r);
-
-            // Determine which branch to take based on the i-th bit of `upper_idx`.
-            if ((upper_idx >> i) & 1) == 0 {
-                // If the i-th bit of `upper_idx` is 0, we only search in the 0-block.
-                // Update `l` and `r` to reflect the new range in the 0-block.
-                l -= rank_l;
-                r -= rank_r;
+            let rank = bit.rank(position);
+            let is_one = bit.rank(position + 1) != rank;
+            let zeros = bit.len() - bit.rank(bit.len());
+            if is_one {
+                compressed_value |= 1_usize << i;
+                position = rank + zeros;
             } else {
-                // If the i-th bit of `upper_idx` is 1, all elements in the 0-block (whose i-th bit is 0)
-                // are less than the current target path. Add their count to `res`.
-                res += (r - l) - (rank_r - rank_l);
-
-                // Update `l` and `r` to reflect the new range in the 1-block.
-                // `len_zeros_upto_end` is the count of 0s in the entire bit_vector up to its end.
-                let len_zeros_upto_end = bit.len() - bit.rank(bit.len());
-                l = rank_l + len_zeros_upto_end;
-                r = rank_r + len_zeros_upto_end;
+                position -= rank;
             }
         }
 
-        res
+        Some(self.sorted_v[compressed_value])
     }
 
-    /// `v[l..r]` の範囲にある要素 `y` のうち, `y >= lower` となるものの個数を返す.
-    ///
-    /// # Args
-    /// - `l`: 範囲の開始インデックス (inclusive).
-    /// - `r`: 範囲の終了インデックス (exclusive).
-    /// - `lower`: 下限値 (inclusive).
-    ///
-    /// # Returns
-    /// `usize`: 指定された範囲内の `lower` 以上の要素数.
-    ///
-    /// # Constraints
-    /// - `l` x `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
-    ///   (`0 <= l , r <= original_len`).
-    /// - `lower` は任意の `usize` 値である.
-    ///
-    /// # Panics
-    /// - なし.
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である.
-    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
-    pub fn count_more_than(&self, l: usize, r: usize, lower: usize) -> usize {
+    /// 値の圧縮インデックスが `upper` 未満となる要素の個数を返す。
+    fn count_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         if r <= l {
             return 0;
         }
 
-        (r - l) - self.count_less_than(l, r, lower)
+        let mut result = 0;
+        for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
+            if (upper >> i) & 1 == 0 {
+                l -= rank_l;
+                r -= rank_r;
+            } else {
+                result += (r - l) - (rank_r - rank_l);
+                let zeros = bit.len() - bit.rank(bit.len());
+                l = rank_l + zeros;
+                r = rank_r + zeros;
+            }
+        }
+        result
     }
 
-    /// `v[l..r]` の範囲にある要素 `y` のうち, `lower <= y < upper` となるものの個数を返す.
-    ///
-    /// # Args
-    /// - `l`: 範囲の開始インデックス (inclusive).
-    /// - `r`: 範囲の終了インデックス (exclusive).
-    /// - `lower`: 下限値 (inclusive).
-    /// - `upper`: 上限値 (exclusive).
-    ///
-    /// # Returns
-    /// `usize`: `v` の指定された範囲内にある, [`lower`, `upper`) の範囲の要素数.
-    ///
-    /// # Constraints
-    /// - `l` と `r` は元のシーケンスの長さ内の有効なインデックスである必要がある
-    ///   (`0 <= l, r <= original_len`).
-    /// - `lower` と `upper` は任意の `usize` 値である.
-    ///
-    /// # Panics
-    /// - なし.
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である.
-    ///   ここで U は元のシーケンスにおけるユニークな値の数である.
-    pub fn count(&self, l: usize, r: usize, lower: usize, upper: usize) -> usize {
-        if r <= l {
+    /// `index_range` 内の `upper` 未満の要素数を返す。
+    pub fn count_less_than<I>(&self, index_range: I, upper: usize) -> usize
+    where
+        I: RangeBounds<usize>,
+    {
+        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
+        let upper = self.sorted_v.partition_point(|&x| x < upper);
+        self.count_less_than_compressed(l, r, upper)
+    }
+
+    /// `index_range` 内の `lower` 以上の要素数を返す。
+    pub fn count_more_than<I>(&self, index_range: I, lower: usize) -> usize
+    where
+        I: RangeBounds<usize>,
+    {
+        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
+        let lower = self.sorted_v.partition_point(|&x| x < lower);
+        (r - l) - self.count_less_than_compressed(l, r, lower)
+    }
+
+    /// `index_range` と `value_range` の両方に含まれる要素数を返す。
+    pub fn count<I, V>(&self, index_range: I, value_range: V) -> usize
+    where
+        I: RangeBounds<usize>,
+        V: RangeBounds<usize>,
+    {
+        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
+        let (lower, upper) =
+            wavelet_matrix_range::normalize_value_range(value_range, &self.sorted_v);
+        if upper <= lower {
             return 0;
         }
+        self.count_less_than_compressed(l, r, upper) - self.count_less_than_compressed(l, r, lower)
+    }
 
-        // Return 0 immediately to prevent subtraction overflow.
-        // 減算によるオーバーフローを防ぐため, 直ちに 0 を返す.
-        if lower >= upper {
-            return 0;
+    /// `index_range` と `value_range` に含まれる要素を昇順に並べたときの `k` 番目の値を返す。
+    ///
+    /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
+    pub fn get_kth_smallest<I, V>(&self, index_range: I, value_range: V, k: usize) -> Option<usize>
+    where
+        I: RangeBounds<usize>,
+        V: RangeBounds<usize>,
+    {
+        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
+        let (lower, upper) =
+            wavelet_matrix_range::normalize_value_range(value_range, &self.sorted_v);
+        let first = self.count_less_than_compressed(l, r, lower);
+        let end = self.count_less_than_compressed(l, r, upper);
+        if upper <= lower || k >= end - first {
+            return None;
+        }
+        self.get_kth_smallest_compressed(l, r, first + k)
+    }
+
+    /// `index_range` と `value_range` に含まれる要素を降順に並べたときの `k` 番目の値を返す。
+    ///
+    /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
+    pub fn get_kth_largest<I, V>(&self, index_range: I, value_range: V, k: usize) -> Option<usize>
+    where
+        I: RangeBounds<usize>,
+        V: RangeBounds<usize>,
+    {
+        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
+        let (lower, upper) =
+            wavelet_matrix_range::normalize_value_range(value_range, &self.sorted_v);
+        let first = self.count_less_than_compressed(l, r, lower);
+        let end = self.count_less_than_compressed(l, r, upper);
+        if upper <= lower || k >= end - first {
+            return None;
+        }
+        self.get_kth_smallest_compressed(l, r, end - 1 - k)
+    }
+
+    /// 値の圧縮インデックスが `k` 番目となる要素を返す。
+    fn get_kth_smallest_compressed(
+        &self,
+        mut l: usize,
+        mut r: usize,
+        mut k: usize,
+    ) -> Option<usize> {
+        if r <= l || r - l <= k {
+            return None;
         }
 
-        self.count_less_than(l, r, upper) - self.count_less_than(l, r, lower)
+        let mut compressed_value = 0;
+        for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
+            let zeros = (r - l) - (rank_r - rank_l);
+            if k < zeros {
+                l -= rank_l;
+                r -= rank_r;
+            } else {
+                let zeros_total = bit.len() - bit.rank(bit.len());
+                l = rank_l + zeros_total;
+                r = rank_r + zeros_total;
+                compressed_value |= 1_usize << i;
+                k -= zeros;
+            }
+        }
+        Some(self.sorted_v[compressed_value])
     }
 }
 
@@ -239,96 +224,32 @@ impl WaveletMatrix {
 mod tests {
     use super::*;
 
-    /// Background: [5, 4, 8, 6, 0, 7, 2, 5] を格納した `WaveletMatrix`。
+    /// Background: 重複値を含むシーケンスから構築した `WaveletMatrix`。
     fn create_wavelet_matrix() -> WaveletMatrix {
         WaveletMatrix::new(&[5, 4, 8, 6, 0, 7, 2, 5])
     }
 
-    /// Background: `usize::MAX` を含む [0, usize::MAX, 1, 100, usize::MAX] を
-    /// 格納した `WaveletMatrix`。
+    /// Background: `usize::MAX` を含むシーケンスから構築した `WaveletMatrix`。
     fn create_wavelet_matrix_with_max_value() -> WaveletMatrix {
         WaveletMatrix::new(&[0, usize::MAX, 1, 100, usize::MAX])
     }
 
-    // new のテスト: パニックしないことを検証する。
-    mod new {
+    // get のテスト: 戻り値を検証する。
+    mod get {
         use super::*;
 
-        /// Scenario: 境界的な入力データに対しても、パニックせずに構築できる (境界値)。
-        /// - Given: 空、要素数 1、全要素が同一、`usize::MAX` を含むなど、
-        ///   境界的なスライスがある。
-        /// - When: 各データから `WaveletMatrix::new` を呼ぶ。
-        /// - Then: いずれのケースでもパニックせずに構築が完了する。
+        /// Scenario: 元の位置に対応する値を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 有効な位置と範囲外の位置から値を取得する。
+        /// - Then: 有効な位置では値を、範囲外では `None` を返す。
         #[test]
-        fn builds_without_panicking_for_boundary_slices() {
-            // Given
-            let cases: Vec<Vec<usize>> = vec![
-                vec![],
-                vec![100],
-                vec![3, 3, 3, 3, 3],
-                vec![0, 1, usize::MAX, 5],
-            ];
-            // When, Then
-            for data in &cases {
-                let _sut = WaveletMatrix::new(data);
-            }
-        }
-    }
-
-    // count_less_than のテスト: 戻り値を検証する。
-    mod count_less_than {
-        use super::*;
-
-        /// Scenario: 典型的な範囲と閾値に対して、閾値未満の要素数を返す。
-        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
-        /// - When: 複数の `(l, r, upper)` の組で `count_less_than` を求める。
-        /// - Then: 各ケースで期待する個数が返る。
-        #[test]
-        fn matches_expected_values_for_typical_ranges() {
+        fn returns_value_at_index() {
             // Given
             let sut = create_wavelet_matrix();
-            let cases = [
-                // (l, r, upper, expected)
-                (0_usize, 8_usize, 5_usize, 3_usize), // 全体: 5 未満は [4, 0, 2]
-                (2, 6, 7, 2),                         // v[2..6] = [8, 6, 0, 7]; 7 未満は [6, 0]
-                (3, 3, 5, 0),                         // 空区間
-            ];
             // When, Then
-            for (l, r, upper, expected) in cases {
-                let result = sut.count_less_than(l, r, upper);
-                assert_eq!(expected, result);
-            }
-        }
-
-        /// Scenario: `usize::MAX` を含むデータでも、閾値未満の要素数を正しく返す (境界値)。
-        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
-        /// - When: `upper` に通常値および `usize::MAX` を指定して `count_less_than` を求める。
-        /// - Then: 各ケースで期待する個数が返る。
-        #[test]
-        fn handles_usize_max_value() {
-            // Given
-            let sut = create_wavelet_matrix_with_max_value();
-            // When, Then
-            assert_eq!(2, sut.count_less_than(0, 5, 100));
-            assert_eq!(3, sut.count_less_than(0, 5, usize::MAX));
-        }
-    }
-
-    // count_more_than のテスト: 戻り値を検証する。
-    mod count_more_than {
-        use super::*;
-
-        /// Scenario: `usize::MAX` を含むデータでも、下限値以上の要素数を正しく返す (境界値)。
-        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
-        /// - When: `lower` に通常値および `usize::MAX` を指定して `count_more_than` を求める。
-        /// - Then: 各ケースで期待する個数が返る。
-        #[test]
-        fn handles_usize_max_value() {
-            // Given
-            let sut = create_wavelet_matrix_with_max_value();
-            // When, Then
-            assert_eq!(3, sut.count_more_than(0, 5, 100));
-            assert_eq!(2, sut.count_more_than(0, 5, usize::MAX));
+            assert_eq!(5, sut.get(0).unwrap());
+            assert_eq!(5, sut.get(7).unwrap());
+            assert_eq!(None, sut.get(8));
         }
     }
 
@@ -336,52 +257,83 @@ mod tests {
     mod count {
         use super::*;
 
-        /// Scenario: 典型的な範囲と値の区間に対して、区間内の要素数を返す。
-        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
-        /// - When: 複数の `(l, r, lower, upper)` の組で `count` を求める。
-        /// - Then: 各ケースで期待する個数が返る。
+        /// Scenario: インデックス範囲と値範囲に含まれる要素数を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 包含・排他境界を含む複数の範囲で個数を求める。
+        /// - Then: 各範囲に含まれる要素数を返す。
         #[test]
-        fn matches_expected_values_for_typical_ranges() {
+        fn counts_values_in_ranges() {
             // Given
             let sut = create_wavelet_matrix();
-            let cases = [
-                // (l, r, lower, upper, expected)
-                (0_usize, 8_usize, 4_usize, 7_usize, 4_usize), // 全体: [4,7) は [5,4,6,5]
-                (2, 7, 5, 9, 3), // v[2..7] = [8,6,0,7,2]; [5,9) は [8,6,7]
-            ];
             // When, Then
-            for (l, r, lower, upper, expected) in cases {
-                let result = sut.count(l, r, lower, upper);
-                assert_eq!(expected, result);
-            }
+            assert_eq!(4, sut.count(0..8, 4..7));
+            assert_eq!(3, sut.count(2..7, 5..=8));
+            assert_eq!(5, sut.count(.., 5..));
+            assert_eq!(2, sut.count(.., ..=2));
         }
 
-        /// Scenario: `lower >= upper` のとき、値の区間が空であるため `0` を返す (境界値)。
-        /// - Given: `[5, 4, 8, 6, 0, 7, 2, 5]` を格納した `WaveletMatrix` がある。
-        /// - When: `lower = 8`, `upper = 7` で `count` を求める。
-        /// - Then: `0` が返る。
-        #[test]
-        fn returns_zero_when_lower_is_at_least_upper() {
-            // Given
-            let sut = create_wavelet_matrix();
-            // When
-            let result = sut.count(0, 8, 8, 7);
-            // Then
-            assert_eq!(0, result);
-        }
-
-        /// Scenario: `usize::MAX` を含むデータでも、区間内の要素数を正しく返す (境界値)。
+        /// Scenario: `usize::MAX` を含む値範囲を正しく扱う。
         /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
-        /// - When: `usize::MAX` を境界に含む複数の区間で `count` を求める。
-        /// - Then: 各ケースで期待する個数が返る。
+        /// - When: 上限なしと最大値を含む値範囲の個数を求める。
+        /// - Then: オーバーフローせず正しい個数を返す。
         #[test]
         fn handles_usize_max_value() {
             // Given
             let sut = create_wavelet_matrix_with_max_value();
             // When, Then
-            assert_eq!(2, sut.count(0, 5, 1, usize::MAX));
-            assert_eq!(1, sut.count(0, 5, 100, usize::MAX));
-            assert_eq!(2, sut.count(1, 4, 0, usize::MAX));
+            assert_eq!(5, sut.count(.., ..));
+            assert_eq!(2, sut.count(.., usize::MAX..=usize::MAX));
+        }
+    }
+
+    // count_less_than と count_more_than のテスト: 戻り値を検証する。
+    mod threshold_count {
+        use super::*;
+
+        /// Scenario: 閾値に対する個数を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 閾値未満と閾値以上の個数を求める。
+        /// - Then: 条件を満たす要素数を返す。
+        #[test]
+        fn counts_values_on_each_side_of_threshold() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When, Then
+            assert_eq!(3, sut.count_less_than(0..8, 5));
+            assert_eq!(5, sut.count_more_than(0..8, 5));
+        }
+    }
+
+    // get_kth_smallest と get_kth_largest のテスト: 戻り値を検証する。
+    mod kth {
+        use super::*;
+
+        /// Scenario: 値範囲内の順位要素を返す。
+        /// - Given: 重複値を含む `WaveletMatrix` がある。
+        /// - When: 小さい順と大きい順の順位要素を求める。
+        /// - Then: 指定順位の値を返す。
+        #[test]
+        fn returns_kth_values() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When, Then
+            assert_eq!(Some(5), sut.get_kth_smallest(.., 5.., 0));
+            assert_eq!(Some(8), sut.get_kth_smallest(2..7, 5.., 2));
+            assert_eq!(Some(7), sut.get_kth_largest(.., ..8, 0));
+            assert_eq!(Some(0), sut.get_kth_largest(.., .., 7));
+        }
+
+        /// Scenario: 対象要素がない、または順位が範囲外である。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 空の値範囲または範囲外の順位を指定する。
+        /// - Then: `None` を返す。
+        #[test]
+        fn returns_none_for_missing_rank() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When, Then
+            assert_eq!(None, sut.get_kth_smallest(.., 8..8, 0));
+            assert_eq!(None, sut.get_kth_largest(.., .., 8));
         }
     }
 }

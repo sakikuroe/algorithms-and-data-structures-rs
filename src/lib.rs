@@ -25,6 +25,8 @@ pub mod ds {
     pub mod bit_vector;
     pub mod union_find;
     pub mod wavelet_matrix;
+    mod wavelet_matrix_range;
+    pub mod wavelet_matrix_with_sum;
 }
 
 pub mod graph {
