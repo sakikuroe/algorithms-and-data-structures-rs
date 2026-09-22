@@ -99,6 +99,7 @@ pub mod bin {
         pub mod pow_of_formal_power_series_sparse;
         pub mod product_of_polynomial_sequence;
         pub mod range_affine_range_sum;
+        pub mod range_kth_smallest;
         pub mod scc;
         pub mod shortest_path;
         pub mod tree_diameter;

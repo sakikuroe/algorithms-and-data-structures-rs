@@ -322,5 +322,9 @@ path = "src/bin/atcoder/abc473_f_valid_string.rs"
 name = "lc-range-affine-range-sum"
 path = "src/bin/library_checker/range_affine_range_sum.rs"
 
+[[bin]]
+name = "lc-range-kth-smallest"
+path = "src/bin/library_checker/range_kth_smallest.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
