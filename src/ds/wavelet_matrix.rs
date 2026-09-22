@@ -1,4 +1,4 @@
-use std::ops::RangeBounds;
+use std::ops::{Range, RangeBounds};
 
 use super::{bit_vector, wavelet_matrix_range};
 
@@ -328,6 +328,56 @@ impl WaveletMatrix {
         }
         Some(self.sorted_v[compressed_value])
     }
+
+    /// 複数の半開区間それぞれの `k` 番目に小さい値をまとめて返す。
+    ///
+    /// 各クエリは `(index_range, k)` の組であり、`index_range` 内の `k` 番目
+    /// （0 始まり）に小さい値を返す。値域は全体とする。クエリを16件ずつ
+    /// まとめて各レベルを処理することで、ビット列のキャッシュ再利用を高める。
+    ///
+    /// # Panics
+    /// 範囲外のインデックスや、区間長以上の `k` を指定した場合にパニックする。
+    pub fn get_kth_smallest_batch(&self, queries: &[(Range<usize>, usize)]) -> Vec<usize> {
+        const CHUNK: usize = 16;
+        let mut answers = Vec::with_capacity(queries.len());
+        // 各クエリの状態は `[l, r, k, 圧縮値]` である。
+        for chunk in queries.chunks(CHUNK) {
+            let mut states = [[0_usize; 4]; CHUNK];
+            for (state, (range, k)) in states.iter_mut().zip(chunk.iter()) {
+                assert!(range.start <= range.end && range.end <= self.len);
+                assert!(*k < range.end - range.start);
+                state[0] = range.start;
+                state[1] = range.end;
+                state[2] = *k;
+            }
+            for (level, (i, bit)) in (0..self.height)
+                .rev()
+                .zip(self.bit_table.iter())
+                .enumerate()
+            {
+                let zeros_total = self.zero_counts[level];
+                for state in states[..chunk.len()].iter_mut() {
+                    let (rank_l, rank_r) = bit.rank_pair(state[0], state[1]);
+                    let zeros = (state[1] - state[0]) - (rank_r - rank_l);
+                    if state[2] < zeros {
+                        state[0] -= rank_l;
+                        state[1] -= rank_r;
+                    } else {
+                        state[0] = rank_l + zeros_total;
+                        state[1] = rank_r + zeros_total;
+                        state[3] |= 1_usize << i;
+                        state[2] -= zeros;
+                    }
+                }
+            }
+            answers.extend(
+                states[..chunk.len()]
+                    .iter()
+                    .map(|state| self.sorted_v[state[3]]),
+            );
+        }
+        answers
+    }
 }
 
 #[cfg(test)]
@@ -473,6 +523,31 @@ mod tests {
             // When, Then
             assert_eq!(None, sut.get_kth_smallest(.., 8..8, 0));
             assert_eq!(None, sut.get_kth_largest(.., .., 8));
+        }
+
+        /// Scenario: 一括クエリが単発クエリと一致する。
+        /// - Given: 重複値を含む `WaveletMatrix` がある。
+        /// - When: チャンク境界をまたぐ件数の一括クエリを実行する。
+        /// - Then: 単発の `get_kth_smallest` と同じ値を返す。
+        #[test]
+        fn batch_matches_single_queries() {
+            // Given
+            let sut = create_wavelet_matrix();
+            let queries = (0..20)
+                .map(|t| {
+                    let l = t % 8;
+                    let len = 1 + (t % (8 - l));
+                    (l..l + len, t % len)
+                })
+                .collect::<Vec<_>>();
+            // When
+            let results = sut.get_kth_smallest_batch(&queries);
+            // Then
+            assert_eq!(20, results.len());
+            for ((range, k), answer) in queries.iter().zip(results.iter()) {
+                assert_eq!(sut.get_kth_smallest(range.clone(), .., *k), Some(*answer));
+            }
+            assert!(sut.get_kth_smallest_batch(&[]).is_empty());
         }
     }
 }
