@@ -16,14 +16,18 @@ fn main() {
         mates[b / 2] = a;
     }
     let wavelet_matrix = WaveletMatrix::new(&mates);
+    let mut valid_prefix = vec![0; mates.len() + 1];
+    for (i, &mate) in mates.iter().enumerate() {
+        valid_prefix[i + 1] = valid_prefix[i] + usize::from(mate != 0);
+    }
 
     let q = io.u32() as usize;
     for _ in 0..q {
         let c = io.u32() as usize;
         let d = io.u32() as usize;
         let inside = c.div_ceil(2)..d.div_ceil(2);
-        let answer =
-            wavelet_matrix.count(inside.clone(), d + 1..) + wavelet_matrix.count(inside, 1..c);
+        let valid = valid_prefix[inside.end] - valid_prefix[inside.start];
+        let answer = valid - wavelet_matrix.count(inside, c..=d);
         io.writeln(answer as u64);
     }
     io.flush();
