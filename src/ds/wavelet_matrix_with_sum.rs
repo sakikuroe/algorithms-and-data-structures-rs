@@ -171,8 +171,7 @@ impl WaveletMatrixWithSum {
                 .iter()
                 .zip(self.accum_table.iter()),
         ) {
-            let rank_l = bit.rank(l);
-            let rank_r = bit.rank(r);
+            let (rank_l, rank_r) = bit.rank_pair(l, r);
             let zeros = (r - l) - (rank_r - rank_l);
             if remaining < zeros {
                 l -= rank_l;
@@ -282,8 +281,7 @@ impl WaveletMatrixWithSum {
                 .iter()
                 .zip(self.accum_table.iter()),
         ) {
-            let rank_l = bit.rank(l);
-            let rank_r = bit.rank(r);
+            let (rank_l, rank_r) = bit.rank_pair(l, r);
             if (upper >> i) & 1 == 0 {
                 l -= rank_l;
                 r -= rank_r;

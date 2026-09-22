@@ -7,6 +7,7 @@ use super::{bit_vector, wavelet_matrix_range};
 pub struct WaveletMatrix {
     pub(super) height: usize,
     pub(super) bit_table: Vec<bit_vector::BitVector>,
+    pub(super) zero_counts: Vec<usize>,
     pub(super) sorted_v: Vec<usize>,
     pub(super) len: usize,
 }
@@ -34,25 +35,44 @@ impl WaveletMatrix {
             usize::BITS as usize - sorted_v.len().leading_zeros() as usize
         };
         let mut bit_table = Vec::with_capacity(height);
+        let mut zero_counts = Vec::with_capacity(height);
+        // Two reusable buffers for the stable partition at each level.
+        let mut next = vec![0_usize; compress.len()];
 
         for i in (0..height).rev() {
-            bit_table.push(bit_vector::BitVector::new(
-                &compress
-                    .iter()
-                    .map(|&x| ((x >> i) & 1) as u8)
-                    .collect::<Vec<_>>(),
-            ));
-            compress = compress
-                .iter()
-                .filter(|&x| ((x >> i) & 1) == 0)
-                .chain(compress.iter().filter(|&x| ((x >> i) & 1) == 1))
-                .cloned()
-                .collect::<Vec<_>>();
+            let num_zeros = compress.iter().filter(|&&x| ((x >> i) & 1) == 0).count();
+            let mut words = vec![0_u64; compress.len() / u64::BITS as usize + 1];
+            let mut zero_pos = 0_usize;
+            let mut one_pos = num_zeros;
+            let mut word = 0_u64;
+            let mut word_index = 0_usize;
+            for (pos, &x) in compress.iter().enumerate() {
+                if ((x >> i) & 1) == 0 {
+                    next[zero_pos] = x;
+                    zero_pos += 1;
+                } else {
+                    next[one_pos] = x;
+                    one_pos += 1;
+                    word |= 1_u64 << (pos & 63);
+                }
+                if (pos & 63) == 63 {
+                    words[word_index] = word;
+                    word_index += 1;
+                    word = 0;
+                }
+            }
+            if (compress.len() & 63) != 0 {
+                words[word_index] = word;
+            }
+            zero_counts.push(num_zeros);
+            bit_table.push(bit_vector::BitVector::from_words(words, compress.len()));
+            std::mem::swap(&mut compress, &mut next);
         }
 
         Self {
             height,
             bit_table,
+            zero_counts,
             sorted_v,
             len: v.len(),
         }
@@ -78,10 +98,14 @@ impl WaveletMatrix {
 
         let mut position = index;
         let mut compressed_value = 0;
-        for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
-            let rank = bit.rank(position);
-            let is_one = bit.rank(position + 1) != rank;
-            let zeros = bit.len() - bit.rank(bit.len());
+        for (level, (i, bit)) in (0..self.height)
+            .rev()
+            .zip(self.bit_table.iter())
+            .enumerate()
+        {
+            let (rank, next_rank) = bit.rank_pair(position, position + 1);
+            let is_one = next_rank != rank;
+            let zeros = self.zero_counts[level];
             if is_one {
                 compressed_value |= 1_usize << i;
                 position = rank + zeros;
@@ -95,25 +119,108 @@ impl WaveletMatrix {
 
     /// 値の圧縮インデックスが `upper` 未満となる要素の個数を返す。
     fn count_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
-        if r <= l {
+        if r <= l || upper == 0 {
             return 0;
+        }
+        // 圧縮値はつねに `sorted_v.len()` 未満なので、上限が種類数以上なら
+        // 区間内の全要素が条件を満たす。
+        if upper >= self.sorted_v.len() {
+            return r - l;
         }
 
         let mut result = 0;
-        for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
-            let rank_l = bit.rank(l);
-            let rank_r = bit.rank(r);
+        for (level, (i, bit)) in (0..self.height)
+            .rev()
+            .zip(self.bit_table.iter())
+            .enumerate()
+        {
+            let (rank_l, rank_r) = bit.rank_pair(l, r);
             if (upper >> i) & 1 == 0 {
                 l -= rank_l;
                 r -= rank_r;
             } else {
                 result += (r - l) - (rank_r - rank_l);
-                let zeros = bit.len() - bit.rank(bit.len());
+                let zeros = self.zero_counts[level];
                 l = rank_l + zeros;
                 r = rank_r + zeros;
             }
         }
         result
+    }
+
+    /// Counts compressed values in `[lower, upper)` while sharing the common prefix traversal.
+    fn count_in_value_range_compressed(
+        &self,
+        mut l: usize,
+        mut r: usize,
+        lower: usize,
+        upper: usize,
+    ) -> usize {
+        if upper <= lower || r <= l {
+            return 0;
+        }
+
+        let mut lower_l = l;
+        let mut lower_r = r;
+        let mut upper_l = l;
+        let mut upper_r = r;
+        let mut lower_result = 0;
+        let mut upper_result = 0;
+        let mut diverged = false;
+
+        for (level, (i, bit)) in (0..self.height)
+            .rev()
+            .zip(self.bit_table.iter())
+            .enumerate()
+        {
+            if !diverged && ((lower >> i) & 1) == ((upper >> i) & 1) {
+                let (rank_l, rank_r) = bit.rank_pair(l, r);
+                if (lower >> i) & 1 == 0 {
+                    l -= rank_l;
+                    r -= rank_r;
+                } else {
+                    let zeros = (r - l) - (rank_r - rank_l);
+                    lower_result += zeros;
+                    upper_result += zeros;
+                    let zeros_total = self.zero_counts[level];
+                    l = rank_l + zeros_total;
+                    r = rank_r + zeros_total;
+                }
+                continue;
+            }
+
+            if !diverged {
+                diverged = true;
+                lower_l = l;
+                lower_r = r;
+                upper_l = l;
+                upper_r = r;
+            }
+
+            let (lower_rank_l, lower_rank_r) = bit.rank_pair(lower_l, lower_r);
+            if (lower >> i) & 1 == 0 {
+                lower_l -= lower_rank_l;
+                lower_r -= lower_rank_r;
+            } else {
+                lower_result += (lower_r - lower_l) - (lower_rank_r - lower_rank_l);
+                let zeros_total = self.zero_counts[level];
+                lower_l = lower_rank_l + zeros_total;
+                lower_r = lower_rank_r + zeros_total;
+            }
+
+            let (upper_rank_l, upper_rank_r) = bit.rank_pair(upper_l, upper_r);
+            if (upper >> i) & 1 == 0 {
+                upper_l -= upper_rank_l;
+                upper_r -= upper_rank_r;
+            } else {
+                upper_result += (upper_r - upper_l) - (upper_rank_r - upper_rank_l);
+                let zeros_total = self.zero_counts[level];
+                upper_l = upper_rank_l + zeros_total;
+                upper_r = upper_rank_r + zeros_total;
+            }
+        }
+
+        upper_result - lower_result
     }
 
     /// `index_range` 内の `upper` 未満の要素数を返す。
@@ -148,7 +255,7 @@ impl WaveletMatrix {
         if upper <= lower {
             return 0;
         }
-        self.count_less_than_compressed(l, r, upper) - self.count_less_than_compressed(l, r, lower)
+        self.count_in_value_range_compressed(l, r, lower, upper)
     }
 
     /// `index_range` と `value_range` に含まれる要素を昇順に並べたときの `k` 番目の値を返す。
@@ -201,15 +308,18 @@ impl WaveletMatrix {
         }
 
         let mut compressed_value = 0;
-        for (i, bit) in (0..self.height).rev().zip(self.bit_table.iter()) {
-            let rank_l = bit.rank(l);
-            let rank_r = bit.rank(r);
+        for (level, (i, bit)) in (0..self.height)
+            .rev()
+            .zip(self.bit_table.iter())
+            .enumerate()
+        {
+            let (rank_l, rank_r) = bit.rank_pair(l, r);
             let zeros = (r - l) - (rank_r - rank_l);
             if k < zeros {
                 l -= rank_l;
                 r -= rank_r;
             } else {
-                let zeros_total = bit.len() - bit.rank(bit.len());
+                let zeros_total = self.zero_counts[level];
                 l = rank_l + zeros_total;
                 r = rank_r + zeros_total;
                 compressed_value |= 1_usize << i;

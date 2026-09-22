@@ -88,12 +88,10 @@ impl BitVector {
             }
         }
 
-        // Calculate cumulative sums of set bits for rank operations.
-        // This pre-computation allows for O(1) rank queries later,
-        // by storing the total count of set bits up to the end of each block.
+        // Store the number of set bits before each block.
         for i in 0..num_blocks {
-            current_sum += bits[i].count_ones();
             cumulative_sums[i] = current_sum;
+            current_sum += bits[i].count_ones();
         }
 
         BitVector {
@@ -148,17 +146,49 @@ impl BitVector {
 
         // Calculate the block index to efficiently access the precomputed cumulative sums and
         // bit data.
-        let block_index = r / u64::BITS as usize;
+        let block_index = r >> 6;
 
-        let mut res = 0;
-        // Add the cumulative sum of 1s from all preceding full blocks.
-        if block_index > 0 {
-            res += self.cumulative_sums[block_index - 1];
-        }
+        let mut res = self.cumulative_sums[block_index];
         // Add the number of 1s from the partial current block, up to the r-th bit,
         // using MASKS to isolate the relevant bits.
-        res += (self.bits[block_index] & MASKS[r % u64::BITS as usize]).count_ones();
+        res += (self.bits[block_index] & MASKS[r & 63]).count_ones();
         res as usize
+    }
+
+    /// Creates a `BitVector` directly from packed 64-bit words.
+    ///
+    /// `words` must hold the bits of the sequence in little-endian order
+    /// (element `k` is bit `k % 64` of word `k / 64`). Missing trailing
+    /// entries are treated as zero.
+    pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
+        debug_assert!(len < (1 << u32::BITS as usize));
+        words.resize(len / u64::BITS as usize + 1, 0);
+        let mut cumulative_sums = vec![0_u32; words.len()];
+        let mut acc = 0_u32;
+        for (i, &word) in words.iter().enumerate() {
+            cumulative_sums[i] = acc;
+            acc += word.count_ones();
+        }
+        Self {
+            bits: words,
+            cumulative_sums,
+            len,
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn rank_pair(&self, l: usize, r: usize) -> (usize, usize) {
+        debug_assert!(l <= r);
+        debug_assert!(r <= self.len);
+
+        let l_block = l >> 6;
+        let r_block = r >> 6;
+        (
+            (self.cumulative_sums[l_block] + (self.bits[l_block] & MASKS[l & 63]).count_ones())
+                as usize,
+            (self.cumulative_sums[r_block] + (self.bits[r_block] & MASKS[r & 63]).count_ones())
+                as usize,
+        )
     }
 
     /// BitVector の長さを返す.
