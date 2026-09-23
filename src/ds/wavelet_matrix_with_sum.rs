@@ -306,7 +306,7 @@ impl WaveletMatrixWithSum {
 mod tests {
     use super::*;
 
-    /// Background: 重複値を含むシーケンスから構築した `WaveletMatrixWithSum`。
+    /// 背景: 重複値を含むシーケンスから構築した `WaveletMatrixWithSum`。
     fn create_wavelet_matrix() -> WaveletMatrixWithSum {
         WaveletMatrixWithSum::new(&[5, 4, 8, 6, 0, 7, 2, 5])
     }
@@ -315,15 +315,15 @@ mod tests {
     mod sum {
         use super::*;
 
-        /// Scenario: 空のシーケンスに対する和クエリを処理する。
-        /// - Given: 空の `WaveletMatrixWithSum` がある。
-        /// - When: 空の範囲と 0 個の順位和を求める。
-        /// - Then: 空の和として `0` または `Some(0)` を返す。
+        /// 状況: 空のシーケンスに対する和クエリを処理する。
+        /// - 前提: 空の `WaveletMatrixWithSum` がある。
+        /// - 操作: 空の範囲と 0 個の順位和を求める。
+        /// - 結果: 空の和として `0` または `Some(0)` を返す。
         #[test]
         fn handles_empty_sequence() {
-            // Given
+            // 前提
             let sut = WaveletMatrixWithSum::new(&[]);
-            // When, Then
+            // 操作と結果
             assert_eq!(0, sut.get_sum(.., ..));
             assert_eq!(Some(0), sut.get_sum_k_smallest(.., 0));
             assert_eq!(Some(0), sut.get_sum_k_largest(.., 0));
@@ -343,15 +343,15 @@ mod tests {
             assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
-        /// Scenario: 値範囲、順位、距離に関する和を返す。
-        /// - Given: 重複値を含む `WaveletMatrixWithSum` がある。
-        /// - When: 各種の和クエリを求める。
-        /// - Then: それぞれの定義に従った和を返す。
+        /// 状況: 値範囲、順位、距離に関する和を返す。
+        /// - 前提: 重複値を含む `WaveletMatrixWithSum` がある。
+        /// - 操作: 各種の和クエリを求める。
+        /// - 結果: それぞれの定義に従った和を返す。
         #[test]
         fn returns_sums_for_value_queries() {
-            // Given
+            // 前提
             let sut = create_wavelet_matrix();
-            // When, Then
+            // 操作と結果
             assert_eq!(20, sut.get_sum(.., 4..7));
             assert_eq!(6, sut.get_sum_k_smallest(.., 3).unwrap());
             assert_eq!(21, sut.get_sum_k_largest(.., 3).unwrap());
@@ -372,31 +372,31 @@ mod tests {
             assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
-        /// Scenario: 要素数を超える個数の順位和を求める。
-        /// - Given: 要素数 8 の `WaveletMatrixWithSum` がある。
-        /// - When: 9 個の順位和を求める。
-        /// - Then: `None` を返す。
+        /// 状況: 要素数を超える個数の順位和を求める。
+        /// - 前提: 要素数 8 の `WaveletMatrixWithSum` がある。
+        /// - 操作: 9 個の順位和を求める。
+        /// - 結果: `None` を返す。
         #[test]
         fn returns_none_when_k_exceeds_length() {
-            // Given
+            // 前提
             let sut = create_wavelet_matrix();
-            // When, Then
+            // 操作と結果
             assert_eq!(None, sut.get_sum_k_smallest(.., 9));
             assert_eq!(None, sut.get_sum_k_largest(.., 9));
         }
 
-        /// Scenario: 要素数が十分に大きい入力を構築して和クエリを実行する。
-        /// - Given: 100,000 個の異なる値を持つシーケンスがある。
-        /// - When: `WaveletMatrixWithSum` を構築し、全体和と順位和を求める。
-        /// - Then: 現実的な時間で完了し、結果が正しい。
+        /// 状況: 要素数が十分に大きい入力を構築して和クエリを実行する。
+        /// - 前提: 100,000 個の異なる値を持つシーケンスがある。
+        /// - 操作: `WaveletMatrixWithSum` を構築し、全体和と順位和を求める。
+        /// - 結果: 現実的な時間で完了し、結果が正しい。
         #[test]
         fn builds_and_sums_large_input() {
-            // Given
+            // 前提
             let data = (0..100_000).collect::<Vec<_>>();
             let expected_total = 100_000_usize * 99_999 / 2;
-            // When
+            // 操作
             let sut = WaveletMatrixWithSum::new(&data);
-            // Then
+            // 結果
             assert_eq!(expected_total, sut.get_sum(.., ..));
             assert_eq!(10 * 11 / 2, sut.get_sum_k_smallest(.., 11).unwrap());
             assert_eq!(99_989 * 11 + 55, sut.get_sum_k_largest(.., 11).unwrap());

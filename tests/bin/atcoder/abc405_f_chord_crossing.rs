@@ -9,10 +9,10 @@ const BIN: &str = env!("CARGO_BIN_EXE_ac-abc405-f-chord-crossing");
 mod ac_abc405_f_chord_crossing {
     use super::*;
 
-    /// Scenario: 問題文の公式サンプルを解いたときの標準出力を検証する
-    /// - Given: 問題文の公式サンプルである
-    /// - When: ac-abc405-f-chord-crossing バイナリへ標準入力として渡す
-    /// - Then: 各クエリの交差数が期待値と一致する
+    /// 状況: 問題文の公式サンプルを解いたときの標準出力を検証する。
+    /// - 前提: 問題文の公式サンプルである。
+    /// - 操作: ac-abc405-f-chord-crossing バイナリへ標準入力として渡す。
+    /// - 結果: 各クエリの交差数が期待値と一致する。
     #[rstest]
     #[case::sample_1("4 2\n2 4\n6 8\n3\n1 3\n3 7\n1 5\n", "1\n2\n0\n")]
     #[case::sample_2(
@@ -20,9 +20,9 @@ mod ac_abc405_f_chord_crossing {
         "3\n3\n4\n1\n2\n2\n2\n3\n3\n1\n"
     )]
     fn matches_official_samples(#[case] input: &str, #[case] expected: &str) {
-        // When
+        // 操作
         let result = common::run_binary(BIN, input);
-        // Then
+        // 結果
         assert_eq!(expected, result);
     }
 }
