@@ -141,11 +141,11 @@ impl BitVector {
         }
 
         // 事前計算した累積和とビット列を効率よく参照するため、対象ブロックを求める。
-        let block_index = r >> 6;
+        let block_index = r / u64::BITS as usize;
 
         let mut res = self.cumulative_sums[block_index];
         // `MASKS` で対象範囲のビットを取り出し、ブロック内にある 1 の個数を加算する。
-        res += (self.bits[block_index] & MASKS[r & 63]).count_ones();
+        res += (self.bits[block_index] & MASKS[r % u64::BITS as usize]).count_ones();
         res as usize
     }
 
@@ -214,12 +214,14 @@ impl BitVector {
         debug_assert!(r <= self.len);
 
         // 各端点を含むブロックの累積値に、そのブロック内の 1 の数を足して rank を得る。
-        let l_block = l >> 6;
-        let r_block = r >> 6;
+        let l_block = l / u64::BITS as usize;
+        let r_block = r / u64::BITS as usize;
         (
-            (self.cumulative_sums[l_block] + (self.bits[l_block] & MASKS[l & 63]).count_ones())
+            (self.cumulative_sums[l_block]
+                + (self.bits[l_block] & MASKS[l % u64::BITS as usize]).count_ones())
                 as usize,
-            (self.cumulative_sums[r_block] + (self.bits[r_block] & MASKS[r & 63]).count_ones())
+            (self.cumulative_sums[r_block]
+                + (self.bits[r_block] & MASKS[r % u64::BITS as usize]).count_ones())
                 as usize,
         )
     }
