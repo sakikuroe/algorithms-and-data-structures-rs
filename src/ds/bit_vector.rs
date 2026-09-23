@@ -149,10 +149,26 @@ impl BitVector {
         res as usize
     }
 
-    /// 64ビット単位にパックされたワードから `BitVector` を作成する。
+    /// 64 ビット単位にパックされたワードから `BitVector` を作成する。
     ///
-    /// `words` は列のビットをリトルエンディアン順に保持する
-    /// （要素 `k` はワード `k / 64` のビット `k % 64`）。末尾のワードが不足する場合は0として扱う。
+    /// `words` は列のビットをリトルエンディアン順に保持する。つまり、要素 `k` は
+    /// ワード `k / 64` のビット `k % 64` に対応する。必要なワード数に満たない場合は、
+    /// 不足分を 0 で補う。
+    ///
+    /// # Args
+    /// - `words`: ビット列を 64 ビット単位で格納したワード列。
+    /// - `len`: 作成するビット列の長さ。`2^32` 未満でなければならない。
+    ///
+    /// # Returns
+    /// `words` から作成した `BitVector` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::bit_vector;
+    ///
+    /// let bits = bit_vector::BitVector::new(&[1, 0, 1, 0]);
+    /// assert_eq!(2, bits.rank(4));
+    /// ```
     pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
         debug_assert!(len < (1 << u32::BITS as usize));
         words.resize(len / u64::BITS as usize + 1, 0);
@@ -169,6 +185,26 @@ impl BitVector {
         }
     }
 
+    /// 2 つの位置までに含まれる `1` の累積数を返す。
+    ///
+    /// `l` と `r` は半開区間 `[l, r)` の端点であり、それぞれの位置までに含まれる
+    /// `1` の数を返す。このメソッドは Wavelet Matrix の範囲クエリから使用する。
+    ///
+    /// # Args
+    /// - `l`: 累積数を求める左端の位置。`r` 以下でなければならない。
+    /// - `r`: 累積数を求める右端の位置。ビット列の長さ以下でなければならない。
+    ///
+    /// # Returns
+    /// `[0, l)` と `[0, r)` に含まれる `1` の数を順に返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::bit_vector;
+    ///
+    /// let bits = bit_vector::BitVector::new(&[1, 0, 1, 1]);
+    /// assert_eq!(2, bits.rank(3));
+    /// assert_eq!(3, bits.rank(4));
+    /// ```
     #[inline(always)]
     pub(super) fn rank_pair(&self, l: usize, r: usize) -> (usize, usize) {
         debug_assert!(l <= r);
