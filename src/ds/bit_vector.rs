@@ -155,11 +155,10 @@ impl BitVector {
         res as usize
     }
 
-    /// Creates a `BitVector` directly from packed 64-bit words.
+    /// 64ビット単位にパックされたワードから `BitVector` を作成する。
     ///
-    /// `words` must hold the bits of the sequence in little-endian order
-    /// (element `k` is bit `k % 64` of word `k / 64`). Missing trailing
-    /// entries are treated as zero.
+    /// `words` は列のビットをリトルエンディアン順に保持する
+    /// （要素 `k` はワード `k / 64` のビット `k % 64`）。末尾のワードが不足する場合は0として扱う。
     pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
         debug_assert!(len < (1 << u32::BITS as usize));
         words.resize(len / u64::BITS as usize + 1, 0);

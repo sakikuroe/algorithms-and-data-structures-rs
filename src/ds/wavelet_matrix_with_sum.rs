@@ -249,7 +249,13 @@ impl WaveletMatrixWithSum {
             std::ops::Bound::Excluded(&value) => value.saturating_sub(1),
             std::ops::Bound::Unbounded => usize::MAX,
         };
-        if lower > upper {
+        if lower > upper
+            || matches!(
+                value_range.start_bound(),
+                std::ops::Bound::Excluded(&usize::MAX)
+            )
+            || matches!(value_range.end_bound(), std::ops::Bound::Excluded(&0))
+        {
             return 0;
         }
 
@@ -324,6 +330,17 @@ mod tests {
             let lower = 1;
             let upper = 0;
             assert_eq!(0, sut.get_sum_distance_to_range(.., lower..=upper));
+            assert_eq!(
+                0,
+                sut.get_sum_distance_to_range(
+                    ..,
+                    (
+                        std::ops::Bound::Excluded(usize::MAX),
+                        std::ops::Bound::Unbounded,
+                    ),
+                )
+            );
+            assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
         /// Scenario: 値範囲、順位、距離に関する和を返す。
@@ -342,6 +359,17 @@ mod tests {
             assert_eq!(51, sut.get_sum_max(.., 6));
             assert_eq!(17, sut.get_sum_abs_diff(.., 6));
             assert_eq!(9, sut.get_sum_distance_to_range(.., 4..=6));
+            assert_eq!(
+                0,
+                sut.get_sum_distance_to_range(
+                    ..,
+                    (
+                        std::ops::Bound::Excluded(usize::MAX),
+                        std::ops::Bound::Unbounded,
+                    ),
+                )
+            );
+            assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
         /// Scenario: 要素数を超える個数の順位和を求める。

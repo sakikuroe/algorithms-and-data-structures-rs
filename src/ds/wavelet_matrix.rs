@@ -36,7 +36,7 @@ impl WaveletMatrix {
         };
         let mut bit_table = Vec::with_capacity(height);
         let mut zero_counts = Vec::with_capacity(height);
-        // Two reusable buffers for the stable partition at each level.
+        // 各レベルの安定分割で再利用する2つのバッファ。
         let mut next = vec![0_usize; compress.len()];
 
         for i in (0..height).rev() {
@@ -148,7 +148,7 @@ impl WaveletMatrix {
         result
     }
 
-    /// Counts compressed values in `[lower, upper)` while sharing the common prefix traversal.
+    /// 共通する上位ビットの走査を共有し、圧縮値が `[lower, upper)` に含まれる要素数を返す。
     fn count_in_value_range_compressed(
         &self,
         mut l: usize,
