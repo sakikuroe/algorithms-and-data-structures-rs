@@ -11,8 +11,10 @@ struct AccumulateVector {
 impl AccumulateVector {
     /// 値のスライスから累積和ベクタを作成する。
     fn new(values: &[usize]) -> Self {
+        // 区間和を `prefix[r] - prefix[l]` で求められるよう、先頭に 0 を置く。
         let mut accum_table = vec![0; values.len() + 1];
         for (i, &value) in values.iter().enumerate() {
+            // i 番目までの和に現在の値を加え、i + 1 個までの累積和を保存する。
             accum_table[i + 1] = accum_table[i] + value;
         }
         Self { accum_table }
@@ -20,6 +22,7 @@ impl AccumulateVector {
 
     /// 先頭から `index` 個の値の和を返す。
     fn rank(&self, index: usize) -> usize {
+        // 累積和配列では添字がそのまま要素数を表す。
         self.accum_table[index]
     }
 }
@@ -38,14 +41,19 @@ pub struct WaveletMatrixWithSum {
 impl WaveletMatrixWithSum {
     /// `usize` のスライスから新しい `WaveletMatrixWithSum` を作成する。
     pub fn new(values: &[usize]) -> Self {
+        // 順位探索用のビット列と値の座標圧縮を共有する Wavelet Matrix を先に構築する。
         let wavelet_matrix = WaveletMatrix::new(values);
+        // 各レベルの分割順と揃えるため、入力値を圧縮後の順位へ変換する。
         let mut compress = values
             .iter()
             .map(|&x| wavelet_matrix.sorted_v.partition_point(|&y| y < x))
             .collect::<Vec<_>>();
         let mut accum_table = Vec::with_capacity(wavelet_matrix.height);
 
+        // ビットレベルごとに 0 側の値の累積和を作り、次のレベル用に順位列を安定分割する。
         for i in (0..wavelet_matrix.height).rev() {
+            // このレベルで 0 側へ進む値だけを元の値で記録する。
+            // 1 側を選ぶクエリでは、この和を加えて 0 側全体を飛ばす。
             accum_table.push(AccumulateVector::new(
                 &compress
                     .iter()
@@ -58,6 +66,7 @@ impl WaveletMatrixWithSum {
                     })
                     .collect::<Vec<_>>(),
             ));
+            // ビットレベルの順序を Wavelet Matrix と一致させ、次の下位ビットを処理する。
             compress = compress
                 .iter()
                 .filter(|&x| ((x >> i) & 1) == 0)
@@ -139,12 +148,14 @@ impl WaveletMatrixWithSum {
         I: RangeBounds<usize>,
         V: RangeBounds<usize>,
     {
+        // インデックス範囲と値範囲を、Wavelet Matrix 内で扱う半開区間へ正規化する。
         let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len());
         let (lower, upper) =
             wavelet_matrix_range::normalize_value_range(value_range, &self.wavelet_matrix.sorted_v);
         if upper <= lower {
             return 0;
         }
+        // 上限未満の和から下限未満の和を引き、指定された値範囲だけを残す。
         self.get_sum_less_than_compressed(l, r, upper)
             - self.get_sum_less_than_compressed(l, r, lower)
     }
@@ -162,6 +173,7 @@ impl WaveletMatrixWithSum {
             return Some(0);
         }
 
+        // 各レベルで 0 側の件数と順位を比べ、選択した側に含まれる値の和を集計する。
         let mut result = 0;
         let mut value = 0;
         let mut remaining = k;
@@ -174,9 +186,11 @@ impl WaveletMatrixWithSum {
             let (rank_l, rank_r) = bit.rank_pair(l, r);
             let zeros = (r - l) - (rank_r - rank_l);
             if remaining < zeros {
+                // 求める k 個が 0 側に収まるため、1 を除いた区間へ移る。
                 l -= rank_l;
                 r -= rank_r;
             } else {
+                // 0 側を全て採用し、その値の和を加えてから残りの順位を 1 側へ移す。
                 result += sum.rank(r) - sum.rank(l);
                 let zeros_total = bit.len() - bit.rank(bit.len());
                 l = rank_l + zeros_total;
@@ -185,6 +199,7 @@ impl WaveletMatrixWithSum {
                 remaining -= zeros;
             }
         }
+        // 全レベルを通過した残りは同じ値なので、値と要素数を掛けて加算する。
         result += remaining * self.wavelet_matrix.sorted_v[value];
         Some(result)
     }
@@ -194,6 +209,7 @@ impl WaveletMatrixWithSum {
     where
         I: RangeBounds<usize> + Clone,
     {
+        // 全体の和から、最小の `n - k` 個の和を引くと最大の k 個の和になる。
         let (l, r) = wavelet_matrix_range::normalize_index_range(index_range.clone(), self.len());
         if r - l < k {
             return None;
@@ -206,6 +222,7 @@ impl WaveletMatrixWithSum {
     where
         I: RangeBounds<usize> + Clone,
     {
+        // x 以上の値はすべて x に切り詰め、x 未満の値は元の値のまま合計する。
         self.get_sum_less_than(index_range.clone(), x)
             + x * self.wavelet_matrix.count_more_than(index_range, x)
     }
@@ -215,6 +232,7 @@ impl WaveletMatrixWithSum {
     where
         I: RangeBounds<usize> + Clone,
     {
+        // x 未満の値を x に引き上げ、x 以上の値は元の値のまま合計する。
         x * self.wavelet_matrix.count_less_than(index_range.clone(), x)
             + self.get_sum_more_than(index_range, x)
     }
@@ -224,6 +242,7 @@ impl WaveletMatrixWithSum {
     where
         I: RangeBounds<usize> + Clone,
     {
+        // x 未満と x より大きい値を分け、それぞれの差の総和を計算する。
         let less_count = self.wavelet_matrix.count_less_than(index_range.clone(), x);
         let more_count = self.wavelet_matrix.count_more_than(index_range.clone(), x);
         let less_sum = self.get_sum_less_than(index_range.clone(), x);
@@ -239,6 +258,8 @@ impl WaveletMatrixWithSum {
         I: RangeBounds<usize> + Clone,
         V: RangeBounds<usize> + Clone,
     {
+        // 境界の開閉を整数の包含区間へ変換する。端点の加減算では飽和演算を使い、
+        // usize の最小値・最大値でオーバーフローしないようにする。
         let lower = match value_range.start_bound() {
             std::ops::Bound::Included(&value) => value,
             std::ops::Bound::Excluded(&value) => value.saturating_add(1),
@@ -256,9 +277,11 @@ impl WaveletMatrixWithSum {
             )
             || matches!(value_range.end_bound(), std::ops::Bound::Excluded(&0))
         {
+            // 空の値範囲には距離が定義されないため、全要素の寄与を 0 とする。
             return 0;
         }
 
+        // 下限未満と上限超過の要素だけを取り出し、範囲端までの距離を合計する。
         let (l, r) = wavelet_matrix_range::normalize_index_range(index_range.clone(), self.len());
         let below_count = self.wavelet_matrix.count_less_than(l..r, lower);
         let below_sum = self.get_sum_less_than(l..r, lower);
@@ -271,6 +294,7 @@ impl WaveletMatrixWithSum {
 
     /// `index_range` の全要素の和を返す。
     fn total_sum(&self, l: usize, r: usize) -> usize {
+        // 半開区間の和は、右端と左端の累積和の差で得られる。
         self.accum_v.rank(r) - self.accum_v.rank(l)
     }
 
@@ -281,6 +305,7 @@ impl WaveletMatrixWithSum {
         }
 
         let mut result = 0;
+        // 上限順位のビットを上位から追い、上限未満と確定した 0 側の和を加える。
         for (i, (bit, sum)) in (0..self.wavelet_matrix.height).rev().zip(
             self.wavelet_matrix
                 .bit_table
@@ -289,9 +314,11 @@ impl WaveletMatrixWithSum {
         ) {
             let (rank_l, rank_r) = bit.rank_pair(l, r);
             if (upper >> i) & 1 == 0 {
+                // 上限ビットが 0 のときは 0 側だけが上限未満になり得る。
                 l -= rank_l;
                 r -= rank_r;
             } else {
+                // 上限ビットが 1 のときは 0 側全体を加算して、上限と同じ 1 側を続ける。
                 result += sum.rank(r) - sum.rank(l);
                 let zeros = bit.len() - bit.rank(bit.len());
                 l = rank_l + zeros;

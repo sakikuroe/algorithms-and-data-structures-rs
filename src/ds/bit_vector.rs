@@ -171,11 +171,14 @@ impl BitVector {
     /// ```
     pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
         debug_assert!(len < (1 << u32::BITS as usize));
+        // rank で末尾境界を参照できるよう、必要なブロック数までワード列を揃える。
         words.resize(len / u64::BITS as usize + 1, 0);
+        // 各ブロックの開始位置より前にある 1 の個数を保存する。
         let mut cumulative_sums = vec![0_u32; words.len()];
         let mut acc = 0_u32;
         for (i, &word) in words.iter().enumerate() {
             cumulative_sums[i] = acc;
+            // 次のブロックの開始時点で使うため、現在のワードの 1 の個数を累積する。
             acc += word.count_ones();
         }
         Self {
@@ -210,6 +213,7 @@ impl BitVector {
         debug_assert!(l <= r);
         debug_assert!(r <= self.len);
 
+        // 各端点を含むブロックの累積値に、そのブロック内の 1 の数を足して rank を得る。
         let l_block = l >> 6;
         let r_block = r >> 6;
         (

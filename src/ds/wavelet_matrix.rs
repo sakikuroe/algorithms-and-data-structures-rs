@@ -38,32 +38,44 @@ impl WaveletMatrix {
     /// assert_eq!(3, matrix.count(1..6, 5..15));
     /// ```
     pub fn new(v: &[usize]) -> Self {
+        // 値を昇順に並べて重複を除き、元の値と圧縮後の順位を対応付ける。
         let mut sorted_v = v.to_vec();
         sorted_v.sort_unstable();
         sorted_v.dedup();
 
+        // 順位を各ビットレベルで扱えるよう、各値をソート済み配列上の添字に変換する。
         let mut compress = v
             .iter()
             .map(|&x| sorted_v.partition_point(|&y| y < x))
             .collect::<Vec<_>>();
+        // 全ての圧縮順位を表現できるビット数を使う。空入力でも構築処理を一貫させるため、
+        // その場合は 1 レベルを設ける。
         let height = if sorted_v.is_empty() {
             1
         } else {
             usize::BITS as usize - sorted_v.len().leading_zeros() as usize
         };
+        // 各レベルのビット列と、0 側の要素数を上位ビットから順に保存する。
         let mut bit_table = Vec::with_capacity(height);
         let mut zero_counts = Vec::with_capacity(height);
-        // 各レベルの安定分割で再利用する2つのバッファ。
+        // 安定分割の出力を保持し、次のレベルでも再利用するバッファ。
         let mut next = vec![0_usize; compress.len()];
 
+        // 上位ビットから順に、ビット列の作成と 0 側・1 側への安定分割を行う。
         for i in (0..height).rev() {
+            // 1 側の開始位置を決めるため、このレベルで 0 となる要素数を数える。
             let num_zeros = compress.iter().filter(|&&x| ((x >> i) & 1) == 0).count();
+            // ビットをワード単位に詰め、rank クエリ用の領域を確保する。
             let mut words = vec![0_u64; compress.len() / u64::BITS as usize + 1];
+            // 0 と 1 の要素はそれぞれの領域内で入力順を保って配置する。
             let mut zero_pos = 0_usize;
             let mut one_pos = num_zeros;
+            // 現在処理している 64 ビットワードと、その保存先を追跡する。
             let mut word = 0_u64;
             let mut word_index = 0_usize;
             for (pos, &x) in compress.iter().enumerate() {
+                // 0 の順位は前方へ、1 の順位は 0 の領域の後方へ書き込み、
+                // 同時に元の並びで 1 だった位置をビット列へ記録する。
                 if ((x >> i) & 1) == 0 {
                     next[zero_pos] = x;
                     zero_pos += 1;
@@ -72,17 +84,21 @@ impl WaveletMatrix {
                     one_pos += 1;
                     word |= 1_u64 << (pos & 63);
                 }
+                // ワードが 64 ビット埋まったら保存して、次のワードを初期化する。
                 if (pos & 63) == 63 {
                     words[word_index] = word;
                     word_index += 1;
                     word = 0;
                 }
             }
+            // 最後のワードが 64 ビット未満の場合も、残ったビットを保存する。
             if (compress.len() & 63) != 0 {
                 words[word_index] = word;
             }
+            // 次のレベルで各要素を正しい区間へ写せるよう、0 の総数とビット列を保存する。
             zero_counts.push(num_zeros);
             bit_table.push(bit_vector::BitVector::from_words(words, compress.len()));
+            // 今作成した安定分割済み配列を次の下位ビットの入力にする。
             std::mem::swap(&mut compress, &mut next);
         }
 
@@ -152,6 +168,7 @@ impl WaveletMatrix {
             return None;
         }
 
+        // 各レベルで位置を 0 側または 1 側へ写しながら、圧縮値のビットを復元する。
         let mut position = index;
         let mut compressed_value = 0;
         for (level, (i, bit)) in (0..self.height)
@@ -159,13 +176,16 @@ impl WaveletMatrix {
             .zip(self.bit_table.iter())
             .enumerate()
         {
+            // 区間 `[position, position + 1)` の rank 差から、対象要素の現在ビットを判定する。
             let (rank, next_rank) = bit.rank_pair(position, position + 1);
             let is_one = next_rank != rank;
             let zeros = self.zero_counts[level];
             if is_one {
+                // 1 側は全体の 0 の領域の後ろにあるため、0 の総数を加えて位置を移す。
                 compressed_value |= 1_usize << i;
                 position = rank + zeros;
             } else {
+                // 0 側では、それより前にある 1 を除いた位置が新しい位置になる。
                 position -= rank;
             }
         }
@@ -175,6 +195,7 @@ impl WaveletMatrix {
 
     /// 値の圧縮インデックスが `upper` 未満となる要素の個数を返す。
     fn count_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
+        // 空区間や圧縮順位 0 未満には該当要素がない。
         if r <= l || upper == 0 {
             return 0;
         }
@@ -185,6 +206,7 @@ impl WaveletMatrix {
         }
 
         let mut result = 0;
+        // 上限の各ビットを上位からたどり、上限より小さい側へ確定した 0 の個数を加算する。
         for (level, (i, bit)) in (0..self.height)
             .rev()
             .zip(self.bit_table.iter())
@@ -192,11 +214,14 @@ impl WaveletMatrix {
         {
             let (rank_l, rank_r) = bit.rank_pair(l, r);
             if (upper >> i) & 1 == 0 {
+                // 上限ビットが 0 なら 1 側は上限以上なので、0 側だけを続けて調べる。
                 l -= rank_l;
                 r -= rank_r;
             } else {
+                // 上限ビットが 1 なら現在範囲の 0 側は全て上限未満なので、その個数を足す。
                 result += (r - l) - (rank_r - rank_l);
                 let zeros = self.zero_counts[level];
+                // 上限と同じ 1 側へ進み、残りの下位ビットを比較する。
                 l = rank_l + zeros;
                 r = rank_r + zeros;
             }
@@ -222,6 +247,7 @@ impl WaveletMatrix {
         let mut upper_r = r;
         let mut lower_result = 0;
         let mut upper_result = 0;
+        // 下限と上限のビット列が分岐するまでは共通の区間を走査する。
         let mut diverged = false;
 
         for (level, (i, bit)) in (0..self.height)
@@ -230,6 +256,7 @@ impl WaveletMatrix {
             .enumerate()
         {
             if !diverged && ((lower >> i) & 1) == ((upper >> i) & 1) {
+                // 共通するビットでは区間を一度だけ写し、両境界の累積数を同じだけ更新する。
                 let (rank_l, rank_r) = bit.rank_pair(l, r);
                 if (lower >> i) & 1 == 0 {
                     l -= rank_l;
@@ -246,6 +273,7 @@ impl WaveletMatrix {
             }
 
             if !diverged {
+                // 最初に境界ビットが異なる位置で、下限と上限の探索区間を分離する。
                 diverged = true;
                 lower_l = l;
                 lower_r = r;
@@ -255,9 +283,11 @@ impl WaveletMatrix {
 
             let (lower_rank_l, lower_rank_r) = bit.rank_pair(lower_l, lower_r);
             if (lower >> i) & 1 == 0 {
+                // 下限が 0 なら下限未満の値を増やさず、0 側へ進む。
                 lower_l -= lower_rank_l;
                 lower_r -= lower_rank_r;
             } else {
+                // 下限が 1 なら、0 側にある値はすべて下限未満として数える。
                 lower_result += (lower_r - lower_l) - (lower_rank_r - lower_rank_l);
                 let zeros_total = self.zero_counts[level];
                 lower_l = lower_rank_l + zeros_total;
@@ -266,9 +296,11 @@ impl WaveletMatrix {
 
             let (upper_rank_l, upper_rank_r) = bit.rank_pair(upper_l, upper_r);
             if (upper >> i) & 1 == 0 {
+                // 上限が 0 なら上限未満の値を増やさず、0 側へ進む。
                 upper_l -= upper_rank_l;
                 upper_r -= upper_rank_r;
             } else {
+                // 上限が 1 なら、0 側にある値はすべて上限未満として数える。
                 upper_result += (upper_r - upper_l) - (upper_rank_r - upper_rank_l);
                 let zeros_total = self.zero_counts[level];
                 upper_l = upper_rank_l + zeros_total;
@@ -276,6 +308,7 @@ impl WaveletMatrix {
             }
         }
 
+        // 上限未満の個数から下限未満の個数を引き、半開値範囲内の個数を得る。
         upper_result - lower_result
     }
 
@@ -441,6 +474,7 @@ impl WaveletMatrix {
         }
 
         let mut compressed_value = 0;
+        // 各レベルで 0 側の要素数と順位 `k` を比べ、目的の部分木を選び続ける。
         for (level, (i, bit)) in (0..self.height)
             .rev()
             .zip(self.bit_table.iter())
@@ -449,9 +483,11 @@ impl WaveletMatrix {
             let (rank_l, rank_r) = bit.rank_pair(l, r);
             let zeros = (r - l) - (rank_r - rank_l);
             if k < zeros {
+                // k 番目が 0 側にあるため、1 の累積数を除いて 0 側の範囲へ移る。
                 l -= rank_l;
                 r -= rank_r;
             } else {
+                // 0 側を飛ばして 1 側へ進み、順位から 0 側の要素数を差し引く。
                 let zeros_total = self.zero_counts[level];
                 l = rank_l + zeros_total;
                 r = rank_r + zeros_total;
@@ -488,9 +524,10 @@ impl WaveletMatrix {
     pub fn get_kth_smallest_batch(&self, queries: &[(Range<usize>, usize)]) -> Vec<usize> {
         const CHUNK: usize = 16;
         let mut answers = Vec::with_capacity(queries.len());
-        // 各クエリの状態は `[l, r, k, 圧縮値]` である。
+        // 各チャンク内のクエリ状態 `[l, r, k, 圧縮値]` を固定長配列でまとめて処理する。
         for chunk in queries.chunks(CHUNK) {
             let mut states = [[0_usize; 4]; CHUNK];
+            // クエリ範囲と順位を状態へ格納し、指定条件を満たさない入力を検証する。
             for (state, (range, k)) in states.iter_mut().zip(chunk.iter()) {
                 assert!(range.start <= range.end && range.end <= self.len);
                 assert!(*k < range.end - range.start);
@@ -498,6 +535,7 @@ impl WaveletMatrix {
                 state[1] = range.end;
                 state[2] = *k;
             }
+            // 同じレベルのビット列を連続して参照し、全クエリを並行して順位探索する。
             for (level, (i, bit)) in (0..self.height)
                 .rev()
                 .zip(self.bit_table.iter())
@@ -505,6 +543,7 @@ impl WaveletMatrix {
             {
                 let zeros_total = self.zero_counts[level];
                 for state in states[..chunk.len()].iter_mut() {
+                    // 0 側の要素数を数え、順位が含まれる側へ区間を写す。
                     let (rank_l, rank_r) = bit.rank_pair(state[0], state[1]);
                     let zeros = (state[1] - state[0]) - (rank_r - rank_l);
                     if state[2] < zeros {
@@ -518,6 +557,7 @@ impl WaveletMatrix {
                     }
                 }
             }
+            // 復元した圧縮順位を元の値へ戻し、入力と同じ順序で結果へ追加する。
             answers.extend(
                 states[..chunk.len()]
                     .iter()
