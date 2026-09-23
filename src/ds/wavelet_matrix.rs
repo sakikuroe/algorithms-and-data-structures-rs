@@ -13,13 +13,30 @@ pub struct WaveletMatrix {
 }
 
 impl WaveletMatrix {
-    /// `usize` のスライスから新しい `WaveletMatrix` を作成する。
+    /// `usize` のスライスから `WaveletMatrix` を構築する。
+    ///
+    /// 入力値を座標圧縮し、圧縮値の各ビットを上位から順に並べたビット列を構築する。
     ///
     /// # Args
-    /// - `v`: 格納する値のスライス。
+    /// - `v`: 元の順序を保ったまま格納する値のスライス。
     ///
     /// # Returns
-    /// 値を座標圧縮して構築した `WaveletMatrix`。
+    /// `v` の要素を格納した `WaveletMatrix` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: $O(N \log U)$ である。$N$ は `v` の長さ、$U$ は異なる値の個数である。
+    /// - 空間計算量: $O(N \log U)$ である。各ビットレベルに `N` 個のビットを保持する。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let values = [10, 5, 20, 15, 5, 10, 25];
+    /// let matrix = WaveletMatrix::new(&values);
+    /// assert_eq!(4, matrix.count_less_than(0..7, 15));
+    /// assert_eq!(3, matrix.count_more_than(0..4, 10));
+    /// assert_eq!(3, matrix.count(1..6, 5..15));
+    /// ```
     pub fn new(v: &[usize]) -> Self {
         let mut sorted_v = v.to_vec();
         sorted_v.sort_unstable();
@@ -78,12 +95,36 @@ impl WaveletMatrix {
         }
     }
 
-    /// 元のシーケンスの要素数を返す。
+    /// 元のシーケンスに含まれる要素数を返す。
+    ///
+    /// # Returns
+    /// 構築時に渡されたスライスの長さを返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[4, 2, 4]);
+    /// assert_eq!(3, matrix.len());
+    /// ```
     pub fn len(&self) -> usize {
         self.len
     }
 
-    /// 元のシーケンスが空であるかを返す。
+    /// 元のシーケンスに要素が含まれないかを返す。
+    ///
+    /// # Returns
+    /// 要素数が 0 の場合は `true`、それ以外の場合は `false` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let empty = WaveletMatrix::new(&[]);
+    /// let non_empty = WaveletMatrix::new(&[1]);
+    /// assert!(empty.is_empty());
+    /// assert!(!non_empty.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
@@ -91,6 +132,21 @@ impl WaveletMatrix {
     /// 元のシーケンスの `index` 番目の値を返す。
     ///
     /// 範囲外のインデックスに対しては `None` を返す。
+    ///
+    /// # Args
+    /// - `index`: 0 始まりの要素位置。
+    ///
+    /// # Returns
+    /// 指定位置の値を `Some` で返す。位置が範囲外の場合は `None` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[7, 3]);
+    /// assert_eq!(Some(7), matrix.get(0));
+    /// assert_eq!(None, matrix.get(2));
+    /// ```
     pub fn get(&self, index: usize) -> Option<usize> {
         if index >= self.len {
             return None;
@@ -223,7 +279,22 @@ impl WaveletMatrix {
         upper_result - lower_result
     }
 
-    /// `index_range` 内の `upper` 未満の要素数を返す。
+    /// `index_range` に含まれる `upper` 未満の要素数を返す。
+    ///
+    /// # Args
+    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `upper`: 比較に用いる排他的な上限値。
+    ///
+    /// # Returns
+    /// 範囲内で値が `upper` 未満となる要素の個数を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(2, matrix.count_less_than(1..4, 5));
+    /// ```
     pub fn count_less_than<I>(&self, index_range: I, upper: usize) -> usize
     where
         I: RangeBounds<usize>,
@@ -233,7 +304,22 @@ impl WaveletMatrix {
         self.count_less_than_compressed(l, r, upper)
     }
 
-    /// `index_range` 内の `lower` 以上の要素数を返す。
+    /// `index_range` に含まれる `lower` 以上の要素数を返す。
+    ///
+    /// # Args
+    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `lower`: 比較に用いる包含的な下限値。
+    ///
+    /// # Returns
+    /// 範囲内で値が `lower` 以上となる要素の個数を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(1, matrix.count_more_than(1..4, 5));
+    /// ```
     pub fn count_more_than<I>(&self, index_range: I, lower: usize) -> usize
     where
         I: RangeBounds<usize>,
@@ -243,7 +329,22 @@ impl WaveletMatrix {
         (r - l) - self.count_less_than_compressed(l, r, lower)
     }
 
-    /// `index_range` と `value_range` の両方に含まれる要素数を返す。
+    /// インデックス範囲と値範囲の両方に含まれる要素数を返す。
+    ///
+    /// # Args
+    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `value_range`: 数える値の範囲。
+    ///
+    /// # Returns
+    /// 両方の範囲を満たす要素の個数を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(2, matrix.count(.., 3..=5));
+    /// ```
     pub fn count<I, V>(&self, index_range: I, value_range: V) -> usize
     where
         I: RangeBounds<usize>,
@@ -261,6 +362,22 @@ impl WaveletMatrix {
     /// `index_range` と `value_range` に含まれる要素を昇順に並べたときの `k` 番目の値を返す。
     ///
     /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
+    ///
+    /// # Args
+    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `value_range`: 順位付けの対象とする値の範囲。
+    /// - `k`: 昇順に並べたときの 0 始まりの順位。
+    ///
+    /// # Returns
+    /// 該当する順位の値を `Some` で返す。該当する要素がない場合は `None` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(Some(3), matrix.get_kth_smallest(.., 2..=7, 1));
+    /// ```
     pub fn get_kth_smallest<I, V>(&self, index_range: I, value_range: V, k: usize) -> Option<usize>
     where
         I: RangeBounds<usize>,
@@ -280,6 +397,22 @@ impl WaveletMatrix {
     /// `index_range` と `value_range` に含まれる要素を降順に並べたときの `k` 番目の値を返す。
     ///
     /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
+    ///
+    /// # Args
+    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `value_range`: 順位付けの対象とする値の範囲。
+    /// - `k`: 降順に並べたときの 0 始まりの順位。
+    ///
+    /// # Returns
+    /// 該当する順位の値を `Some` で返す。該当する要素がない場合は `None` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(Some(5), matrix.get_kth_largest(.., 2..=7, 1));
+    /// ```
     pub fn get_kth_largest<I, V>(&self, index_range: I, value_range: V, k: usize) -> Option<usize>
     where
         I: RangeBounds<usize>,
@@ -335,8 +468,23 @@ impl WaveletMatrix {
     /// （0 始まり）に小さい値を返す。値域は全体とする。クエリを16件ずつ
     /// まとめて各レベルを処理することで、ビット列のキャッシュ再利用を高める。
     ///
+    /// # Args
+    /// - `queries`: 半開インデックス範囲と、その範囲内で求める 0 始まりの順位の組。
+    ///
+    /// # Returns
+    /// 入力順に各クエリの順位要素を格納したベクターを返す。
+    ///
     /// # Panics
     /// 範囲外のインデックスや、区間長以上の `k` を指定した場合にパニックする。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// let queries = [(0..4, 0), (1..4, 1)];
+    /// assert_eq!(vec![2, 3], matrix.get_kth_smallest_batch(&queries));
+    /// ```
     pub fn get_kth_smallest_batch(&self, queries: &[(Range<usize>, usize)]) -> Vec<usize> {
         const CHUNK: usize = 16;
         let mut answers = Vec::with_capacity(queries.len());
