@@ -247,44 +247,46 @@ mod tests {
     // len のテスト: 戻り値を検証する。
     mod len {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 生成時に渡したスライスの長さを返す (正常系 + 境界値)。
-        /// - Given: 要素数が異なる複数のスライスがある (空、単一要素、複数要素)。
-        /// - When: 各スライスから `BitVector` を生成し、`len()` を呼ぶ。
-        /// - Then: 各ケースでスライスの長さが返る。
-        #[test]
-        fn returns_length_of_input_slice() {
+        /// - Given: 空、単一要素、複数要素のいずれかのスライスがある。
+        /// - When: スライスから `BitVector` を生成し、`len()` を呼ぶ。
+        /// - Then: 入力スライスの長さが返る。
+        #[rstest]
+        #[case::empty(vec![], 0)]
+        #[case::single_element(vec![0], 1)]
+        #[case::multiple_elements(vec![1, 0, 1, 1, 0], 5)]
+        fn returns_length_of_input_slice(#[case] input: Vec<u8>, #[case] expected: usize) {
             // Given
-            let cases = [(vec![], 0_usize), (vec![0], 1), (vec![1, 0, 1, 1, 0], 5)];
-            // When and Then
-            for (input, expected) in cases {
-                let sut = BitVector::new(&input);
-                assert_eq!(expected, sut.len());
-            }
+            let sut = BitVector::new(&input);
+            // When
+            let result = sut.len();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // is_empty のテスト: 戻り値を検証する。
     mod is_empty {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: スライスが空かどうかに応じて判定を返す (正常系 + 境界値)。
-        /// - Given: 空のスライスと、要素数が異なる複数の非空スライスがある。
-        /// - When: 各スライスから `BitVector` を生成し、`is_empty()` を呼ぶ。
-        /// - Then: 空のスライスに対しては `true`、非空のスライスに対しては `false` が返る。
-        #[test]
-        fn returns_whether_empty() {
+        /// - Given: 空、単一要素、複数要素のいずれかのスライスがある。
+        /// - When: スライスから `BitVector` を生成し、`is_empty()` を呼ぶ。
+        /// - Then: 空の場合は `true`、非空の場合は `false` が返る。
+        #[rstest]
+        #[case::empty(vec![], true)]
+        #[case::single_element(vec![0], false)]
+        #[case::multiple_elements(vec![1, 0, 1, 1, 0], false)]
+        fn returns_whether_empty(#[case] input: Vec<u8>, #[case] expected: bool) {
             // Given
-            let cases = [
-                (vec![], true),
-                (vec![0], false),
-                (vec![1, 0, 1, 1, 0], false),
-            ];
-            // When and Then
-            for (input, expected) in cases {
-                let sut = BitVector::new(&input);
-                assert_eq!(expected, sut.is_empty());
-            }
+            let sut = BitVector::new(&input);
+            // When
+            let result = sut.is_empty();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
