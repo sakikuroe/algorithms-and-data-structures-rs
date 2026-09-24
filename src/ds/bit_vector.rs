@@ -2,7 +2,7 @@
 const MASKS: [u64; u64::BITS as usize] = {
     let mut masks = [0_u64; u64::BITS as usize];
     let mut k = 1_usize;
-    // Generate masks for k from 1 to 63.
+    // k が 1 から 63 までのマスクを生成する。
     while k < u64::BITS as usize {
         masks[k] = (1_u64 << k) - 1;
         k += 1;
@@ -13,15 +13,16 @@ const MASKS: [u64; u64::BITS as usize] = {
 /// 0 と 1 からなるビット列を効率的に格納し, クエリを実行するためのデータ構造である.
 ///
 /// `BitVector` は 64 ビットのブロックごとに 1 の累積和を事前計算することで,
-/// 高速な `sum` クエリを可能にする.
+/// 高速な `rank` クエリを可能にする.
 #[derive(Clone)]
 pub struct BitVector {
+    /// 64 ビット単位にパックしたビット列。
     bits: Vec<u64>,
 
-    // Stores the sum of 1s up to the end of each block.
+    /// 各ブロックの開始位置より前に含まれる `1` の累積数。
     cumulative_sums: Vec<u32>,
 
-    // Length of the BitVector.
+    /// 元のビット列の長さ。
     len: usize,
 }
 
@@ -54,9 +55,9 @@ impl BitVector {
     ///
     /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1]);
     /// assert_eq!(6, bv.len());
-    /// assert_eq!(3, bv.rank(4)); // sum([1, 0, 1, 1])
-    /// assert_eq!(4, bv.rank(6)); // sum([1, 0, 1, 1, 0, 1])
-    /// assert_eq!(0, bv.rank(0)); // sum([])
+    /// assert_eq!(3, bv.rank(4)); // [1, 0, 1, 1] の和
+    /// assert_eq!(4, bv.rank(6)); // [1, 0, 1, 1, 0, 1] の和
+    /// assert_eq!(0, bv.rank(0)); // 空列の和
     /// ```
     pub fn new(v: &[u8]) -> Self {
         let len = v.len();
@@ -70,17 +71,13 @@ impl BitVector {
         let mut cumulative_sums = vec![0_u32; num_blocks];
         let mut current_sum = 0_u32;
 
-        // Iterate through the input vector to populate the bit vector
-        // and validate that elements are either 0 or 1.
+        // 入力を走査してビット列を構築し、各要素が 0 または 1 であることを検証する。
         for (i, &bit_val) in v.iter().enumerate() {
-            // Ensure each element is a valid bit value (0 or 1).
-            // This is a critical constraint for the `BitVector`'s integrity,
-            // as subsequent operations assume binary values.
+            // 後続の処理が二値であることを前提とするため、要素が有効なビット値か確認する。
             if bit_val != 0 && bit_val != 1 {
                 panic!("Input slice `v` must only contain 0 or 1.");
             }
-            // If the bit is 1, set the corresponding bit in the `bits` vector.
-            // This operation efficiently packs individual bits into u64 blocks.
+            // 値が 1 のとき、対応する位置のビットを `u64` のブロックに設定する。
             if bit_val == 1 {
                 let block_index = i / u64::BITS as usize;
                 let bit_in_block = i % u64::BITS as usize;
@@ -88,12 +85,10 @@ impl BitVector {
             }
         }
 
-        // Calculate cumulative sums of set bits for rank operations.
-        // This pre-computation allows for O(1) rank queries later,
-        // by storing the total count of set bits up to the end of each block.
+        // 各ブロックより前にある 1 の個数を累積和として記録する。
         for i in 0..num_blocks {
-            current_sum += bits[i].count_ones();
             cumulative_sums[i] = current_sum;
+            current_sum += bits[i].count_ones();
         }
 
         BitVector {
@@ -130,9 +125,9 @@ impl BitVector {
     /// let bv = bit_vector::BitVector::new(&[1, 0, 1, 1, 0, 1, 0, 0]);
     /// assert_eq!(bv.rank(0), 0);
     /// assert_eq!(bv.rank(1), 1); // v[0] = 1
-    /// assert_eq!(bv.rank(3), 2); // v[0..3] = [1, 0, 1], sum = 2
-    /// assert_eq!(bv.rank(6), 4); // v[0..6] = [1, 0, 1, 1, 0, 1], sum = 4
-    /// assert_eq!(bv.rank(8), 4); // v[0..8] = [1, 0, 1, 1, 0, 1, 0, 0], sum = 4
+    /// assert_eq!(bv.rank(3), 2); // v[0..3] = [1, 0, 1] の和は 2
+    /// assert_eq!(bv.rank(6), 4); // v[0..6] = [1, 0, 1, 1, 0, 1] の和は 4
+    /// assert_eq!(bv.rank(8), 4); // v[0..8] = [1, 0, 1, 1, 0, 1, 0, 0] の和は 4
     /// ```
     pub fn rank(&self, r: usize) -> usize {
         if r == 0 {
@@ -146,31 +141,68 @@ impl BitVector {
             );
         }
 
-        // Calculate the block index to efficiently access the precomputed cumulative sums and
-        // bit data.
+        // 事前計算した累積和とビット列を効率よく参照するため、対象ブロックを求める。
         let block_index = r / u64::BITS as usize;
 
-        let mut res = 0;
-        // Add the cumulative sum of 1s from all preceding full blocks.
-        if block_index > 0 {
-            res += self.cumulative_sums[block_index - 1];
-        }
-        // Add the number of 1s from the partial current block, up to the r-th bit,
-        // using MASKS to isolate the relevant bits.
+        let mut res = self.cumulative_sums[block_index];
+        // `MASKS` で対象範囲のビットを取り出し、ブロック内にある 1 の個数を加算する。
         res += (self.bits[block_index] & MASKS[r % u64::BITS as usize]).count_ones();
         res as usize
     }
 
-    /// BitVector の長さを返す.
+    /// 64 ビット単位にパックされたワードから `BitVector` を作成する。
+    ///
+    /// `words` は列のビットをリトルエンディアン順に保持する。つまり、要素 `k` は
+    /// ワード `k / 64` のビット `k % 64` に対応する。必要なワード数に満たない場合は、
+    /// 不足分を 0 で補う。必要なワード数を超える末尾のワードは切り捨てる。
+    /// `new` が `0` と `1` を要素ごとに受け取ってワードへ詰めるのに対し、このメソッドは
+    /// 既にワードへパックされたビット列を受け取る。Wavelet Matrix の構築時に使用する。
+    ///
+    /// # Args
+    /// - `words`: ビット列を 64 ビット単位で格納したワード列。
+    /// - `len`: 作成するビット列の長さ。`2^32` 未満でなければならない。この制約は
+    ///   呼び出し側の事前条件であり、デバッグビルドでのみ検査される。
+    ///
+    /// # Returns
+    /// `words` から作成した `BitVector` を返す。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// // Wavelet Matrix は各レベルのビットをワードに詰めて内部の BitVector へ渡す。
+    /// let matrix = WaveletMatrix::new(&[1, 0, 1, 0]);
+    /// assert_eq!(2, matrix.count(.., 1..=1));
+    /// ```
+    pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
+        debug_assert!(len < (1 << u32::BITS as usize));
+        // rank で末尾境界を参照できるよう、必要なブロック数までワード列を揃える。
+        words.resize(len / u64::BITS as usize + 1, 0);
+        // 各ブロックの開始位置より前にある 1 の個数を保存する。
+        let mut cumulative_sums = vec![0_u32; words.len()];
+        let mut acc = 0_u32;
+        for (i, &word) in words.iter().enumerate() {
+            cumulative_sums[i] = acc;
+            // 次のブロックの開始時点で使うため、現在のワードの 1 の個数を累積する。
+            acc += word.count_ones();
+        }
+        Self {
+            bits: words,
+            cumulative_sums,
+            len,
+        }
+    }
+
+    /// `BitVector` の長さを返す。
     ///
     /// # Returns
     ///
-    /// 元のビット列の長さを返す.
+    /// 元のビット列の長さを返す。
     ///
     /// # Complexity
     ///
-    /// - 時間計算量: O(1) である.
-    /// - 空間計算量: O(1) である.
+    /// - 時間計算量: O(1) である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     ///
@@ -184,16 +216,16 @@ impl BitVector {
         self.len
     }
 
-    /// BitVector が空かどうかを確認する.
+    /// `BitVector` が空かどうかを確認する。
     ///
     /// # Returns
     ///
-    /// BitVector が空の場合は `true`, そうでない場合は `false` を返す.
+    /// `BitVector` が空の場合は `true`、そうでない場合は `false` を返す。
     ///
     /// # Complexity
     ///
-    /// - 時間計算量: O(1) である.
-    /// - 空間計算量: O(1) である.
+    /// - 時間計算量: O(1) である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     ///
@@ -218,44 +250,46 @@ mod tests {
     // len のテスト: 戻り値を検証する。
     mod len {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 生成時に渡したスライスの長さを返す (正常系 + 境界値)。
-        /// - Given: 要素数が異なる複数のスライスがある (空, 単一要素, 複数要素)。
-        /// - When: 各スライスから `BitVector` を生成し、 `len()` を呼ぶ。
-        /// - Then: 各ケースでスライスの長さが返る。
-        #[test]
-        fn returns_length_of_input_slice() {
+        /// - Given: 空、単一要素、複数要素のいずれかのスライスがある。
+        /// - When: スライスから `BitVector` を生成し、`len()` を呼ぶ。
+        /// - Then: 入力スライスの長さが返る。
+        #[rstest]
+        #[case::empty(vec![], 0)]
+        #[case::single_element(vec![0], 1)]
+        #[case::multiple_elements(vec![1, 0, 1, 1, 0], 5)]
+        fn returns_length_of_input_slice(#[case] input: Vec<u8>, #[case] expected: usize) {
             // Given
-            let cases = [(vec![], 0_usize), (vec![0], 1), (vec![1, 0, 1, 1, 0], 5)];
-            // When, Then
-            for (input, expected) in cases {
-                let sut = BitVector::new(&input);
-                assert_eq!(expected, sut.len());
-            }
+            let sut = BitVector::new(&input);
+            // When
+            let result = sut.len();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // is_empty のテスト: 戻り値を検証する。
     mod is_empty {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: スライスが空かどうかに応じて判定を返す (正常系 + 境界値)。
-        /// - Given: 空のスライスと、 要素数が異なる複数の非空スライスがある。
-        /// - When: 各スライスから `BitVector` を生成し、 `is_empty()` を呼ぶ。
-        /// - Then: 空のスライスに対しては `true`、 非空のスライスに対しては `false` が返る。
-        #[test]
-        fn returns_whether_empty() {
+        /// - Given: 空、単一要素、複数要素のいずれかのスライスがある。
+        /// - When: スライスから `BitVector` を生成し、`is_empty()` を呼ぶ。
+        /// - Then: 空の場合は `true`、非空の場合は `false` が返る。
+        #[rstest]
+        #[case::empty(vec![], true)]
+        #[case::single_element(vec![0], false)]
+        #[case::multiple_elements(vec![1, 0, 1, 1, 0], false)]
+        fn returns_whether_empty(#[case] input: Vec<u8>, #[case] expected: bool) {
             // Given
-            let cases = [
-                (vec![], true),
-                (vec![0], false),
-                (vec![1, 0, 1, 1, 0], false),
-            ];
-            // When, Then
-            for (input, expected) in cases {
-                let sut = BitVector::new(&input);
-                assert_eq!(expected, sut.is_empty());
-            }
+            let sut = BitVector::new(&input);
+            // When
+            let result = sut.is_empty();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
@@ -277,44 +311,44 @@ mod tests {
             assert_eq!(0, result);
         }
 
-        /// Scenario: 全要素が `0` のとき、 任意の範囲での `rank` は常に `0` になる (境界値)。
-        /// - Given: 長さ 100 の、 全要素が `0` の `BitVector` がある。
+        /// Scenario: 全要素が `0` のとき、任意の範囲での `rank` は常に `0` になる (境界値)。
+        /// - Given: 長さ 100 の、全要素が `0` の `BitVector` がある。
         /// - When: `0` から `len()` までの各 `r` で `rank(r)` を呼ぶ。
         /// - Then: すべて `0` が返る。
         #[test]
         fn returns_zero_for_all_zero_bit_vector() {
             // Given
             let sut = BitVector::new(&[0; 100]);
-            // When, Then
+            // When and Then
             for r in 0..=100 {
                 assert_eq!(0, sut.rank(r));
             }
         }
 
-        /// Scenario: 全要素が `1` のとき、 `rank(r)` は `r` に等しくなる (境界値)。
-        /// - Given: 長さ 100 の、 全要素が `1` の `BitVector` がある。
+        /// Scenario: 全要素が `1` のとき、`rank(r)` は `r` に等しくなる (境界値)。
+        /// - Given: 長さ 100 の、全要素が `1` の `BitVector` がある。
         /// - When: `0` から `len()` までの各 `r` で `rank(r)` を呼ぶ。
         /// - Then: 各 `r` に対して `r` 自身が返る。
         #[test]
         fn returns_r_for_all_one_bit_vector() {
             // Given
             let sut = BitVector::new(&[1; 100]);
-            // When, Then
+            // When and Then
             for r in 0..=100 {
                 assert_eq!(r, sut.rank(r));
             }
         }
 
-        /// Scenario: 64 ビットのブロック境界をまたぐ場合でも、 累積和を用いた `rank` が
+        /// Scenario: 64 ビットのブロック境界をまたぐ場合でも、累積和を用いた `rank` が
         /// 正しく計算される (境界値)。
-        /// - Given: 3 ブロック分 (長さ 192) の `BitVector` があり、 各ブロックの
+        /// - Given: 3 ブロック分 (長さ 192) の `BitVector` があり、各ブロックの
         ///   先頭と末尾のビットのみが `1` になっている。
         /// - When: 各ブロックの境界の前後で `rank` を呼ぶ。
         /// - Then: 各位置までの `1` の累積個数が正しく返る。
         #[test]
         fn matches_expected_values_across_block_boundaries() {
             // Given
-            // ちょうど 3 ブロック分の長さを用意し、 各ブロックの先頭と末尾のみ 1 にする。
+            // ちょうど 3 ブロック分の長さを用意し、各ブロックの先頭と末尾のみ 1 にする。
             let mut v = vec![0; 192];
             v[0] = 1; // ブロック 0 の先頭
             v[63] = 1; // ブロック 0 の末尾
@@ -323,7 +357,7 @@ mod tests {
             v[128] = 1; // ブロック 2 の先頭
             v[191] = 1; // ブロック 2 の末尾
             let sut = BitVector::new(&v);
-            // When, Then
+            // When and Then
             assert_eq!(192, sut.len());
             assert_eq!(0, sut.rank(0));
             assert_eq!(1, sut.rank(1)); // v[0] を含む rank(1)
@@ -346,11 +380,11 @@ mod tests {
         fn panics_when_r_greater_than_len() {
             // Given
             let sut = BitVector::new(&[1, 0, 1]);
-            // When, Then (panic)
+            // When and Then (パニック)
             let _ = sut.rank(4);
         }
 
-        /// Scenario: 空の `BitVector` に対しても、 `r > len()` ならパニックする
+        /// Scenario: 空の `BitVector` に対しても、`r > len()` ならパニックする
         /// (異常系 + 境界値)。
         /// - Given: 空のスライスから生成した `BitVector` がある。
         /// - When: `rank(1)` を呼ぶ。
@@ -360,7 +394,7 @@ mod tests {
         fn panics_when_r_greater_than_len_for_empty_bit_vector() {
             // Given
             let sut = BitVector::new(&[]);
-            // When, Then (panic)
+            // When and Then (パニック)
             let _ = sut.rank(1);
         }
     }

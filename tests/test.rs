@@ -18,8 +18,11 @@ pub mod bin {
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
         pub mod abc225_g_x;
+        pub mod abc234_d_prefix_kth_max;
+        pub mod abc241_d_sequence_query;
         pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
+        pub mod abc405_f_chord_crossing;
         pub mod abc406_f_compare_tree_weights;
         pub mod abc422_g_balls_and_boxes;
         pub mod abc441_g_takoyaki;
@@ -41,6 +44,7 @@ pub mod bin {
         pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
         pub mod typical90_bs_fuzzy_priority;
         pub mod typical90_m_passing;
+        pub mod typical90_q_crossing_segments;
         pub mod typical90_u_come_back_in_one_piece;
     }
 
@@ -95,6 +99,7 @@ pub mod bin {
         pub mod pow_of_formal_power_series_sparse;
         pub mod product_of_polynomial_sequence;
         pub mod range_affine_range_sum;
+        pub mod range_kth_smallest;
         pub mod scc;
         pub mod shortest_path;
         pub mod tree_diameter;

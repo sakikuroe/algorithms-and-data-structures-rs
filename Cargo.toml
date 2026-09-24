@@ -299,12 +299,32 @@ name = "ac-abc441-g-takoyaki"
 path = "src/bin/atcoder/abc441_g_takoyaki.rs"
 
 [[bin]]
+name = "ac-abc234-d-prefix-kth-max"
+path = "src/bin/atcoder/abc234_d_prefix_kth_max.rs"
+
+[[bin]]
+name = "ac-typical90-q-crossing-segments"
+path = "src/bin/atcoder/typical90_q_crossing_segments.rs"
+
+[[bin]]
+name = "ac-abc241-d-sequence-query"
+path = "src/bin/atcoder/abc241_d_sequence_query.rs"
+
+[[bin]]
+name = "ac-abc405-f-chord-crossing"
+path = "src/bin/atcoder/abc405_f_chord_crossing.rs"
+
+[[bin]]
 name = "ac-abc473-f-valid-string"
 path = "src/bin/atcoder/abc473_f_valid_string.rs"
 
 [[bin]]
 name = "lc-range-affine-range-sum"
 path = "src/bin/library_checker/range_affine_range_sum.rs"
+
+[[bin]]
+name = "lc-range-kth-smallest"
+path = "src/bin/library_checker/range_kth_smallest.rs"
 
 [dev-dependencies]
 rstest = "0.26.1"
