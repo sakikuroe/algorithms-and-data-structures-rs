@@ -84,69 +84,75 @@ mod tests {
     // gcd のテスト: 戻り値を検証する。
     mod gcd {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な値に対して最大公約数を返す。
         /// - Given: 共通の約数を持つ 2 つの正整数がある。
         /// - When: `gcd` を呼ぶ。
         /// - Then: 期待した最大公約数が返る。
-        #[test]
-        fn returns_greatest_common_divisor_for_typical_values() {
-            let cases = [(10_u128, 5_u128, 5_u128), (27, 18, 9), (100, 75, 25)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = gcd(a, b);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::ten_and_five(10_u128, 5_u128, 5_u128)]
+        #[case::twenty_seven_and_eighteen(27, 18, 9)]
+        #[case::one_hundred_and_seventy_five(100, 75, 25)]
+        fn returns_greatest_common_divisor_for_typical_values(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = gcd(a, b);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 互いに素な数の最大公約数は `1` になる。
         /// - Given: 互いに素な 2 つの正整数がある。
         /// - When: `gcd` を呼ぶ。
         /// - Then: `1` が返る。
-        #[test]
-        fn returns_one_for_coprime_numbers() {
-            let cases = [(7_u128, 5_u128), (13, 17)];
-
-            for (a, b) in cases {
-                // Given, When
-                let result = gcd(a, b);
-                // Then
-                assert_eq!(1, result);
-            }
+        #[rstest]
+        #[case::seven_and_five(7_u128, 5_u128)]
+        #[case::thirteen_and_seventeen(13, 17)]
+        fn returns_one_for_coprime_numbers(#[case] a: u128, #[case] b: u128) {
+            // Given, When
+            let result = gcd(a, b);
+            // Then
+            assert_eq!(1, result);
         }
 
         /// Scenario: 片方がもう片方の倍数である場合、最大公約数は小さい方の値になる。
         /// - Given: 一方が他方の倍数となっている 2 つの正整数がある。
         /// - When: `gcd` を呼ぶ。
         /// - Then: 小さい方の値が最大公約数として返る。
-        #[test]
-        fn returns_smaller_value_when_one_is_multiple_of_other() {
-            let cases = [(10_u128, 2_u128, 2_u128), (5, 20, 5)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = gcd(a, b);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::left_is_multiple(10_u128, 2_u128, 2_u128)]
+        #[case::right_is_multiple(5, 20, 5)]
+        fn returns_smaller_value_when_one_is_multiple_of_other(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = gcd(a, b);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 片方が `0` の場合、もう片方の値が最大公約数になる (境界値)。
         /// - Given: 一方が `0`、他方が正整数である組み合わせがある。
         /// - When: `gcd` を呼ぶ。
         /// - Then: `0` でない方の値が返る。
-        #[test]
-        fn returns_other_value_when_one_is_zero() {
-            let cases = [(0_u128, 5_u128, 5_u128), (10, 0, 10)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = gcd(a, b);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::left_is_zero(0_u128, 5_u128, 5_u128)]
+        #[case::right_is_zero(10, 0, 10)]
+        fn returns_other_value_when_one_is_zero(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = gcd(a, b);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 両方が `0` の場合、定義により `0` を返す (境界値)。
@@ -161,106 +167,113 @@ mod tests {
             assert_eq!(0, result);
         }
 
-        /// Scenario: `u128` の範囲に収まる大きな値でも正しく計算できる (境界値)。
-        /// - Given: `u128::MAX` を含む大きな値の組み合わせがある。
+        /// Scenario: 大きな値の組み合わせでも最大公約数を正しく計算できる (境界値)。
+        /// - Given: `u128::MAX` や共通因子を含む大きな値の組み合わせがある。
         /// - When: `gcd` を呼ぶ。
-        /// - Then: 期待した最大公約数が返る。
-        #[test]
-        fn returns_correct_value_for_large_numbers() {
+        /// - Then: 各ケースで期待した最大公約数が返る。
+        #[rstest]
+        #[case::max_and_one(u128::MAX, 1, 1)]
+        #[case::one_and_max(1, u128::MAX, 1)]
+        #[case::common_power_of_two(3 * (1 << 125), 5 * (1 << 125), 1 << 125)]
+        fn returns_correct_value_for_large_numbers(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
             // Given, When
-            let result_with_max = gcd(u128::MAX, 1);
-            let result_with_max_swapped = gcd(1, u128::MAX);
-            let result_with_common_power_of_two = gcd(3 * (1 << 125), 5 * (1 << 125));
-
+            let result = gcd(a, b);
             // Then
-            assert_eq!(1, result_with_max);
-            assert_eq!(1, result_with_max_swapped);
-            assert_eq!(1 << 125, result_with_common_power_of_two);
+            assert_eq!(expected, result);
         }
     }
 
     // lcm のテスト: 戻り値を検証する。
     mod lcm {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な値に対して最小公倍数を返す。
         /// - Given: 2 つの正整数がある。
         /// - When: `lcm` を呼ぶ。
         /// - Then: `Some(期待した最小公倍数)` が返る。
-        #[test]
-        fn returns_least_common_multiple_for_typical_values() {
-            let cases = [(12_u128, 18_u128, 36_u128), (100, 75, 300)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = lcm(a, b);
-                // Then
-                assert_eq!(Some(expected), result);
-            }
+        #[rstest]
+        #[case::twelve_and_eighteen(12_u128, 18_u128, 36_u128)]
+        #[case::one_hundred_and_seventy_five(100, 75, 300)]
+        fn returns_least_common_multiple_for_typical_values(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = lcm(a, b);
+            // Then
+            assert_eq!(Some(expected), result);
         }
 
         /// Scenario: 互いに素な数の最小公倍数は積になる。
         /// - Given: 互いに素な 2 つの正整数がある。
         /// - When: `lcm` を呼ぶ。
         /// - Then: `a` と `b` の積が `Some` で返る。
-        #[test]
-        fn returns_product_for_coprime_numbers() {
-            let cases = [(3_u128, 5_u128, 15_u128), (7, 11, 77)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = lcm(a, b);
-                // Then
-                assert_eq!(Some(expected), result);
-            }
+        #[rstest]
+        #[case::three_and_five(3_u128, 5_u128, 15_u128)]
+        #[case::seven_and_eleven(7, 11, 77)]
+        fn returns_product_for_coprime_numbers(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = lcm(a, b);
+            // Then
+            assert_eq!(Some(expected), result);
         }
 
         /// Scenario: 片方がもう片方の倍数である場合、最小公倍数は大きい方の値になる。
         /// - Given: 一方が他方の倍数となっている 2 つの正整数がある。
         /// - When: `lcm` を呼ぶ。
         /// - Then: 大きい方の値が `Some` で返る。
-        #[test]
-        fn returns_larger_value_when_one_is_multiple_of_other() {
-            let cases = [(5_u128, 10_u128, 10_u128), (8, 2, 8), (10, 1, 10)];
-
-            for (a, b, expected) in cases {
-                // Given, When
-                let result = lcm(a, b);
-                // Then
-                assert_eq!(Some(expected), result);
-            }
+        #[rstest]
+        #[case::left_is_multiple(5_u128, 10_u128, 10_u128)]
+        #[case::right_is_multiple(8, 2, 8)]
+        #[case::divisible_by_one(10, 1, 10)]
+        fn returns_larger_value_when_one_is_multiple_of_other(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
+            // Given, When
+            let result = lcm(a, b);
+            // Then
+            assert_eq!(Some(expected), result);
         }
 
         /// Scenario: 同じ数同士の最小公倍数は、その数自身になる (境界値)。
         /// - Given: `a` と `b` が同じ値である組み合わせがある。
         /// - When: `lcm` を呼ぶ。
         /// - Then: その値自身が `Some` で返る。
-        #[test]
-        fn returns_same_value_for_equal_numbers() {
-            let cases = [(1_u128, 1_u128), (7, 7), (100, 100)];
-
-            for (a, b) in cases {
-                // Given, When
-                let result = lcm(a, b);
-                // Then
-                assert_eq!(Some(a), result);
-            }
+        #[rstest]
+        #[case::one(1_u128, 1_u128)]
+        #[case::seven(7, 7)]
+        #[case::one_hundred(100, 100)]
+        fn returns_same_value_for_equal_numbers(#[case] a: u128, #[case] b: u128) {
+            // Given, When
+            let result = lcm(a, b);
+            // Then
+            assert_eq!(Some(a), result);
         }
 
         /// Scenario: 片方が `0` の場合、最小公倍数は `0` になる (境界値)。
         /// - Given: 一方が `0`、他方が正整数である組み合わせがある。
         /// - When: `lcm` を呼ぶ。
         /// - Then: `Some(0)` が返る。
-        #[test]
-        fn returns_zero_when_one_is_zero() {
-            let cases = [(0_u128, 5_u128), (5, 0)];
-
-            for (a, b) in cases {
-                // Given, When
-                let result = lcm(a, b);
-                // Then
-                assert_eq!(Some(0), result);
-            }
+        #[rstest]
+        #[case::left_is_zero(0_u128, 5_u128)]
+        #[case::right_is_zero(5, 0)]
+        fn returns_zero_when_one_is_zero(#[case] a: u128, #[case] b: u128) {
+            // Given, When
+            let result = lcm(a, b);
+            // Then
+            assert_eq!(Some(0), result);
         }
 
         /// Scenario: 両方が `0` の場合、最小公倍数は `0` になる (境界値)。
@@ -275,25 +288,30 @@ mod tests {
             assert_eq!(Some(0), result);
         }
 
-        /// Scenario: `u128` の範囲に収まる大きな値でもオーバーフローせずに計算できる (境界値)。
-        /// - Given: `2^64` 未満、および `2^128` 未満の最大の整数を含む組み合わせがある。
+        /// Scenario: 大きな値でもオーバーフローせずに最小公倍数を計算できる (境界値)。
+        /// - Given: `2^64` 未満の近接値、または `2^128` 未満の大きな値がある。
         /// - When: `lcm` を呼ぶ。
-        /// - Then: 期待した最小公倍数が `Some` で返る。
-        #[test]
-        fn returns_correct_value_for_large_numbers_within_range() {
-            // Given
-            // `2^{64}` 未満の最大の整数
-            let p = 18446744073709551557_u128;
-            // `2^{128}` 未満の最大の整数
-            let q = 340282366920938463463374607431768211297_u128;
-
-            // When
-            let result_below_2_pow_64 = lcm(p - 1, p);
-            let result_below_2_pow_128 = lcm(q, q);
-
+        /// - Then: 各ケースで期待した最小公倍数が `Some` で返る。
+        #[rstest]
+        #[case::adjacent_large_values(
+            18446744073709551556_u128,
+            18446744073709551557,
+            Some(18446744073709551556_u128 * 18446744073709551557),
+        )]
+        #[case::equal_values_near_u128_max(
+            340282366920938463463374607431768211297_u128,
+            340282366920938463463374607431768211297,
+            Some(340282366920938463463374607431768211297)
+        )]
+        fn returns_correct_value_for_large_numbers_within_range(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: Option<u128>,
+        ) {
+            // Given, When
+            let result = lcm(a, b);
             // Then
-            assert_eq!(Some((p - 1) * p), result_below_2_pow_64);
-            assert_eq!(Some(q), result_below_2_pow_128);
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 最小公倍数が `u128` の範囲を超過する場合、`None` を返す (異常系)。

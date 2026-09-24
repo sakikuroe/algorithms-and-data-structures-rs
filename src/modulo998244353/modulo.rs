@@ -301,6 +301,7 @@ mod tests {
     // add のテスト: 戻り値を検証する。
     mod add {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 通常の値同士を加算すると、単純な和が返る。
         /// - Given: いずれも M 未満の 2 つの値がある。
@@ -336,17 +337,15 @@ mod tests {
         /// - Given: 複数の境界的な入力の組がある。
         /// - When: それぞれ加算する。
         /// - Then: 各ケースで期待した値が返る。
-        #[test]
-        fn handles_boundary_values() {
-            // Given
-            let cases = [(0, 0, 0), (0, M - 1, M - 1), (M - 1, M - 1, M - 2)];
-
-            for (a, b, expected) in cases {
-                // When
-                let result = add(a, b);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::both_zero(0, 0, 0)]
+        #[case::zero_and_max(0, M - 1, M - 1)]
+        #[case::both_max(M - 1, M - 1, M - 2)]
+        fn handles_boundary_values(#[case] a: u32, #[case] b: u32, #[case] expected: u32) {
+            // When
+            let result = add(a, b);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 被演算子が M 以上の場合はパニックする。
@@ -367,6 +366,7 @@ mod tests {
     // sub のテスト: 戻り値を検証する。
     mod sub {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 被減数が減数以上の場合、単純な差が返る。
         /// - Given: `a >= b` を満たす 2 つの値がある。
@@ -402,17 +402,15 @@ mod tests {
         /// - Given: 複数の境界的な入力の組がある。
         /// - When: それぞれ減算する。
         /// - Then: 各ケースで期待した値が返る。
-        #[test]
-        fn handles_boundary_values() {
-            // Given
-            let cases = [(0, 0, 0), (M - 1, M - 1, 0), (0, M - 1, 1)];
-
-            for (a, b, expected) in cases {
-                // When
-                let result = sub(a, b);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::both_zero(0, 0, 0)]
+        #[case::both_max(M - 1, M - 1, 0)]
+        #[case::zero_minus_max(0, M - 1, 1)]
+        fn handles_boundary_values(#[case] a: u32, #[case] b: u32, #[case] expected: u32) {
+            // When
+            let result = sub(a, b);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 被演算子が M 以上の場合はパニックする。
@@ -497,6 +495,7 @@ mod tests {
     // neg のテスト: 戻り値を検証する。
     mod neg {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 0 の加法逆元は 0 自身になる。
         /// - Given: 0 がある。
@@ -516,18 +515,16 @@ mod tests {
         /// - Given: 1 と M - 1 がある。
         /// - When: それぞれ加法逆元を計算する。
         /// - Then: `M - a` が返り、元の値との和は 0 になる。
-        #[test]
-        fn returns_additive_inverse_for_nonzero_values() {
+        #[rstest]
+        #[case::one(1)]
+        #[case::maximum(M - 1)]
+        fn returns_additive_inverse_for_nonzero_values(#[case] a: u32) {
             // Given
-            let cases = [1, M - 1];
-
-            for a in cases {
-                // When
-                let result = neg(a);
-                // Then
-                assert_eq!(M - a, result);
-                assert_eq!(0, add(a, result));
-            }
+            // When
+            let result = neg(a);
+            // Then
+            assert_eq!(M - a, result);
+            assert_eq!(0, add(a, result));
         }
 
         /// Scenario: 被演算子が M 以上の場合はパニックする。
@@ -606,6 +603,7 @@ mod tests {
     // inv のテスト: 戻り値を検証する。
     mod inv {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 値の逆元は、元の値と乗算すると乗法単位元 1 になる。
         /// - Given: 7 がある。
@@ -625,17 +623,14 @@ mod tests {
         /// - Given: 1 と M - 1 がある。
         /// - When: それぞれ逆元を計算する。
         /// - Then: いずれも元の値との積が 1 になる。
-        #[test]
-        fn handles_boundary_values() {
-            // Given
-            let cases = [1, M - 1];
-
-            for value in cases {
-                // When
-                let result = inv(value);
-                // Then
-                assert_eq!(1, mul(value, result));
-            }
+        #[rstest]
+        #[case::one(1)]
+        #[case::maximum(M - 1)]
+        fn handles_boundary_values(#[case] value: u32) {
+            // When
+            let result = inv(value);
+            // Then
+            assert_eq!(1, mul(value, result));
         }
 
         /// Scenario: 0 に対しては逆元が存在しないため、パニックする。
@@ -729,6 +724,7 @@ mod tests {
     // modulo のテスト: 戻り値を検証する。
     mod modulo_fn {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: M 未満の値はそのまま返る。
         /// - Given: M 未満の値がある。
@@ -762,17 +758,15 @@ mod tests {
         /// - Given: 0 と u64::MAX がある。
         /// - When: それぞれ還元する。
         /// - Then: 各ケースで `a mod M` が返る。
-        #[test]
-        fn handles_boundary_values() {
+        #[rstest]
+        #[case::zero(0_u64, 0_u32)]
+        #[case::maximum(u64::MAX, (u64::MAX % M as u64) as u32)]
+        fn handles_boundary_values(#[case] a: u64, #[case] expected: u32) {
             // Given
-            let cases = [(0_u64, 0_u32), (u64::MAX, (u64::MAX % M as u64) as u32)];
-
-            for (a, expected) in cases {
-                // When
-                let result = modulo(a);
-                // Then
-                assert_eq!(expected, result);
-            }
+            // When
+            let result = modulo(a);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 }

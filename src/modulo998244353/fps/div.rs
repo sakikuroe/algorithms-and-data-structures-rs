@@ -48,6 +48,7 @@ mod tests {
     // div_xk のテスト: 戻り値そのものを検証する
     mod div_xk {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: x^k で割ると、 k 番目以降の係数が低次側へシフトされる
         /// - Given: 係数 [1, 2, 3] を持つ系列がある
@@ -67,32 +68,25 @@ mod tests {
         /// - Given: 空系列や単項の系列、 k が項数と等しい・それを超える場合など、 境界となる組がある
         /// - When: それぞれの組で div_xk を呼び出す
         /// - Then: 各ケースで期待通りの係数列が返る
-        #[test]
-        fn shifts_coefficients_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::zero_shift(vec![1, 2, 3], 0, vec![1, 2, 3])]
+        #[case::keeps_constant_term(vec![1, 2, 3], 2, vec![3])]
+        #[case::shift_equals_length(vec![1, 2, 3], 3, vec![])]
+        #[case::shift_exceeds_length(vec![1, 2, 3], 10, vec![])]
+        #[case::empty_zero_shift(vec![], 0, vec![])]
+        #[case::empty_large_shift(vec![], 5, vec![])]
+        #[case::single_term_zero_shift(vec![7], 0, vec![7])]
+        fn shifts_coefficients_for_boundary_value_combinations(
+            #[case] coeffs: Vec<u32>,
+            #[case] k: usize,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // k = 0 (シフトなし)
-                (vec![1, 2, 3], 0, vec![1, 2, 3]),
-                // k が最高次と等しく、 定数項 1 個だけが残る
-                (vec![1, 2, 3], 2, vec![3]),
-                // k が項数と等しく、 全ての項が消えてゼロ多項式になる
-                (vec![1, 2, 3], 3, vec![]),
-                // k が項数を超えても、 同様にゼロ多項式になる
-                (vec![1, 2, 3], 10, vec![]),
-                // 空系列 (ゼロ多項式) は k によらず空系列のまま
-                (vec![], 0, vec![]),
-                (vec![], 5, vec![]),
-                // 単項の系列を k = 0 でシフトすると、 変化しない
-                (vec![7], 0, vec![7]),
-            ];
-
-            for (coeffs, k, expected) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = sut.div_xk(k);
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = sut.div_xk(k);
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
     }
 }

@@ -645,6 +645,7 @@ mod tests {
     // new のテスト: 戻り値そのものを検証する
     mod new {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 末尾にゼロ係数を含む係数列から生成すると、 正規化されて末尾のゼロが除去される
         /// - Given: 末尾にゼロ係数を含む係数列 [1, 2, 0] がある
@@ -666,25 +667,19 @@ mod tests {
         /// - Given: 空、 単項、 全てがゼロなど、 境界となる係数列がある
         /// - When: FPS::new で生成する
         /// - Then: 各ケースで期待通りの項数と係数になる
-        #[test]
-        fn normalizes_boundary_value_coefficient_lists() {
-            // Given
-            let cases = [
-                // 空の係数列はそのままゼロ多項式になる
-                (vec![], 0),
-                // 全てがゼロの係数列は、 全て除去されてゼロ多項式になる
-                (vec![0, 0, 0], 0),
-                // 単項の係数列は、 そのままの項数になる
-                (vec![5], 1),
-            ];
-
-            for (coeffs, expected_len) in cases {
-                // When
-                let sut = FPS::new(coeffs);
-                // Then
-                assert_eq!(expected_len, sut.len());
-                assert!(sut.is_zero() == (expected_len == 0));
-            }
+        #[rstest]
+        #[case::empty(vec![], 0)]
+        #[case::all_zero(vec![0, 0, 0], 0)]
+        #[case::single_term(vec![5], 1)]
+        fn normalizes_boundary_value_coefficient_lists(
+            #[case] coeffs: Vec<u32>,
+            #[case] expected_len: usize,
+        ) {
+            // When
+            let sut = FPS::new(coeffs);
+            // Then
+            assert_eq!(expected_len, sut.len());
+            assert_eq!(expected_len == 0, sut.is_zero());
         }
 
         /// Scenario: 法 998244353 以上の係数を渡すとパニックする
@@ -725,23 +720,25 @@ mod tests {
     // len のテスト: 戻り値そのものを検証する
     mod len {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 境界となる項数の系列で、 len が正しい項数を返す
         /// - Given: 項数が 0, 1 の系列がある
         /// - When: len を呼び出す
         /// - Then: 各ケースで期待通りの項数が返る
-        #[test]
-        fn returns_number_of_terms_at_boundary_sizes() {
+        #[rstest]
+        #[case::zero_polynomial(vec![], 0)]
+        #[case::one_term(vec![9], 1)]
+        fn returns_number_of_terms_at_boundary_sizes(
+            #[case] coeffs: Vec<u32>,
+            #[case] expected: usize,
+        ) {
             // Given
-            let cases = [(vec![], 0), (vec![9], 1)];
-
-            for (coeffs, expected) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = sut.len();
-                // Then
-                assert_eq!(expected, result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = sut.len();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
@@ -781,29 +778,32 @@ mod tests {
     // is_zero のテスト: 戻り値そのものを検証する
     mod is_zero {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 境界となる系列で、 is_zero が正しく判定する
         /// - Given: ゼロ多項式と非ゼロ多項式がある
         /// - When: is_zero を呼び出す
         /// - Then: 各ケースで期待通りの真偽値が返る
-        #[test]
-        fn distinguishes_zero_from_non_zero_polynomial() {
+        #[rstest]
+        #[case::zero_polynomial(vec![], true)]
+        #[case::non_zero_polynomial(vec![1], false)]
+        fn distinguishes_zero_from_non_zero_polynomial(
+            #[case] coeffs: Vec<u32>,
+            #[case] expected: bool,
+        ) {
             // Given
-            let cases = [(vec![], true), (vec![1], false)];
-
-            for (coeffs, expected) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = sut.is_zero();
-                // Then
-                assert_eq!(expected, result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = sut.is_zero();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // get のテスト: 戻り値そのものを検証する
     mod get {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 保持している次数の係数を取得できる
         /// - Given: 係数 [5] を持つ系列がある
@@ -823,18 +823,16 @@ mod tests {
         /// - Given: 係数 [5] を持つ系列と、 ゼロ多項式がある
         /// - When: 項数を超える次数の係数を取得する
         /// - Then: 各ケースで 0 が返る
-        #[test]
-        fn returns_zero_for_index_beyond_length() {
+        #[rstest]
+        #[case::past_nonempty_length(vec![5], 3)]
+        #[case::zero_polynomial(vec![], 0)]
+        fn returns_zero_for_index_beyond_length(#[case] coeffs: Vec<u32>, #[case] index: usize) {
             // Given
-            let cases = [(vec![5], 3), (Vec::new(), 0)];
-
-            for (coeffs, index) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = sut.get(index);
-                // Then
-                assert_eq!(0, result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = sut.get(index);
+            // Then
+            assert_eq!(0, result);
         }
     }
 
@@ -1008,6 +1006,7 @@ mod tests {
     // truncate のテスト: 呼び出し後の状態変化を検証する
     mod truncate {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 現在の項数より小さい長さへ切り詰めると、 項数がその長さになる
         /// - Given: 項数 4 の系列がある
@@ -1027,23 +1026,16 @@ mod tests {
         /// - Given: 項数 3 の系列がある
         /// - When: 長さ 0, および現在の項数を超える長さへ切り詰める
         /// - Then: それぞれ期待通りの項数になる
-        #[test]
-        fn truncates_for_boundary_lengths() {
+        #[rstest]
+        #[case::zero_length(0, 0)]
+        #[case::longer_than_current(10, 3)]
+        fn truncates_for_boundary_lengths(#[case] len: usize, #[case] expected: usize) {
             // Given
-            let cases = [
-                // 長さ 0 への切り詰めはゼロ多項式になる
-                (0, 0),
-                // 現在の項数を超える長さを指定しても、 項数は変化しない
-                (10, 3),
-            ];
-
-            for (len, expected) in cases {
-                let mut sut = FPS::new(vec![1, 2, 3]);
-                // When
-                sut.truncate(len);
-                // Then
-                assert_eq!(expected, sut.len());
-            }
+            let mut sut = FPS::new(vec![1, 2, 3]);
+            // When
+            sut.truncate(len);
+            // Then
+            assert_eq!(expected, sut.len());
         }
 
         /// Scenario: 最高次の係数が切り詰めで失われると、 さらに末尾のゼロが除去される
@@ -1065,6 +1057,7 @@ mod tests {
     // derivative のテスト: 呼び出し後の状態変化を検証する
     mod derivative {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 形式的微分をすると、 各係数が次数倍された上で 1 次シフトする
         /// - Given: 係数 [3, 4] を持つ系列がある
@@ -1084,18 +1077,16 @@ mod tests {
         /// - Given: 項数 0 (ゼロ多項式) および項数 1 (定数項のみ) の系列がある
         /// - When: derivative を呼び出す
         /// - Then: いずれもゼロ多項式になる
-        #[test]
-        fn differentiates_boundary_length_series_to_zero() {
+        #[rstest]
+        #[case::zero_polynomial(Vec::new())]
+        #[case::constant_polynomial(vec![7])]
+        fn differentiates_boundary_length_series_to_zero(#[case] coeffs: Vec<u32>) {
             // Given
-            let cases = [Vec::new(), vec![7]];
-
-            for coeffs in cases {
-                let mut sut = FPS::new(coeffs);
-                // When
-                sut.derivative();
-                // Then
-                assert!(sut.is_zero());
-            }
+            let mut sut = FPS::new(coeffs);
+            // When
+            sut.derivative();
+            // Then
+            assert!(sut.is_zero());
         }
     }
 

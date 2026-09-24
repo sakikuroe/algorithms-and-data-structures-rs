@@ -626,27 +626,29 @@ mod tests {
     // comb のテスト: 戻り値を検証する。
     mod comb {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な `(n, k)` の組み合わせに対して二項係数を返す。
         /// - Given: 新規に生成した `Combinatorics` がある。
         /// - When: 複数の `(n, k)` の組で `comb(n, k)` を求める。
         /// - Then: 各ケースで期待する二項係数が返る。
-        #[test]
-        fn matches_expected_values_for_typical_inputs() {
+        #[rstest]
+        #[case::five_choose_two(5_u64, 2_usize, 10_u32)]
+        #[case::choose_zero(10, 0, 1)]
+        #[case::choose_all(10, 10, 1)]
+        #[case::ten_choose_three(10, 3, 120)]
+        #[case::ten_choose_seven(10, 7, 120)]
+        fn matches_expected_values_for_typical_inputs(
+            #[case] n: u64,
+            #[case] k: usize,
+            #[case] expected: u32,
+        ) {
             // Given
             let mut sut = create_combinatorics();
-            let cases = [
-                (5_u64, 2_usize, 10_u32),
-                (10, 0, 1),
-                (10, 10, 1),
-                (10, 3, 120),
-                (10, 7, 120),
-            ];
-            // When, Then
-            for (n, k, expected) in cases {
-                let result = sut.comb(n, k);
-                assert_eq!(expected, result.val());
-            }
+            // When
+            let result = sut.comb(n, k);
+            // Then
+            assert_eq!(expected, result.val());
         }
 
         /// Scenario: `k > n` のとき、 定義により `0` を返す (境界値)。
@@ -707,21 +709,26 @@ mod tests {
     // perm のテスト: 戻り値を検証する。
     mod perm {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な `(n, k)` の組み合わせに対して順列数を返す。
         /// - Given: 新規に生成した `Combinatorics` がある。
         /// - When: 複数の `(n, k)` の組で `perm(n, k)` を求める。
         /// - Then: 各ケースで期待する順列数が返る。
-        #[test]
-        fn matches_expected_values_for_typical_inputs() {
+        #[rstest]
+        #[case::five_permute_three(5_u64, 3_usize, 60_u32)]
+        #[case::choose_zero(5, 0, 1)]
+        fn matches_expected_values_for_typical_inputs(
+            #[case] n: u64,
+            #[case] k: usize,
+            #[case] expected: u32,
+        ) {
             // Given
             let mut sut = create_combinatorics();
-            let cases = [(5_u64, 3_usize, 60_u32), (5, 0, 1)];
-            // When, Then
-            for (n, k, expected) in cases {
-                let result = sut.perm(n, k);
-                assert_eq!(expected, result.val());
-            }
+            // When
+            let result = sut.perm(n, k);
+            // Then
+            assert_eq!(expected, result.val());
         }
 
         /// Scenario: `k > n` のとき、 定義により `0` を返す (境界値)。

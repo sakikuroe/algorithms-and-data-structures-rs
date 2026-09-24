@@ -108,6 +108,7 @@ mod tests {
     // add のテスト: 戻り値そのものを検証する
     mod add {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 項数の異なる 2 つの系列を加算すると、 同次数の係数同士が法 998244353 で加算される
         /// - Given: 係数 [1, 2] を持つ系列と、 係数 [3] を持つ系列がある
@@ -127,42 +128,32 @@ mod tests {
         /// - Given: 空系列、 単項の系列、 MOD-1 付近の係数など、 境界となる係数列の組がある
         /// - When: それぞれの組を + で加算する
         /// - Then: 各ケースで期待通りに正規化された係数列が返る
-        #[test]
-        fn sums_coefficients_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::both_empty(vec![], vec![], vec![])]
+        #[case::empty_lhs(vec![], vec![7], vec![7])]
+        #[case::empty_rhs(vec![7], vec![], vec![7])]
+        #[case::wraps_modulus(vec![modulo::M - 1], vec![2], vec![1])]
+        #[case::both_coefficients_modulus_minus_one(vec![modulo::M - 1], vec![modulo::M - 1], vec![modulo::M - 2])]
+        #[case::trims_canceled_highest_coefficient(vec![1, 2], vec![0, modulo::M - 2], vec![1])]
+        fn sums_coefficients_for_boundary_value_combinations(
+            #[case] a_coeffs: Vec<u32>,
+            #[case] b_coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // 両辺が空系列 (ゼロ多項式同士の加算)
-                (vec![], vec![], vec![]),
-                // 左辺が空系列
-                (vec![], vec![7], vec![7]),
-                // 右辺が空系列
-                (vec![7], vec![], vec![7]),
-                // 単項同士で、 和が法を超えて折り返す (wraparound)
-                (vec![modulo::M - 1], vec![2], vec![1]),
-                // MOD-1 同士の加算 (法未満に収まる境界)
-                (
-                    vec![modulo::M - 1],
-                    vec![modulo::M - 1],
-                    vec![modulo::M - 2],
-                ),
-                // 最高次の係数同士が打ち消し合い、 結果の項数が減る (末尾トリム)
-                (vec![1, 2], vec![0, modulo::M - 2], vec![1]),
-            ];
-
-            for (a_coeffs, b_coeffs, expected) in cases {
-                let sut = FPS::new(a_coeffs);
-                let rhs = FPS::new(b_coeffs);
-                // When
-                let result = sut + rhs;
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(a_coeffs);
+            let rhs = FPS::new(b_coeffs);
+            // When
+            let result = sut + rhs;
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
     }
 
     // add_assign のテスト: 呼び出し後の自身の状態変化を検証する
     mod add_assign {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: += で加算すると、 自身が加算結果に更新される
         /// - Given: 係数 [1, 2] を持つ系列と、 係数 [3] を持つ系列がある
@@ -182,30 +173,25 @@ mod tests {
         /// - Given: 空系列、 単項の系列、 MOD-1 付近の係数など、 境界となる係数列の組がある
         /// - When: それぞれの組を += で加算する
         /// - Then: 各ケースで期待通りに正規化された係数列に更新される
-        #[test]
-        fn updates_self_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::both_empty(vec![], vec![], vec![])]
+        #[case::empty_lhs(vec![], vec![7], vec![7])]
+        #[case::empty_rhs(vec![7], vec![], vec![7])]
+        #[case::wraps_modulus(vec![modulo::M - 1], vec![2], vec![1])]
+        #[case::both_coefficients_modulus_minus_one(vec![modulo::M - 1], vec![modulo::M - 1], vec![modulo::M - 2])]
+        #[case::trims_canceled_highest_coefficient(vec![1, 2], vec![0, modulo::M - 2], vec![1])]
+        fn updates_self_for_boundary_value_combinations(
+            #[case] a_coeffs: Vec<u32>,
+            #[case] b_coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                (vec![], vec![], vec![]),
-                (vec![], vec![7], vec![7]),
-                (vec![7], vec![], vec![7]),
-                (vec![modulo::M - 1], vec![2], vec![1]),
-                (
-                    vec![modulo::M - 1],
-                    vec![modulo::M - 1],
-                    vec![modulo::M - 2],
-                ),
-                (vec![1, 2], vec![0, modulo::M - 2], vec![1]),
-            ];
-
-            for (a_coeffs, b_coeffs, expected) in cases {
-                let mut sut = FPS::new(a_coeffs);
-                let rhs = FPS::new(b_coeffs);
-                // When
-                sut += rhs;
-                // Then
-                assert_eq!(FPS::new(expected), sut);
-            }
+            let mut sut = FPS::new(a_coeffs);
+            let rhs = FPS::new(b_coeffs);
+            // When
+            sut += rhs;
+            // Then
+            assert_eq!(FPS::new(expected), sut);
         }
     }
 }
