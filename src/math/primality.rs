@@ -790,24 +790,17 @@ mod tests {
         }
 
         /// Scenario: `u64` の範囲に収まる大きな素数・合成数でも正しく判定できる (境界値)。
-        /// - Given: `u64` の範囲に収まる大きな素数と、その素数同士の積である合成数がある。
+        /// - Given: `u64` の範囲に収まる大きな素数と、別の素数の平方である合成数がある。
         /// - When: `is_prime` を呼ぶ。
         /// - Then: 期待した判定結果が返る。
-        #[test]
-        fn returns_correct_result_for_large_numbers() {
-            // Given
-            // 18446744073709551557 は u64::MAX 未満の最大の素数である。
-            let large_prime = 18446744073709551557_u64;
-            // 4295098369 = 65537 * 65537 は大きな平方数の合成数である。
-            let large_composite = 4295098369_u64;
-
-            // When
-            let prime_result = is_prime(large_prime);
-            let composite_result = is_prime(large_composite);
-
+        #[rstest]
+        #[case::largest_u64_prime(18446744073709551557, true)]
+        #[case::large_perfect_square(4295098369, false)]
+        fn returns_correct_result_for_large_numbers(#[case] n: u64, #[case] expected: bool) {
+            // Given, When
+            let result = is_prime(n);
             // Then
-            assert!(prime_result);
-            assert!(!composite_result);
+            assert_eq!(expected, result);
         }
 
         /// Scenario: `[2^62, 2^63)` の範囲にある素数を正しく判定できる (境界値)。
