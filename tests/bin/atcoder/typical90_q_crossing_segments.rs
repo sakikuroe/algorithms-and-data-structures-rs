@@ -9,10 +9,10 @@ const BIN: &str = env!("CARGO_BIN_EXE_ac-typical90-q-crossing-segments");
 mod ac_typical90_q_crossing_segments {
     use super::*;
 
-    /// 状況: 問題文の公式サンプルを解いたときの標準出力を検証する。
-    /// - 前提: 問題文の公式サンプルである。
-    /// - 操作: ac-typical90-q-crossing-segments バイナリへ標準入力として渡す。
-    /// - 結果: 交差する組数が期待値と一致する。
+    /// Scenario: 問題文の公式サンプルを解いたときの標準出力を検証する。
+    /// - Given: 問題文の公式サンプルである。
+    /// - When: ac-typical90-q-crossing-segments バイナリへ標準入力として渡す。
+    /// - Then: 交差する組数が期待値と一致する。
     #[rstest]
     #[case::sample_1("6 3\n2 5\n1 4\n1 3\n", "2\n")]
     #[case::sample_2(
@@ -29,9 +29,9 @@ mod ac_typical90_q_crossing_segments {
         "229\n"
     )]
     fn matches_official_samples(#[case] input: &str, #[case] expected: &str) {
-        // 操作
+        // When
         let result = common::run_binary(BIN, input);
-        // 結果
+        // Then
         assert_eq!(expected, result);
     }
 }

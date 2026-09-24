@@ -344,15 +344,15 @@ mod tests {
     mod sum {
         use super::*;
 
-        /// 状況: 空のシーケンスに対する和クエリを処理する。
-        /// - 前提: 空の `WaveletMatrixWithSum` がある。
-        /// - 操作: 空の範囲と 0 個の順位和を求める。
-        /// - 結果: 空の和として `0` または `Some(0)` を返す。
+        /// Scenario: 空のシーケンスに対する和クエリを処理する。
+        /// - Given: 空の `WaveletMatrixWithSum` がある。
+        /// - When: 空の範囲と 0 個の順位和を求める。
+        /// - Then: 空の和として `0` または `Some(0)` を返す。
         #[test]
         fn handles_empty_sequence() {
-            // 前提
+            // Given
             let sut = WaveletMatrixWithSum::new(&[]);
-            // 操作と結果
+            // When and Then
             assert_eq!(0, sut.get_sum(.., ..));
             assert_eq!(Some(0), sut.get_sum_k_smallest(.., 0));
             assert_eq!(Some(0), sut.get_sum_k_largest(.., 0));
@@ -372,15 +372,15 @@ mod tests {
             assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
-        /// 状況: 値範囲、順位、距離に関する和を返す。
-        /// - 前提: 重複値を含む `WaveletMatrixWithSum` がある。
-        /// - 操作: 各種の和クエリを求める。
-        /// - 結果: それぞれの定義に従った和を返す。
+        /// Scenario: 値範囲、順位、距離に関する和を返す。
+        /// - Given: 重複値を含む `WaveletMatrixWithSum` がある。
+        /// - When: 各種の和クエリを求める。
+        /// - Then: それぞれの定義に従った和を返す。
         #[test]
         fn returns_sums_for_value_queries() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(20, sut.get_sum(.., 4..7));
             assert_eq!(6, sut.get_sum_k_smallest(.., 3).unwrap());
             assert_eq!(21, sut.get_sum_k_largest(.., 3).unwrap());
@@ -401,31 +401,31 @@ mod tests {
             assert_eq!(0, sut.get_sum_distance_to_range(.., ..0));
         }
 
-        /// 状況: 要素数を超える個数の順位和を求める。
-        /// - 前提: 要素数 8 の `WaveletMatrixWithSum` がある。
-        /// - 操作: 9 個の順位和を求める。
-        /// - 結果: `None` を返す。
+        /// Scenario: 要素数を超える個数の順位和を求める。
+        /// - Given: 要素数 8 の `WaveletMatrixWithSum` がある。
+        /// - When: 9 個の順位和を求める。
+        /// - Then: `None` を返す。
         #[test]
         fn returns_none_when_k_exceeds_length() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(None, sut.get_sum_k_smallest(.., 9));
             assert_eq!(None, sut.get_sum_k_largest(.., 9));
         }
 
-        /// 状況: 要素数が十分に大きい入力を構築して和クエリを実行する。
-        /// - 前提: 100,000 個の異なる値を持つシーケンスがある。
-        /// - 操作: `WaveletMatrixWithSum` を構築し、全体和と順位和を求める。
-        /// - 結果: 現実的な時間で完了し、結果が正しい。
+        /// Scenario: 要素数が十分に大きい入力を構築して和クエリを実行する。
+        /// - Given: 100,000 個の異なる値を持つシーケンスがある。
+        /// - When: `WaveletMatrixWithSum` を構築し、全体和と順位和を求める。
+        /// - Then: 現実的な時間で完了し、結果が正しい。
         #[test]
         fn builds_and_sums_large_input() {
-            // 前提
+            // Given
             let data = (0..100_000).collect::<Vec<_>>();
             let expected_total = 100_000_usize * 99_999 / 2;
-            // 操作
+            // When
             let sut = WaveletMatrixWithSum::new(&data);
-            // 結果
+            // Then
             assert_eq!(expected_total, sut.get_sum(.., ..));
             assert_eq!(10 * 11 / 2, sut.get_sum_k_smallest(.., 11).unwrap());
             assert_eq!(99_989 * 11 + 55, sut.get_sum_k_largest(.., 11).unwrap());

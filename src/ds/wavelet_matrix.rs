@@ -593,15 +593,15 @@ mod tests {
     mod get {
         use super::*;
 
-        /// 状況: 元の位置に対応する値を返す。
-        /// - 前提: 値を格納した `WaveletMatrix` がある。
-        /// - 操作: 有効な位置と範囲外の位置から値を取得する。
-        /// - 結果: 有効な位置では値を、範囲外では `None` を返す。
+        /// Scenario: 元の位置に対応する値を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 有効な位置と範囲外の位置から値を取得する。
+        /// - Then: 有効な位置では値を、範囲外では `None` を返す。
         #[test]
         fn returns_value_at_index() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(5, sut.get(0).unwrap());
             assert_eq!(5, sut.get(7).unwrap());
             assert_eq!(None, sut.get(8));
@@ -612,17 +612,17 @@ mod tests {
     mod large_input {
         use super::*;
 
-        /// 状況: 要素数が十分に大きい入力を構築してクエリを実行する。
-        /// - 前提: 100,000 個の異なる値を持つシーケンスがある。
-        /// - 操作: `WaveletMatrix` を構築し、代表的なクエリを実行する。
-        /// - 結果: 現実的な時間で完了し、結果が正しい。
+        /// Scenario: 要素数が十分に大きい入力を構築してクエリを実行する。
+        /// - Given: 100,000 個の異なる値を持つシーケンスがある。
+        /// - When: `WaveletMatrix` を構築し、代表的なクエリを実行する。
+        /// - Then: 現実的な時間で完了し、結果が正しい。
         #[test]
         fn builds_and_queries_large_input() {
-            // 前提
+            // Given
             let data = (0..100_000).collect::<Vec<_>>();
-            // 操作
+            // When
             let sut = WaveletMatrix::new(&data);
-            // 結果
+            // Then
             assert_eq!(100_000, sut.len());
             assert_eq!(Some(99_999), sut.get(99_999));
             assert_eq!(25_000, sut.count(.., 50_000..75_000));
@@ -635,15 +635,15 @@ mod tests {
     mod count {
         use super::*;
 
-        /// 状況: インデックス範囲と値範囲に含まれる要素数を返す。
-        /// - 前提: 値を格納した `WaveletMatrix` がある。
-        /// - 操作: 包含・排他境界を含む複数の範囲で個数を求める。
-        /// - 結果: 各範囲に含まれる要素数を返す。
+        /// Scenario: インデックス範囲と値範囲に含まれる要素数を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 包含・排他境界を含む複数の範囲で個数を求める。
+        /// - Then: 各範囲に含まれる要素数を返す。
         #[test]
         fn counts_values_in_ranges() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(4, sut.count(0..8, 4..7));
             assert_eq!(3, sut.count(2..7, 5..=8));
             assert_eq!(5, sut.count(.., 5..));
@@ -653,15 +653,15 @@ mod tests {
             assert_eq!(0, sut.count(start..end, ..));
         }
 
-        /// 状況: `usize::MAX` を含む値範囲を正しく扱う。
-        /// - 前提: `usize::MAX` を含む `WaveletMatrix` がある。
-        /// - 操作: 上限なしと最大値を含む値範囲の個数を求める。
-        /// - 結果: オーバーフローせず正しい個数を返す。
+        /// Scenario: `usize::MAX` を含む値範囲を正しく扱う。
+        /// - Given: `usize::MAX` を含む `WaveletMatrix` がある。
+        /// - When: 上限なしと最大値を含む値範囲の個数を求める。
+        /// - Then: オーバーフローせず正しい個数を返す。
         #[test]
         fn handles_usize_max_value() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix_with_max_value();
-            // 操作と結果
+            // When and Then
             assert_eq!(5, sut.count(.., ..));
             assert_eq!(2, sut.count(.., usize::MAX..=usize::MAX));
         }
@@ -671,15 +671,15 @@ mod tests {
     mod threshold_count {
         use super::*;
 
-        /// 状況: 閾値に対する個数を返す。
-        /// - 前提: 値を格納した `WaveletMatrix` がある。
-        /// - 操作: 閾値未満と閾値以上の個数を求める。
-        /// - 結果: 条件を満たす要素数を返す。
+        /// Scenario: 閾値に対する個数を返す。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 閾値未満と閾値以上の個数を求める。
+        /// - Then: 条件を満たす要素数を返す。
         #[test]
         fn counts_values_on_each_side_of_threshold() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(3, sut.count_less_than(0..8, 5));
             assert_eq!(5, sut.count_more_than(0..8, 5));
             let start = 8;
@@ -692,41 +692,41 @@ mod tests {
     mod kth {
         use super::*;
 
-        /// 状況: 値範囲内の順位要素を返す。
-        /// - 前提: 重複値を含む `WaveletMatrix` がある。
-        /// - 操作: 小さい順と大きい順の順位要素を求める。
-        /// - 結果: 指定順位の値を返す。
+        /// Scenario: 値範囲内の順位要素を返す。
+        /// - Given: 重複値を含む `WaveletMatrix` がある。
+        /// - When: 小さい順と大きい順の順位要素を求める。
+        /// - Then: 指定順位の値を返す。
         #[test]
         fn returns_kth_values() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(Some(5), sut.get_kth_smallest(.., 5.., 0));
             assert_eq!(Some(8), sut.get_kth_smallest(2..7, 5.., 2));
             assert_eq!(Some(7), sut.get_kth_largest(.., ..8, 0));
             assert_eq!(Some(0), sut.get_kth_largest(.., .., 7));
         }
 
-        /// 状況: 対象要素がない、または順位が範囲外である。
-        /// - 前提: 値を格納した `WaveletMatrix` がある。
-        /// - 操作: 空の値範囲または範囲外の順位を指定する。
-        /// - 結果: `None` を返す。
+        /// Scenario: 対象要素がない、または順位が範囲外である。
+        /// - Given: 値を格納した `WaveletMatrix` がある。
+        /// - When: 空の値範囲または範囲外の順位を指定する。
+        /// - Then: `None` を返す。
         #[test]
         fn returns_none_for_missing_rank() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
-            // 操作と結果
+            // When and Then
             assert_eq!(None, sut.get_kth_smallest(.., 8..8, 0));
             assert_eq!(None, sut.get_kth_largest(.., .., 8));
         }
 
-        /// 状況: 一括クエリが単発クエリと一致する。
-        /// - 前提: 重複値を含む `WaveletMatrix` がある。
-        /// - 操作: チャンク境界をまたぐ件数の一括クエリを実行する。
-        /// - 結果: 単発の `get_kth_smallest` と同じ値を返す。
+        /// Scenario: 一括クエリが単発クエリと一致する。
+        /// - Given: 重複値を含む `WaveletMatrix` がある。
+        /// - When: チャンク境界をまたぐ件数の一括クエリを実行する。
+        /// - Then: 単発の `get_kth_smallest` と同じ値を返す。
         #[test]
         fn batch_matches_single_queries() {
-            // 前提
+            // Given
             let sut = create_wavelet_matrix();
             let queries = (0..20)
                 .map(|t| {
@@ -735,9 +735,9 @@ mod tests {
                     (l..l + len, t % len)
                 })
                 .collect::<Vec<_>>();
-            // 操作
+            // When
             let results = sut.get_kth_smallest_batch(&queries);
-            // 結果
+            // Then
             assert_eq!(20, results.len());
             for ((range, k), answer) in queries.iter().zip(results.iter()) {
                 assert_eq!(sut.get_kth_smallest(range.clone(), .., *k), Some(*answer));
