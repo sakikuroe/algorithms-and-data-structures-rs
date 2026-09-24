@@ -143,6 +143,7 @@ mod tests {
     // sub のテスト: 戻り値そのものを検証する
     mod sub {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 項数の異なる 2 つの系列を減算すると、 同次数の係数同士が法 998244353 で減算される
         /// - Given: 係数 [5, 2] を持つ系列と、 係数 [3] を持つ系列がある
@@ -162,36 +163,31 @@ mod tests {
         /// - Given: 空系列、 単項の系列、 0 や MOD-1 付近の係数など、 境界となる係数列の組がある
         /// - When: それぞれの組を - で減算する
         /// - Then: 各ケースで期待通りに正規化された係数列が返る
-        #[test]
-        fn subtracts_coefficients_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::both_empty(vec![], vec![], vec![])]
+        #[case::empty_rhs(vec![7], vec![], vec![7])]
+        #[case::equal_operands(vec![7], vec![7], vec![])]
+        #[case::wraps_modulus(vec![0], vec![1], vec![modulo::M - 1])]
+        #[case::trims_canceled_coefficient(vec![modulo::M - 1, 2], vec![modulo::M - 1], vec![0, 2])]
+        fn subtracts_coefficients_for_boundary_value_combinations(
+            #[case] a_coeffs: Vec<u32>,
+            #[case] b_coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // 両辺が空系列 (ゼロ多項式同士の減算)
-                (vec![], vec![], vec![]),
-                // 右辺が空系列
-                (vec![7], vec![], vec![7]),
-                // 単項同士が等しく、 結果がゼロ多項式になる
-                (vec![7], vec![7], vec![]),
-                // 0 から引くと法未満に折り返す (wraparound)
-                (vec![0], vec![1], vec![modulo::M - 1]),
-                // MOD-1 から MOD-1 を引くと 0 になり、 末尾がトリムされる
-                (vec![modulo::M - 1, 2], vec![modulo::M - 1], vec![0, 2]),
-            ];
-
-            for (a_coeffs, b_coeffs, expected) in cases {
-                let sut = FPS::new(a_coeffs);
-                let rhs = FPS::new(b_coeffs);
-                // When
-                let result = sut - rhs;
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(a_coeffs);
+            let rhs = FPS::new(b_coeffs);
+            // When
+            let result = sut - rhs;
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
     }
 
     // neg のテスト: 戻り値そのものを検証する
     mod neg {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 符号反転すると、 各係数が法 998244353 上の加法逆元になる
         /// - Given: 係数 [1, 2] を持つ系列がある
@@ -211,31 +207,27 @@ mod tests {
         /// - Given: 0, 1, MOD-1 を係数に持つ系列がある
         /// - When: - で符号反転する
         /// - Then: 各ケースで期待通りの係数列が返る
-        #[test]
-        fn negates_coefficients_at_boundary_values() {
+        #[rstest]
+        #[case::zero_and_one(vec![0, 1], vec![0, modulo::M - 1])]
+        #[case::modulus_minus_one(vec![modulo::M - 1], vec![1])]
+        #[case::zero_polynomial(vec![], vec![])]
+        fn negates_coefficients_at_boundary_values(
+            #[case] coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // 0 の符号反転は 0 のまま
-                (vec![0, 1], vec![0, modulo::M - 1]),
-                // MOD-1 の符号反転は 1 になる
-                (vec![modulo::M - 1], vec![1]),
-                // 空系列 (ゼロ多項式) の符号反転は空系列のまま
-                (vec![], vec![]),
-            ];
-
-            for (coeffs, expected) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = -sut;
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = -sut;
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
     }
 
     // sub_assign のテスト: 呼び出し後の自身の状態変化を検証する
     mod sub_assign {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: -= で減算すると、 自身が減算結果に更新される
         /// - Given: 係数 [5, 2] を持つ系列と、 係数 [3] を持つ系列がある
@@ -255,25 +247,24 @@ mod tests {
         /// - Given: 空系列、 単項の系列、 0 や MOD-1 付近の係数など、 境界となる係数列の組がある
         /// - When: それぞれの組を -= で減算する
         /// - Then: 各ケースで期待通りに正規化された係数列に更新される
-        #[test]
-        fn updates_self_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::both_empty(vec![], vec![], vec![])]
+        #[case::empty_rhs(vec![7], vec![], vec![7])]
+        #[case::equal_operands(vec![7], vec![7], vec![])]
+        #[case::wraps_modulus(vec![0], vec![1], vec![modulo::M - 1])]
+        #[case::trims_canceled_coefficient(vec![modulo::M - 1, 2], vec![modulo::M - 1], vec![0, 2])]
+        fn updates_self_for_boundary_value_combinations(
+            #[case] a_coeffs: Vec<u32>,
+            #[case] b_coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                (vec![], vec![], vec![]),
-                (vec![7], vec![], vec![7]),
-                (vec![7], vec![7], vec![]),
-                (vec![0], vec![1], vec![modulo::M - 1]),
-                (vec![modulo::M - 1, 2], vec![modulo::M - 1], vec![0, 2]),
-            ];
-
-            for (a_coeffs, b_coeffs, expected) in cases {
-                let mut sut = FPS::new(a_coeffs);
-                let rhs = FPS::new(b_coeffs);
-                // When
-                sut -= rhs;
-                // Then
-                assert_eq!(FPS::new(expected), sut);
-            }
+            let mut sut = FPS::new(a_coeffs);
+            let rhs = FPS::new(b_coeffs);
+            // When
+            sut -= rhs;
+            // Then
+            assert_eq!(FPS::new(expected), sut);
         }
     }
 }

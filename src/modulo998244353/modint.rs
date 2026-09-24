@@ -881,44 +881,38 @@ mod tests {
     // new のテスト: 戻り値を検証する。
     mod new {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: MOD 未満の値を渡すと、そのままの値を持つインスタンスが生成される。
         /// - Given: MOD 未満の値がある。
         /// - When: `new` でインスタンスを生成する。
         /// - Then: 入力と同じ値を持つインスタンスが得られる。
-        #[test]
-        fn creates_instance_with_value_unchanged_when_less_than_mod() {
-            // Given
-            let cases = [0_u64, 1, 123, (MOD - 1) as u64];
-
-            for n in cases {
-                // When
-                let sut = ModInt998244353::new(n);
-                // Then
-                assert_eq!(n as u32, sut.val());
-            }
+        #[rstest]
+        #[case::zero(0_u64)]
+        #[case::one(1)]
+        #[case::typical(123)]
+        #[case::maximum((MOD - 1) as u64)]
+        fn creates_instance_with_value_unchanged_when_less_than_mod(#[case] n: u64) {
+            // When
+            let sut = ModInt998244353::new(n);
+            // Then
+            assert_eq!(n as u32, sut.val());
         }
 
         /// Scenario: MOD 以上の値を渡すと、MOD で還元された値になる。
         /// - Given: MOD 以上の値がある。
         /// - When: `new` でインスタンスを生成する。
         /// - Then: `n mod MOD` の値を持つインスタンスが得られる。
-        #[test]
-        fn wraps_around_when_value_is_ge_mod() {
-            // Given
-            let cases = [
-                (MOD as u64, 0_u32),
-                (MOD as u64 + 1, 1),
-                (2 * MOD as u64, 0),
-                (u64::MAX, (u64::MAX % MOD as u64) as u32),
-            ];
-
-            for (n, expected) in cases {
-                // When
-                let sut = ModInt998244353::new(n);
-                // Then
-                assert_eq!(expected, sut.val());
-            }
+        #[rstest]
+        #[case::exactly_mod(MOD as u64, 0_u32)]
+        #[case::one_above_mod(MOD as u64 + 1, 1)]
+        #[case::twice_mod(2 * MOD as u64, 0)]
+        #[case::maximum_u64(u64::MAX, (u64::MAX % MOD as u64) as u32)]
+        fn wraps_around_when_value_is_ge_mod(#[case] n: u64, #[case] expected: u32) {
+            // When
+            let sut = ModInt998244353::new(n);
+            // Then
+            assert_eq!(expected, sut.val());
         }
     }
 
@@ -966,108 +960,85 @@ mod tests {
     // From<u32>, From<i32> のテスト: 戻り値を検証する。
     mod from {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `u32` の値は、MOD で還元されて変換される。
         /// - Given: 0、MOD 未満の値、MOD 以上の値、u32::MAX を含む複数の入力がある。
         /// - When: `ModInt998244353::from` で変換する。
         /// - Then: 各ケースで `input mod MOD` の値が得られる。
-        #[test]
-        fn converts_u32_reducing_by_modulus() {
-            // Given
-            let cases = [
-                (0_u32, 0_u32),
-                (123, 123),
-                (MOD, 0),
-                (MOD + 10, 10),
-                (u32::MAX, u32::MAX % MOD),
-            ];
-
-            for (input, expected) in cases {
-                // When
-                let sut = ModInt998244353::from(input);
-                // Then
-                assert_eq!(expected, sut.val());
-            }
+        #[rstest]
+        #[case::zero(0_u32, 0_u32)]
+        #[case::unchanged(123, 123)]
+        #[case::exactly_mod(MOD, 0)]
+        #[case::above_mod(MOD + 10, 10)]
+        #[case::maximum(u32::MAX, u32::MAX % MOD)]
+        fn converts_u32_reducing_by_modulus(#[case] input: u32, #[case] expected: u32) {
+            // When
+            let sut = ModInt998244353::from(input);
+            // Then
+            assert_eq!(expected, sut.val());
         }
 
         /// Scenario: `i32` の非負の値は、MOD で還元されて変換される。
         /// - Given: 0、通常の正の値、型の最大値 (i32::MAX) がある。
         /// - When: `ModInt998244353::from` で変換する。
         /// - Then: 各ケースで `input mod MOD` の値が得られる。
-        #[test]
-        fn converts_nonnegative_i32_reducing_by_modulus() {
-            // Given
-            let cases = [
-                (0_i32, 0_u32),
-                (123, 123),
-                (i32::MAX, (i32::MAX as u64 % MOD as u64) as u32),
-            ];
-
-            for (input, expected) in cases {
-                // When
-                let sut = ModInt998244353::from(input);
-                // Then
-                assert_eq!(expected, sut.val());
-            }
+        #[rstest]
+        #[case::zero(0_i32, 0_u32)]
+        #[case::typical(123, 123)]
+        #[case::maximum(i32::MAX, (i32::MAX as u64 % MOD as u64) as u32)]
+        fn converts_nonnegative_i32_reducing_by_modulus(#[case] input: i32, #[case] expected: u32) {
+            // When
+            let sut = ModInt998244353::from(input);
+            // Then
+            assert_eq!(expected, sut.val());
         }
 
         /// Scenario: `i32` の負の値は、法演算における正の等価値に変換される。
         /// - Given: -1、型の最小値 (i32::MIN) を含む負の値がある。
         /// - When: `ModInt998244353::from` で変換する。
         /// - Then: MOD を加えて正規化された値が得られる。
-        #[test]
-        fn converts_negative_i32_to_positive_equivalent() {
-            // Given
-            let cases = [
-                (-1_i32, MOD - 1),
-                (-123, MOD - 123),
-                // (-2147483648 % 998244353 + 998244353) % 998244353 = 847249411
-                (i32::MIN, 847249411),
-            ];
-
-            for (input, expected) in cases {
-                // When
-                let sut = ModInt998244353::from(input);
-                // Then
-                assert_eq!(expected, sut.val());
-            }
+        #[rstest]
+        #[case::minus_one(-1_i32, MOD - 1)]
+        #[case::minus_123(-123, MOD - 123)]
+        #[case::minimum(i32::MIN, 847249411)]
+        fn converts_negative_i32_to_positive_equivalent(#[case] input: i32, #[case] expected: u32) {
+            // When
+            let sut = ModInt998244353::from(input);
+            // Then
+            assert_eq!(expected, sut.val());
         }
     }
 
     // add, add_assign のテスト: 戻り値と状態変化を検証する。
     mod add {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `+` および `+=` は、MOD の下での和を返す。
         /// - Given: 和が MOD を超えない、または超える複数の値の組がある。
         /// - When: 加算 (`+`) および加算代入 (`+=`) を行う。
         /// - Then: いずれも `(a + b) mod MOD` になる。
-        #[test]
-        fn computes_sum_modulo_mod() {
-            // Given
-            let cases = [
-                (1_u32, 1_u32, 2_u32),
-                (MOD - 1, 1, 0),
-                (MOD - 1, 2, 1),
-                (0, 0, 0),
-                (MOD - 1, MOD - 1, MOD - 2),
-            ];
+        #[rstest]
+        #[case::one_plus_one(1_u32, 1_u32, 2_u32)]
+        #[case::wraps_to_zero(MOD - 1, 1, 0)]
+        #[case::wraps_to_one(MOD - 1, 2, 1)]
+        #[case::both_zero(0, 0, 0)]
+        #[case::both_max(MOD - 1, MOD - 1, MOD - 2)]
+        fn computes_sum_modulo_mod(#[case] a_val: u32, #[case] b_val: u32, #[case] expected: u32) {
+            let a = ModInt998244353::new(a_val as u64);
+            let b = ModInt998244353::new(b_val as u64);
 
-            for (a_val, b_val, expected) in cases {
-                let a = ModInt998244353::new(a_val as u64);
-                let b = ModInt998244353::new(b_val as u64);
+            // When (+)
+            let sut = a + b;
+            // Then (+)
+            assert_eq!(expected, sut.val());
 
-                // When (+)
-                let sut = a + b;
-                // Then (+)
-                assert_eq!(expected, sut.val());
-
-                // When (+=)
-                let mut sut = a;
-                sut += b;
-                // Then (+=)
-                assert_eq!(expected, sut.val());
-            }
+            // When (+=)
+            let mut sut = a;
+            sut += b;
+            // Then (+=)
+            assert_eq!(expected, sut.val());
         }
 
         /// Scenario: `u32` を右辺に取る `+` および `+=` も、MOD の下での和を返す。
@@ -1096,36 +1067,35 @@ mod tests {
     // sub, sub_assign のテスト: 戻り値と状態変化を検証する。
     mod sub {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `-` および `-=` は、MOD の下での差を返す。
         /// - Given: 被減数が減数以上、または未満の複数の値の組がある。
         /// - When: 減算 (`-`) および減算代入 (`-=`) を行う。
         /// - Then: いずれも `(a - b) mod MOD` になる。
-        #[test]
-        fn computes_difference_modulo_mod() {
-            // Given
-            let cases = [
-                (2_u64, 1_u64, 1_u32),
-                (1, 2, MOD - 1),
-                (0, 0, 0),
-                (123, 123, 0),
-            ];
+        #[rstest]
+        #[case::positive_difference(2_u64, 1_u64, 1_u32)]
+        #[case::wraps_to_modulus_minus_one(1, 2, MOD - 1)]
+        #[case::both_zero(0, 0, 0)]
+        #[case::equal_operands(123, 123, 0)]
+        fn computes_difference_modulo_mod(
+            #[case] a_val: u64,
+            #[case] b_val: u64,
+            #[case] expected: u32,
+        ) {
+            let a = ModInt998244353::new(a_val);
+            let b = ModInt998244353::new(b_val);
 
-            for (a_val, b_val, expected) in cases {
-                let a = ModInt998244353::new(a_val);
-                let b = ModInt998244353::new(b_val);
+            // When (-)
+            let sut = a - b;
+            // Then (-)
+            assert_eq!(expected, sut.val());
 
-                // When (-)
-                let sut = a - b;
-                // Then (-)
-                assert_eq!(expected, sut.val());
-
-                // When (-=)
-                let mut sut = a;
-                sut -= b;
-                // Then (-=)
-                assert_eq!(expected, sut.val());
-            }
+            // When (-=)
+            let mut sut = a;
+            sut -= b;
+            // Then (-=)
+            assert_eq!(expected, sut.val());
         }
 
         /// Scenario: `u32` を右辺に取る `-` および `-=` も、MOD の下での差を返す。
@@ -1154,36 +1124,35 @@ mod tests {
     // mul, mul_assign のテスト: 戻り値と状態変化を検証する。
     mod mul {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `*` および `*=` は、MOD の下での積を返す。
         /// - Given: 0 を含む値、MOD - 1 同士など複数の値の組がある。
         /// - When: 乗算 (`*`) および乗算代入 (`*=`) を行う。
         /// - Then: いずれも `(a * b) mod MOD` になる。
-        #[test]
-        fn computes_product_modulo_mod() {
-            // Given
-            let cases = [
-                (2_u64, 3_u64, 6_u32),
-                (0, 123, 0),
-                (MOD as u64 - 1, MOD as u64 - 1, 1), // (-1) * (-1) = 1
-                (100_000, 100_000, 17556470),        // 10_000_000_000 % MOD
-            ];
+        #[rstest]
+        #[case::typical(2_u64, 3_u64, 6_u32)]
+        #[case::zero(0, 123, 0)]
+        #[case::negative_one_squared(MOD as u64 - 1, MOD as u64 - 1, 1)]
+        #[case::large_operands(100_000, 100_000, 17556470)]
+        fn computes_product_modulo_mod(
+            #[case] a_val: u64,
+            #[case] b_val: u64,
+            #[case] expected: u32,
+        ) {
+            let a = ModInt998244353::new(a_val);
+            let b = ModInt998244353::new(b_val);
 
-            for (a_val, b_val, expected) in cases {
-                let a = ModInt998244353::new(a_val);
-                let b = ModInt998244353::new(b_val);
+            // When (*)
+            let sut = a * b;
+            // Then (*)
+            assert_eq!(expected, sut.val());
 
-                // When (*)
-                let sut = a * b;
-                // Then (*)
-                assert_eq!(expected, sut.val());
-
-                // When (*=)
-                let mut sut = a;
-                sut *= b;
-                // Then (*=)
-                assert_eq!(expected, sut.val());
-            }
+            // When (*=)
+            let mut sut = a;
+            sut *= b;
+            // Then (*=)
+            assert_eq!(expected, sut.val());
         }
 
         /// Scenario: `u32` を右辺に取る `*` および `*=` も、MOD の下での積を返す。
@@ -1212,31 +1181,31 @@ mod tests {
     // div, div_assign のテスト: 戻り値、状態変化、および異常系を検証する。
     mod div {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `/` および `/=` は、除数の逆元を用いた商を返す。
         /// - Given: 割り切れる組、割り切れない組を含む複数の値の組がある。
         /// - When: 除算 (`/`) および除算代入 (`/=`) を行う。
         /// - Then: いずれも商と除数の積が被除数に一致する。
-        #[test]
-        fn computes_quotient_via_modular_inverse() {
-            // Given
-            let cases = [(6_u64, 2_u64), (7, 2), (0, 123), (123, 123)];
+        #[rstest]
+        #[case::exact_quotient(6_u64, 2_u64)]
+        #[case::non_exact_quotient(7, 2)]
+        #[case::zero_numerator(0, 123)]
+        #[case::equal_operands(123, 123)]
+        fn computes_quotient_via_modular_inverse(#[case] a_val: u64, #[case] b_val: u64) {
+            let a = ModInt998244353::new(a_val);
+            let b = ModInt998244353::new(b_val);
 
-            for (a_val, b_val) in cases {
-                let a = ModInt998244353::new(a_val);
-                let b = ModInt998244353::new(b_val);
+            // When (/)
+            let sut = a / b;
+            // Then (/)
+            assert_eq!(a, sut * b);
 
-                // When (/)
-                let sut = a / b;
-                // Then (/)
-                assert_eq!(a, sut * b);
-
-                // When (/=)
-                let mut sut = a;
-                sut /= b;
-                // Then (/=)
-                assert_eq!(a, sut * b);
-            }
+            // When (/=)
+            let mut sut = a;
+            sut /= b;
+            // Then (/=)
+            assert_eq!(a, sut * b);
         }
 
         /// Scenario: ゼロによる除算 (`/`) はパニックする。
@@ -1271,87 +1240,80 @@ mod tests {
     // neg のテスト: 戻り値を検証する。
     mod neg {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 単項否定は加法逆元を返し、2 回適用すると元の値に戻る。
         /// - Given: 0、通常の値、MOD - 1 を含む複数の値がある。
         /// - When: 単項否定を行う。
         /// - Then: `MOD - val` (val が 0 のときは 0) になり、もう一度否定すると元の値に戻る。
-        #[test]
-        fn negates_value_and_is_involutive() {
-            // Given
-            let cases = [
-                (0_u64, 0_u32),
-                (1, MOD - 1),
-                (123, MOD - 123),
-                (MOD as u64 - 1, 1),
-            ];
+        #[rstest]
+        #[case::zero(0_u64, 0_u32)]
+        #[case::one(1, MOD - 1)]
+        #[case::typical(123, MOD - 123)]
+        #[case::maximum(MOD as u64 - 1, 1)]
+        fn negates_value_and_is_involutive(#[case] val: u64, #[case] expected: u32) {
+            let sut = ModInt998244353::new(val);
 
-            for (val, expected) in cases {
-                let sut = ModInt998244353::new(val);
-
-                // When
-                let negated = -sut;
-                // Then
-                assert_eq!(expected, negated.val());
-                assert_eq!(sut, -negated);
-            }
+            // When
+            let negated = -sut;
+            // Then
+            assert_eq!(expected, negated.val());
+            assert_eq!(sut, -negated);
         }
     }
 
     // pow のテスト: 戻り値を検証する。
     mod pow {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `pow` は、累乗の結果を MOD の下で返す。
         /// - Given: 通常の底と指数、指数 0、指数 1 を含む複数の組がある。
         /// - When: べき乗を計算する。
         /// - Then: 各ケースで期待した値が返る。
-        #[test]
-        fn computes_power_modulo_mod() {
-            // Given
-            let cases = [
-                (2_u64, 10_usize, 1024_u32),
-                (3, 4, 81),
-                (123, 0, 1),   // 指数が 0 の場合は底に関わらず 1 になる。
-                (123, 1, 123), // 指数が 1 の場合は底そのものになる。
-                (0, 5, 0),
-                (MOD as u64 - 1, 2, 1),
-            ];
-
-            for (base_val, exp, expected) in cases {
-                // When
-                let sut = ModInt998244353::new(base_val);
-                let result = sut.pow(exp);
-                // Then
-                assert_eq!(expected, result.val());
-            }
+        #[rstest]
+        #[case::two_to_ten(2_u64, 10_usize, 1024_u32)]
+        #[case::three_to_four(3, 4, 81)]
+        #[case::zero_exponent(123, 0, 1)]
+        #[case::one_exponent(123, 1, 123)]
+        #[case::zero_base(0, 5, 0)]
+        #[case::negative_one_squared(MOD as u64 - 1, 2, 1)]
+        fn computes_power_modulo_mod(
+            #[case] base_val: u64,
+            #[case] exp: usize,
+            #[case] expected: u32,
+        ) {
+            // When
+            let sut = ModInt998244353::new(base_val);
+            let result = sut.pow(exp);
+            // Then
+            assert_eq!(expected, result.val());
         }
     }
 
     // inv のテスト: 戻り値を検証する。
     mod inv {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 非ゼロの値の逆元は、元の値と乗算すると乗法単位元 1 になる。
         /// - Given: 通常の値と、境界値 (MOD - 1) がある。
         /// - When: 逆元を計算する。
         /// - Then: `Some` が返り、元の値との積が 1 になる。
-        #[test]
-        fn multiplies_to_one_with_original_value() {
-            // Given
-            let cases = [2_u64, 123, MOD as u64 - 1];
+        #[rstest]
+        #[case::two(2_u64)]
+        #[case::typical(123)]
+        #[case::maximum(MOD as u64 - 1)]
+        fn multiplies_to_one_with_original_value(#[case] val: u64) {
+            let sut = ModInt998244353::new(val);
+            let one = ModInt998244353::new(1);
 
-            for val in cases {
-                let sut = ModInt998244353::new(val);
-                let one = ModInt998244353::new(1);
+            // When
+            let result = sut.inv();
 
-                // When
-                let result = sut.inv();
-
-                // Then
-                assert!(result.is_some());
-                assert_eq!(one, sut * result.unwrap());
-            }
+            // Then
+            assert!(result.is_some());
+            assert_eq!(one, sut * result.unwrap());
         }
 
         /// Scenario: ゼロには逆元が存在しない。
@@ -1372,25 +1334,23 @@ mod tests {
     // Display のテスト: 依存先 (フォーマッタ) への出力内容を検証する。
     mod display {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `Display` は、内部値をそのまま文字列として出力する。
         /// - Given: MOD 未満の値、MOD 以上の値がある。
         /// - When: `format!` で文字列化する。
         /// - Then: 還元後の値がそのまま文字列になる。
-        #[test]
-        fn formats_underlying_value() {
-            // Given
-            let cases = [(10_u64, "10"), (MOD as u64 + 5, "5")];
+        #[rstest]
+        #[case::already_reduced(10_u64, "10")]
+        #[case::reduced_modulo_modulus(MOD as u64 + 5, "5")]
+        fn formats_underlying_value(#[case] input: u64, #[case] expected: &str) {
+            let sut = ModInt998244353::new(input);
 
-            for (input, expected) in cases {
-                let sut = ModInt998244353::new(input);
+            // When
+            let result = format!("{}", sut);
 
-                // When
-                let result = format!("{}", sut);
-
-                // Then
-                assert_eq!(expected, result);
-            }
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
