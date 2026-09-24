@@ -148,7 +148,7 @@ pub fn is_prime(n: u64) -> bool {
     if n == 2 {
         return true;
     }
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return false;
     }
 
@@ -245,7 +245,7 @@ fn factorize_by_trial_division(mut n: u64) -> HashMap<u64, usize> {
 
     let mut p = 2;
     while p * p <= n {
-        while n % p == 0 {
+        while n.is_multiple_of(p) {
             *result.entry(p).or_insert(0) += 1;
             n /= p;
         }
@@ -310,7 +310,7 @@ fn gcd_binary(mut x: u64, mut y: u64) -> u64 {
 /// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
 /// `1 / BATCH` に減らす。
 fn find_divisor(n: u64) -> u64 {
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return 2;
     }
 
@@ -531,7 +531,7 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
 fn extract_small_prime_factors(mut n: u64, limit: u64, result: &mut HashMap<u64, usize>) -> u64 {
     let mut p = 2;
     while p < limit && p * p <= n {
-        while n % p == 0 {
+        while n.is_multiple_of(p) {
             *result.entry(p).or_insert(0) += 1;
             n /= p;
         }
@@ -821,7 +821,7 @@ mod tests {
         fn returns_true_for_primes_in_2_pow_62_to_2_pow_63() {
             // Given
             let n = 7094011965265554437_u64;
-            assert!(n >= 1 << 62 && n < 1 << 63);
+            assert!((1_u64 << 62..1_u64 << 63).contains(&n));
 
             // When
             let result = is_prime(n);
@@ -965,7 +965,7 @@ mod tests {
         fn returns_itself_for_primes_in_2_pow_62_to_2_pow_63() {
             // Given
             let n = 7094011965265554437_u64;
-            assert!(n >= 1 << 62 && n < 1 << 63);
+            assert!((1_u64 << 62..1_u64 << 63).contains(&n));
 
             // When
             let result = factorize(n);

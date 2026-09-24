@@ -46,7 +46,7 @@ fn main() {
                 break 'outer;
             }
             seen[p] = true;
-            while x % p == 0 {
+            while x.is_multiple_of(p) {
                 x /= p;
             }
         }

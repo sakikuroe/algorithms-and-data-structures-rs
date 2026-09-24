@@ -42,7 +42,7 @@ pub fn sum_arithmetic(a: u64, d: u64, n: u64, modulo: u32) -> u32 {
     // 閉じた式 S = n*a + d*n*(n-1)/2 における n*(n-1) は必ず偶数になる。
     // n の偶奇に応じて割り切れる方を選び、mod 演算に入れる前に整数のまま
     // 2 で割ることで、剰余を取る前の値を正確に保つ。
-    let (half, other) = if n % 2 == 0 {
+    let (half, other) = if n.is_multiple_of(2) {
         (n / 2, n - 1)
     } else {
         ((n - 1) / 2, n)
