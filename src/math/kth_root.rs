@@ -4,11 +4,13 @@
 ///
 /// # Args
 /// - `a` - 対象の整数
-/// - `k` - 乗根の次数であり、`1` 以上である必要がある。この契約に違反する
-///   場合、`debug_assert!` によりパニックする。
+/// - `k` - 乗根の次数であり、`1` 以上である必要がある。
 ///
 /// # Returns
 /// `floor(a^(1/k))` の値。
+///
+/// # Panics
+/// - `k == 0` の場合にパニックする。
 ///
 /// # Complexity
 /// - 時間計算量: ならし $O(\log k)$
@@ -29,7 +31,7 @@
 /// ```
 #[must_use]
 pub fn kth_root(a: u64, k: u64) -> u64 {
-    debug_assert!(k >= 1);
+    assert!(k > 0, "k must be positive");
 
     // k = 1 のとき a^(1/1) = a は自明である。この早期リターンは、単なる
     // 高速化ではなく必須のガードである。真の値は a 自身であり、a as f64 の
@@ -166,6 +168,19 @@ mod tests {
     mod kth_root {
         use super::*;
         use rstest::rstest;
+
+        /// Scenario: 乗根の次数が `0` の場合はパニックする (異常系)。
+        /// - Given: `a` が `0` または正の整数であり、`k` が `0` である。
+        /// - When: `kth_root` を呼ぶ。
+        /// - Then: パニックする。
+        #[rstest]
+        #[case::zero_input(0)]
+        #[case::positive_input(8)]
+        #[should_panic(expected = "k must be positive")]
+        fn panics_when_k_is_zero(#[case] a: u64) {
+            // Given, When, Then (パニックする)
+            let _ = kth_root(a, 0);
+        }
 
         /// Scenario: `0` に対しては `k` によらず `0` を返す (境界値)。
         /// - Given: `0` と、いくつかの `k` がある。
