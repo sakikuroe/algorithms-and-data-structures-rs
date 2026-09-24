@@ -118,6 +118,7 @@ mod tests {
     // run_length_encode のテスト: 戻り値を検証する。
     mod run_length_encode {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な文字列パターン (空, 単一要素, 全同一要素, 交互要素,
         /// 混合パターン) に対して、 期待通りに run-length encoding される
@@ -125,32 +126,23 @@ mod tests {
         /// - Given: 要素数や並び方が異なる複数の `Vec<char>` がある。
         /// - When: 各列に対して `run_length_encode` を呼ぶ。
         /// - Then: 各ケースで、 要素とその出現回数のタプル列が期待通りに返る。
-        #[test]
-        fn encodes_various_char_sequences() {
+        #[rstest]
+        #[case::empty(vec![], vec![])]
+        #[case::single_element(vec!['x'], vec![('x', 1)])]
+        #[case::all_equal(vec!['z', 'z', 'z', 'z'], vec![('z', 4)])]
+        #[case::alternating(vec!['a', 'b', 'a', 'b'], vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)])]
+        #[case::mixed_runs(vec!['a', 'a', 'b', 'b', 'b', 'a'], vec![('a', 2), ('b', 3), ('a', 1)])]
+        #[case::multiple_mixed_runs(vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'], vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)])]
+        fn encodes_various_char_sequences(
+            #[case] input: Vec<char>,
+            #[case] expected: Vec<(char, usize)>,
+        ) {
             // Given
-            let cases = [
-                (vec![], vec![]),
-                (vec!['x'], vec![('x', 1)]),
-                (vec!['z', 'z', 'z', 'z'], vec![('z', 4)]),
-                (
-                    vec!['a', 'b', 'a', 'b'],
-                    vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)],
-                ),
-                (
-                    vec!['a', 'a', 'b', 'b', 'b', 'a'],
-                    vec![('a', 2), ('b', 3), ('a', 1)],
-                ),
-                (
-                    vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'],
-                    vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)],
-                ),
-            ];
-            // When, Then
-            for (input, expected) in cases {
-                let sut = input;
-                let result = sut.run_length_encode();
-                assert_eq!(expected, result);
-            }
+            let sut = input;
+            // When
+            let result = sut.run_length_encode();
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 要素の型が整数であっても同様に encoding される (正常系)。
@@ -171,6 +163,7 @@ mod tests {
     // run_length_decode のテスト: 戻り値を検証する。
     mod run_length_decode {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的なタプル列パターン (空, 単一要素, 全同一要素, 交互要素,
         /// 混合パターン) に対して、 期待通りに run-length decoding される
@@ -178,32 +171,23 @@ mod tests {
         /// - Given: 要素数や並び方が異なる複数の `Vec<(char, usize)>` がある。
         /// - When: 各列に対して `run_length_decode` を呼ぶ。
         /// - Then: 各ケースで、 復元された要素列が期待通りに返る。
-        #[test]
-        fn decodes_various_char_sequences() {
+        #[rstest]
+        #[case::empty(vec![], vec![])]
+        #[case::single_element(vec![('x', 1)], vec!['x'])]
+        #[case::all_equal(vec![('z', 3)], vec!['z', 'z', 'z'])]
+        #[case::alternating(vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)], vec!['a', 'b', 'a', 'b'])]
+        #[case::mixed_runs(vec![('a', 2), ('b', 3), ('a', 1)], vec!['a', 'a', 'b', 'b', 'b', 'a'])]
+        #[case::multiple_mixed_runs(vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)], vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'])]
+        fn decodes_various_char_sequences(
+            #[case] input: Vec<(char, usize)>,
+            #[case] expected: Vec<char>,
+        ) {
             // Given
-            let cases = [
-                (vec![], vec![]),
-                (vec![('x', 1)], vec!['x']),
-                (vec![('z', 3)], vec!['z', 'z', 'z']),
-                (
-                    vec![('a', 1), ('b', 1), ('a', 1), ('b', 1)],
-                    vec!['a', 'b', 'a', 'b'],
-                ),
-                (
-                    vec![('a', 2), ('b', 3), ('a', 1)],
-                    vec!['a', 'a', 'b', 'b', 'b', 'a'],
-                ),
-                (
-                    vec![('x', 1), ('y', 2), ('x', 3), ('y', 1)],
-                    vec!['x', 'y', 'y', 'x', 'x', 'x', 'y'],
-                ),
-            ];
-            // When, Then
-            for (input, expected) in cases {
-                let sut = input;
-                let result = sut.run_length_decode();
-                assert_eq!(expected, result);
-            }
+            let sut = input;
+            // When
+            let result = sut.run_length_decode();
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: カウントが `0` のタプルは、 その区間を出力しない (境界値)。
@@ -225,21 +209,18 @@ mod tests {
         /// - Given: 要素数が異なる複数の `Vec<(i32, usize)>` がある。
         /// - When: 各列に対して `run_length_decode` を呼ぶ。
         /// - Then: 各ケースで、 復元された要素列が期待通りに返る。
-        #[test]
-        fn decodes_int_sequences() {
+        #[rstest]
+        #[case::multiple_runs(vec![(1, 3), (2, 4), (3, 1)], vec![1, 1, 1, 2, 2, 2, 2, 3])]
+        #[case::empty(vec![], vec![])]
+        #[case::single_element(vec![(99, 1)], vec![99])]
+        #[case::one_repeated_run(vec![(10, 5)], vec![10, 10, 10, 10, 10])]
+        fn decodes_int_sequences(#[case] input: Vec<(i32, usize)>, #[case] expected: Vec<i32>) {
             // Given
-            let cases = [
-                (vec![(1, 3), (2, 4), (3, 1)], vec![1, 1, 1, 2, 2, 2, 2, 3]),
-                (vec![], vec![]),
-                (vec![(99, 1)], vec![99]),
-                (vec![(10, 5)], vec![10, 10, 10, 10, 10]),
-            ];
-            // When, Then
-            for (input, expected) in cases {
-                let sut = input;
-                let result = sut.run_length_decode();
-                assert_eq!(expected, result);
-            }
+            let sut = input;
+            // When
+            let result = sut.run_length_decode();
+            // Then
+            assert_eq!(expected, result);
         }
     }
 }

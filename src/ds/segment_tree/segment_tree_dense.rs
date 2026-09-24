@@ -611,20 +611,21 @@ mod tests {
     // new のテスト: 生成直後の状態 (len) を検証する。
     mod new {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 指定したサイズで生成すると, `len` がそのサイズを返す。
         /// - Given: サイズ `0` および `10` がある。
         /// - When: `SegmentTreeDense::new` で `segment tree` を生成する。
         /// - Then: `len()` が指定したサイズと一致する。
-        #[test]
-        fn sets_len_to_given_size() {
+        #[rstest]
+        #[case::empty(0_usize)]
+        #[case::ten_elements(10)]
+        fn sets_len_to_given_size(#[case] n: usize) {
             // Given
-            let cases = [0_usize, 10];
-            // When, Then
-            for n in cases {
-                let sut = SegmentTreeDense::<monoid::AddMonoid>::new(n);
-                assert_eq!(n, sut.len());
-            }
+            // When
+            let sut = SegmentTreeDense::<monoid::AddMonoid>::new(n);
+            // Then
+            assert_eq!(n, sut.len());
         }
     }
 
@@ -683,6 +684,7 @@ mod tests {
     // fold のテスト: 戻り値, 境界値, および異常系を検証する。
     mod fold {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な複数の区間に対して, 愚直実装と同じ畳み込み結果を返す。
         /// - Given: `[1, 10, 100, 1000, 10000]` を持つ `sut` と, 同じデータの `naive` オラクルがある。
@@ -706,15 +708,17 @@ mod tests {
         /// - Given: サイズ `5` の `sut` がある。
         /// - When: `(0, 0)`, `(3, 3)`, `(5, 5)` のいずれかの区間で `fold` を呼ぶ。
         /// - Then: いずれも単位元 (`AddMonoid::id()`) が返る。
-        #[test]
-        fn returns_identity_for_empty_range() {
+        #[rstest]
+        #[case::at_start(0_usize)]
+        #[case::in_middle(3)]
+        #[case::at_end(5)]
+        fn returns_identity_for_empty_range(#[case] index: usize) {
             // Given
             let sut = SegmentTreeDense::<monoid::AddMonoid>::new(5);
-            let cases = [(0_usize, 0_usize), (3, 3), (5, 5)];
-            // When, Then
-            for (l, r) in cases {
-                assert_eq!(monoid::AddMonoid::id(), sut.fold(l, r));
-            }
+            // When
+            let result = sut.fold(index, index);
+            // Then
+            assert_eq!(monoid::AddMonoid::id(), result);
         }
 
         /// Scenario: 範囲外 (`r > len`) を指定するとパニックする (異常系)。
@@ -771,70 +775,60 @@ mod tests {
     // max_right のテスト: 戻り値を検証する。
     mod max_right {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 開始位置と述語の組み合わせに応じて, 期待通りの最大 `r` を返す。
         /// - Given: `[1, 2, 3, 4, 5]` を持つ `sut` がある。
         /// - When: 複数の `(l, 述語)` の組で `max_right` を求める。
         /// - Then: 各ケースで期待する `r` が返る。
-        #[test]
-        fn returns_expected_r_for_various_predicates() {
+        #[rstest]
+        #[case::sum_below_ten(1, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 4)]
+        #[case::sum_at_most_six(0, (|&sum: &i64| sum <= 6) as fn(&i64) -> bool, 3)]
+        #[case::always_true(0, (|&_sum: &i64| true) as fn(&i64) -> bool, 5)]
+        #[case::identity_only(0, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, 0)]
+        #[case::starts_at_end(5, (|&_sum: &i64| true) as fn(&i64) -> bool, 5)]
+        fn returns_expected_r_for_various_predicates(
+            #[case] l: usize,
+            #[case] f: fn(&i64) -> bool,
+            #[case] expected: usize,
+        ) {
             // Given
             let initial_data = vec![1, 2, 3, 4, 5];
-            let n = initial_data.len();
             let sut = create_dense_tree::<monoid::AddMonoid>(&initial_data);
-            // 述語の型を関数ポインタに統一するため、`as fn` で変換する。
-            // 複雑な型注釈を避け、型推論で配列の型を定める。
-            let cases = [
-                // l=1 から総和が 10 未満: [1,4) = 2+3+4=9, [1,5)=14
-                (1, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 4),
-                // l=0 から総和が 6 以下: [0,3) = 1+2+3=6, [0,4)=10
-                (0, (|&sum: &i64| sum <= 6) as fn(&i64) -> bool, 3),
-                // 述語が常に true の場合は末尾まで伸びる。
-                (0, (|&_sum: &i64| true) as fn(&i64) -> bool, n),
-                // 述語が単位元に対してのみ true の場合は開始位置から動かない。
-                (0, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, 0),
-                // 開始位置が末尾の場合は末尾がそのまま返る。
-                (n, (|&_sum: &i64| true) as fn(&i64) -> bool, n),
-            ];
-            // When, Then
-            for (l, f, expected) in cases {
-                assert_eq!(expected, sut.max_right(l, f));
-            }
+            // When
+            let result = sut.max_right(l, f);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // min_left のテスト: 戻り値を検証する。
     mod min_left {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 終了位置と述語の組み合わせに応じて, 期待通りの最小 `l` を返す。
         /// - Given: `[1, 2, 3, 4, 5]` を持つ `sut` がある。
         /// - When: 複数の `(r, 述語)` の組で `min_left` を求める。
         /// - Then: 各ケースで期待する `l` が返る。
-        #[test]
-        fn returns_expected_l_for_various_predicates() {
+        #[rstest]
+        #[case::sum_below_ten(4, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 1)]
+        #[case::sum_at_most_fifteen(5, (|&sum: &i64| sum <= 15) as fn(&i64) -> bool, 0)]
+        #[case::always_true(5, (|&_sum: &i64| true) as fn(&i64) -> bool, 0)]
+        #[case::identity_only(5, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, 5)]
+        #[case::ends_at_start(0, (|&_sum: &i64| true) as fn(&i64) -> bool, 0)]
+        fn returns_expected_l_for_various_predicates(
+            #[case] r: usize,
+            #[case] f: fn(&i64) -> bool,
+            #[case] expected: usize,
+        ) {
             // Given
             let initial_data = vec![1, 2, 3, 4, 5];
-            let n = initial_data.len();
             let mut sut = create_dense_tree::<monoid::AddMonoid>(&initial_data);
-            // 述語の型を関数ポインタに統一するため、`as fn` で変換する。
-            // 複雑な型注釈を避け、型推論で配列の型を定める。
-            let cases = [
-                // r=4 まで総和が 10 未満: [1,4) = 2+3+4=9, [0,4)=10
-                (4, (|&sum: &i64| sum < 10) as fn(&i64) -> bool, 1),
-                // r=5 まで総和が 15 以下: [0,5) = 15
-                (5, (|&sum: &i64| sum <= 15) as fn(&i64) -> bool, 0),
-                // 述語が常に true の場合は先頭まで縮む。
-                (n, (|&_sum: &i64| true) as fn(&i64) -> bool, 0),
-                // 述語が単位元に対してのみ true の場合は終了位置から動かない。
-                (n, (|&sum: &i64| sum == 0) as fn(&i64) -> bool, n),
-                // 終了位置が先頭の場合は先頭がそのまま返る。
-                (0, (|&_sum: &i64| true) as fn(&i64) -> bool, 0),
-            ];
-            // When, Then
-            for (r, f, expected) in cases {
-                assert_eq!(expected, sut.min_left(r, f));
-            }
+            // When
+            let result = sut.min_left(r, f);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 

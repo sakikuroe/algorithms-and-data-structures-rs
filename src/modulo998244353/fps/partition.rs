@@ -422,32 +422,30 @@ mod tests {
     // should_add_term のテスト: 戻り値そのものを検証する
     mod should_add_term {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 生成関数の種類と j の偶奇の組み合わせにより、加算符号かどうかが決まる
         /// - Given: 4 種類の生成関数と、j = 1 (奇数) および j = 2 (偶数) の組み合わせがある
         /// - When: 各組み合わせについて should_add_term を呼び出す
         /// - Then: 種類ごとに定められた符号パターンと一致する
-        #[test]
-        fn matches_sign_pattern_for_each_kind_and_parity() {
-            // Given
-            let cases = [
-                (LogSeriesKind::OnePlus, 1_usize, true),
-                (LogSeriesKind::OnePlus, 2, false),
-                (LogSeriesKind::OneMinus, 1, false),
-                (LogSeriesKind::OneMinus, 2, false),
-                (LogSeriesKind::InvOnePlus, 1, false),
-                (LogSeriesKind::InvOnePlus, 2, true),
-                (LogSeriesKind::InvOneMinus, 1, true),
-                (LogSeriesKind::InvOneMinus, 2, true),
-            ];
-
-            for (kind, j, expected) in cases {
-                // When
-                let result = should_add_term(kind, j);
-
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::one_plus_odd(LogSeriesKind::OnePlus, 1_usize, true)]
+        #[case::one_plus_even(LogSeriesKind::OnePlus, 2, false)]
+        #[case::one_minus_odd(LogSeriesKind::OneMinus, 1, false)]
+        #[case::one_minus_even(LogSeriesKind::OneMinus, 2, false)]
+        #[case::inverse_one_plus_odd(LogSeriesKind::InvOnePlus, 1, false)]
+        #[case::inverse_one_plus_even(LogSeriesKind::InvOnePlus, 2, true)]
+        #[case::inverse_one_minus_odd(LogSeriesKind::InvOneMinus, 1, true)]
+        #[case::inverse_one_minus_even(LogSeriesKind::InvOneMinus, 2, true)]
+        fn matches_sign_pattern_for_each_kind_and_parity(
+            #[case] kind: LogSeriesKind,
+            #[case] j: usize,
+            #[case] expected: bool,
+        ) {
+            // Given, When
+            let result = should_add_term(kind, j);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 

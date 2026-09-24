@@ -360,29 +360,30 @@ mod tests {
     // bostan_mori のテスト: 戻り値そのものを検証する
     mod bostan_mori {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 幾何級数 1 / (1 - x) の係数は、次数によらず常に 1 である
         /// - Given: 1 / (1 - x) を表す分子と分母の組がある
         /// - When: 次数 0、1、63 のそれぞれについて係数を求める
         /// - Then: いずれの次数でも結果は 1 になる
-        #[test]
-        fn extracts_geometric_series_coefficients_for_various_degrees() {
+        #[rstest]
+        #[case::constant_term(0_usize)]
+        #[case::linear_term(1)]
+        #[case::degree_sixty_three(63)]
+        fn extracts_geometric_series_coefficients_for_various_degrees(#[case] k: usize) {
             // Given
             let (p, q) = create_geometric_series();
-
-            for k in [0_usize, 1, 63] {
-                // When
-                let result = bostan_mori(&p, &q, k);
-
-                // Then
-                assert_eq!(1, result, "coefficient at degree {k} should be 1");
-            }
+            // When
+            let result = bostan_mori(&p, &q, k);
+            // Then
+            assert_eq!(1, result, "coefficient at degree {k} should be 1");
         }
     }
 
     // linear_recurrence_kth_term のテスト: 戻り値そのものを検証する
     mod linear_recurrence_kth_term {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: フィボナッチ数列の第 k 項が既知の値と一致する
         /// - Given: a0 = 1、a1 = 1、漸化式 a_n = a_{n-1} + a_{n-2} がある
@@ -405,19 +406,20 @@ mod tests {
         /// - Given: 3 項の初期値を持つ数列がある
         /// - When: 項番号 0 と 2 について項を求める
         /// - Then: それぞれ初期項の値がそのまま返る
-        #[test]
-        fn returns_initial_term_when_k_is_smaller_than_degree() {
+        #[rstest]
+        #[case::first_term(0_usize, 7_u32)]
+        #[case::last_initial_term(2, 13)]
+        fn returns_initial_term_when_k_is_smaller_than_degree(
+            #[case] k: usize,
+            #[case] expected: u32,
+        ) {
             // Given
             let initial = vec![7, 11, 13];
             let coeffs = vec![2, 3, 5];
-
-            for (k, expected) in [(0_usize, 7_u32), (2, 13)] {
-                // When
-                let result = linear_recurrence_kth_term(&initial, &coeffs, k);
-
-                // Then
-                assert_eq!(expected, result);
-            }
+            // When
+            let result = linear_recurrence_kth_term(&initial, &coeffs, k);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 大きな項番号でも、素朴な漸化式の逐次計算と一致する

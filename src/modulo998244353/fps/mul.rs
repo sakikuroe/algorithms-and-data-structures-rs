@@ -376,6 +376,7 @@ mod tests {
     // mul のテスト: 戻り値そのものを検証する
     mod mul {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 2 つの系列を乗算すると、 畳み込みによる積が返る
         /// - Given: 係数 [1, 1] を持つ系列と、 係数 [1, 2] を持つ系列がある
@@ -395,30 +396,24 @@ mod tests {
         /// - Given: ゼロ多項式、 乗法単位元、 MOD-1 付近の係数など、 境界となる係数列の組がある
         /// - When: それぞれの組を * で乗算する
         /// - Then: 各ケースで期待通りの係数列が返る
-        #[test]
-        fn multiplies_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::both_zero(vec![], vec![], vec![])]
+        #[case::zero_lhs(vec![], vec![5], vec![])]
+        #[case::zero_rhs(vec![5], vec![], vec![])]
+        #[case::multiplicative_identity(vec![1], vec![1], vec![1])]
+        #[case::negative_one_times_negative_one(vec![modulo::M - 1], vec![modulo::M - 1], vec![1])]
+        fn multiplies_for_boundary_value_combinations(
+            #[case] a_coeffs: Vec<u32>,
+            #[case] b_coeffs: Vec<u32>,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // 両辺がゼロ多項式
-                (vec![], vec![], vec![]),
-                // 左辺がゼロ多項式
-                (vec![], vec![5], vec![]),
-                // 右辺がゼロ多項式
-                (vec![5], vec![], vec![]),
-                // 乗法単位元同士の積
-                (vec![1], vec![1], vec![1]),
-                // (-1) * (-1) が法未満に折り返して 1 になる
-                (vec![modulo::M - 1], vec![modulo::M - 1], vec![1]),
-            ];
-
-            for (a_coeffs, b_coeffs, expected) in cases {
-                let sut = FPS::new(a_coeffs);
-                let rhs = FPS::new(b_coeffs);
-                // When
-                let result = sut * rhs;
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(a_coeffs);
+            let rhs = FPS::new(b_coeffs);
+            // When
+            let result = sut * rhs;
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
     }
 
@@ -444,6 +439,7 @@ mod tests {
     // mul_xk のテスト: 戻り値そのものを検証する
     mod mul_xk {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: x^k を掛けると、 係数が高次側へシフトし、 低次側は 0 で埋められる
         /// - Given: 係数 [1] を持つ系列がある
@@ -463,25 +459,21 @@ mod tests {
         /// - Given: 空系列や k = 0 など、 境界となる組がある
         /// - When: それぞれの組で mul_xk を呼び出す
         /// - Then: 各ケースで期待通りの係数列が返る
-        #[test]
-        fn shifts_coefficients_for_boundary_value_combinations() {
+        #[rstest]
+        #[case::zero_shift(vec![1, 2], 0, vec![1, 2])]
+        #[case::zero_polynomial(vec![], 3, vec![])]
+        #[case::shifts_single_term(vec![7], 3, vec![0, 0, 0, 7])]
+        fn shifts_coefficients_for_boundary_value_combinations(
+            #[case] coeffs: Vec<u32>,
+            #[case] k: usize,
+            #[case] expected: Vec<u32>,
+        ) {
             // Given
-            let cases = [
-                // k = 0 (シフトなし)
-                (vec![1, 2], 0, vec![1, 2]),
-                // ゼロ多項式は k によらずゼロ多項式のまま
-                (vec![], 3, vec![]),
-                // 単項の系列を大きくシフトする
-                (vec![7], 3, vec![0, 0, 0, 7]),
-            ];
-
-            for (coeffs, k, expected) in cases {
-                let sut = FPS::new(coeffs);
-                // When
-                let result = sut.mul_xk(k);
-                // Then
-                assert_eq!(FPS::new(expected), result);
-            }
+            let sut = FPS::new(coeffs);
+            // When
+            let result = sut.mul_xk(k);
+            // Then
+            assert_eq!(FPS::new(expected), result);
         }
 
         /// Scenario: シフト後の項数が MAX_NTT_LEN を超えるとパニックする
