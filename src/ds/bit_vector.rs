@@ -190,44 +190,6 @@ impl BitVector {
         }
     }
 
-    /// 2 つの位置までに含まれる `1` の累積数を返す。
-    ///
-    /// `l` と `r` は半開区間 `[l, r)` の端点であり、それぞれの位置までに含まれる
-    /// `1` の数を返す。このメソッドは Wavelet Matrix の範囲クエリから使用する。
-    ///
-    /// # Args
-    /// - `l`: 累積数を求める左端の位置。`r` 以下でなければならない。
-    /// - `r`: 累積数を求める右端の位置。ビット列の長さ以下でなければならない。
-    ///
-    /// # Returns
-    /// `[0, l)` と `[0, r)` に含まれる `1` の数を順に返す。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::bit_vector;
-    ///
-    /// let bits = bit_vector::BitVector::new(&[1, 0, 1, 1]);
-    /// assert_eq!(2, bits.rank(3));
-    /// assert_eq!(3, bits.rank(4));
-    /// ```
-    #[inline(always)]
-    pub(super) fn rank_pair(&self, l: usize, r: usize) -> (usize, usize) {
-        debug_assert!(l <= r);
-        debug_assert!(r <= self.len);
-
-        // 各端点を含むブロックの累積値に、そのブロック内の 1 の数を足して rank を得る。
-        let l_block = l / u64::BITS as usize;
-        let r_block = r / u64::BITS as usize;
-        (
-            (self.cumulative_sums[l_block]
-                + (self.bits[l_block] & MASKS[l % u64::BITS as usize]).count_ones())
-                as usize,
-            (self.cumulative_sums[r_block]
-                + (self.bits[r_block] & MASKS[r % u64::BITS as usize]).count_ones())
-                as usize,
-        )
-    }
-
     /// `BitVector` の長さを返す。
     ///
     /// # Returns

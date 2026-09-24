@@ -177,7 +177,8 @@ impl WaveletMatrix {
             .enumerate()
         {
             // 区間 `[position, position + 1)` の rank 差から、対象要素の現在ビットを判定する。
-            let (rank, next_rank) = bit.rank_pair(position, position + 1);
+            let rank = bit.rank(position);
+            let next_rank = bit.rank(position + 1);
             let is_one = next_rank != rank;
             let zeros = self.zero_counts[level];
             if is_one {
@@ -212,7 +213,8 @@ impl WaveletMatrix {
             .zip(self.bit_table.iter())
             .enumerate()
         {
-            let (rank_l, rank_r) = bit.rank_pair(l, r);
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
             if (upper >> i) & 1 == 0 {
                 // 上限ビットが 0 なら 1 側は上限以上なので、0 側だけを続けて調べる。
                 l -= rank_l;
@@ -257,7 +259,8 @@ impl WaveletMatrix {
         {
             if !diverged && ((lower >> i) & 1) == ((upper >> i) & 1) {
                 // 共通するビットでは区間を一度だけ写し、両境界の累積数を同じだけ更新する。
-                let (rank_l, rank_r) = bit.rank_pair(l, r);
+                let rank_l = bit.rank(l);
+                let rank_r = bit.rank(r);
                 if (lower >> i) & 1 == 0 {
                     l -= rank_l;
                     r -= rank_r;
@@ -281,7 +284,8 @@ impl WaveletMatrix {
                 upper_r = r;
             }
 
-            let (lower_rank_l, lower_rank_r) = bit.rank_pair(lower_l, lower_r);
+            let lower_rank_l = bit.rank(lower_l);
+            let lower_rank_r = bit.rank(lower_r);
             if (lower >> i) & 1 == 0 {
                 // 下限が 0 なら下限未満の値を増やさず、0 側へ進む。
                 lower_l -= lower_rank_l;
@@ -294,7 +298,8 @@ impl WaveletMatrix {
                 lower_r = lower_rank_r + zeros_total;
             }
 
-            let (upper_rank_l, upper_rank_r) = bit.rank_pair(upper_l, upper_r);
+            let upper_rank_l = bit.rank(upper_l);
+            let upper_rank_r = bit.rank(upper_r);
             if (upper >> i) & 1 == 0 {
                 // 上限が 0 なら上限未満の値を増やさず、0 側へ進む。
                 upper_l -= upper_rank_l;
@@ -480,7 +485,8 @@ impl WaveletMatrix {
             .zip(self.bit_table.iter())
             .enumerate()
         {
-            let (rank_l, rank_r) = bit.rank_pair(l, r);
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
             let zeros = (r - l) - (rank_r - rank_l);
             if k < zeros {
                 // k 番目が 0 側にあるため、1 の累積数を除いて 0 側の範囲へ移る。
@@ -544,7 +550,8 @@ impl WaveletMatrix {
                 let zeros_total = self.zero_counts[level];
                 for state in states[..chunk.len()].iter_mut() {
                     // 0 側の要素数を数え、順位が含まれる側へ区間を写す。
-                    let (rank_l, rank_r) = bit.rank_pair(state[0], state[1]);
+                    let rank_l = bit.rank(state[0]);
+                    let rank_r = bit.rank(state[1]);
                     let zeros = (state[1] - state[0]) - (rank_r - rank_l);
                     if state[2] < zeros {
                         state[0] -= rank_l;

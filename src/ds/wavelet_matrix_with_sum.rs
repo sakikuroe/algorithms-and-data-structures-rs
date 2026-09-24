@@ -183,7 +183,8 @@ impl WaveletMatrixWithSum {
                 .iter()
                 .zip(self.accum_table.iter()),
         ) {
-            let (rank_l, rank_r) = bit.rank_pair(l, r);
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
             let zeros = (r - l) - (rank_r - rank_l);
             if remaining < zeros {
                 // 求める k 個が 0 側に収まるため、1 を除いた区間へ移る。
@@ -312,7 +313,8 @@ impl WaveletMatrixWithSum {
                 .iter()
                 .zip(self.accum_table.iter()),
         ) {
-            let (rank_l, rank_r) = bit.rank_pair(l, r);
+            let rank_l = bit.rank(l);
+            let rank_r = bit.rank(r);
             if (upper >> i) & 1 == 0 {
                 // 上限ビットが 0 のときは 0 側だけが上限未満になり得る。
                 l -= rank_l;
