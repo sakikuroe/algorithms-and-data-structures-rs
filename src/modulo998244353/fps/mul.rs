@@ -498,6 +498,7 @@ mod tests {
     // product のテスト: 戻り値そのものを検証する
     mod product {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 系列が空であれば、 総積は乗法単位元 1 になる
         /// - Given: 空の系列の列がある
@@ -549,20 +550,20 @@ mod tests {
             assert_eq!(expected, result);
         }
 
-        /// Scenario: degree を指定すると、 総積はその次数までに切り詰められる
+        /// Scenario: 指定した degree まで総積を切り詰める
         /// - Given: 同じ系列の列がある
-        /// - When: degree = 0 と degree = 1 のそれぞれで product を呼び出す
-        /// - Then: 各 degree までに切り詰められた係数列が返る
-        #[test]
-        fn truncates_result_to_specified_degree() {
+        /// - When: 指定した degree で product を呼び出す
+        /// - Then: その degree までに切り詰められた係数列が返る
+        #[rstest]
+        #[case::degree_zero(0, vec![1])]
+        #[case::degree_one(1, vec![1, 2])]
+        fn truncates_result_to_specified_degree(#[case] degree: usize, #[case] expected: Vec<u32>) {
             // Given
             let polynomials = vec![FPS::new(vec![1, 1]), FPS::new(vec![1, 1])];
             // When
-            let result_degree_0 = FPS::product(polynomials.clone(), 0);
-            let result_degree_1 = FPS::product(polynomials, 1);
+            let result = FPS::product(polynomials, degree);
             // Then
-            assert_eq!(FPS::new(vec![1]), result_degree_0);
-            assert_eq!(FPS::new(vec![1, 2]), result_degree_1);
+            assert_eq!(FPS::new(expected), result);
         }
 
         /// Scenario: degree + 1 が MAX_NTT_LEN を超えるとパニックする

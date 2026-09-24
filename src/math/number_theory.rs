@@ -167,21 +167,23 @@ mod tests {
             assert_eq!(0, result);
         }
 
-        /// Scenario: `u128` の範囲に収まる大きな値でも正しく計算できる (境界値)。
-        /// - Given: `u128::MAX` を含む大きな値の組み合わせがある。
+        /// Scenario: 大きな値の組み合わせでも最大公約数を正しく計算できる (境界値)。
+        /// - Given: `u128::MAX` や共通因子を含む大きな値の組み合わせがある。
         /// - When: `gcd` を呼ぶ。
-        /// - Then: 期待した最大公約数が返る。
-        #[test]
-        fn returns_correct_value_for_large_numbers() {
+        /// - Then: 各ケースで期待した最大公約数が返る。
+        #[rstest]
+        #[case::max_and_one(u128::MAX, 1, 1)]
+        #[case::one_and_max(1, u128::MAX, 1)]
+        #[case::common_power_of_two(3 * (1 << 125), 5 * (1 << 125), 1 << 125)]
+        fn returns_correct_value_for_large_numbers(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: u128,
+        ) {
             // Given, When
-            let result_with_max = gcd(u128::MAX, 1);
-            let result_with_max_swapped = gcd(1, u128::MAX);
-            let result_with_common_power_of_two = gcd(3 * (1 << 125), 5 * (1 << 125));
-
+            let result = gcd(a, b);
             // Then
-            assert_eq!(1, result_with_max);
-            assert_eq!(1, result_with_max_swapped);
-            assert_eq!(1 << 125, result_with_common_power_of_two);
+            assert_eq!(expected, result);
         }
     }
 
@@ -286,25 +288,30 @@ mod tests {
             assert_eq!(Some(0), result);
         }
 
-        /// Scenario: `u128` の範囲に収まる大きな値でもオーバーフローせずに計算できる (境界値)。
-        /// - Given: `2^64` 未満、および `2^128` 未満の最大の整数を含む組み合わせがある。
+        /// Scenario: 大きな値でもオーバーフローせずに最小公倍数を計算できる (境界値)。
+        /// - Given: `2^64` 未満の近接値、または `2^128` 未満の大きな値がある。
         /// - When: `lcm` を呼ぶ。
-        /// - Then: 期待した最小公倍数が `Some` で返る。
-        #[test]
-        fn returns_correct_value_for_large_numbers_within_range() {
-            // Given
-            // `2^{64}` 未満の最大の整数
-            let p = 18446744073709551557_u128;
-            // `2^{128}` 未満の最大の整数
-            let q = 340282366920938463463374607431768211297_u128;
-
-            // When
-            let result_below_2_pow_64 = lcm(p - 1, p);
-            let result_below_2_pow_128 = lcm(q, q);
-
+        /// - Then: 各ケースで期待した最小公倍数が `Some` で返る。
+        #[rstest]
+        #[case::adjacent_large_values(
+            18446744073709551556_u128,
+            18446744073709551557,
+            Some(18446744073709551556_u128 * 18446744073709551557),
+        )]
+        #[case::equal_values_near_u128_max(
+            340282366920938463463374607431768211297_u128,
+            340282366920938463463374607431768211297,
+            Some(340282366920938463463374607431768211297)
+        )]
+        fn returns_correct_value_for_large_numbers_within_range(
+            #[case] a: u128,
+            #[case] b: u128,
+            #[case] expected: Option<u128>,
+        ) {
+            // Given, When
+            let result = lcm(a, b);
             // Then
-            assert_eq!(Some((p - 1) * p), result_below_2_pow_64);
-            assert_eq!(Some(q), result_below_2_pow_128);
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 最小公倍数が `u128` の範囲を超過する場合、`None` を返す (異常系)。

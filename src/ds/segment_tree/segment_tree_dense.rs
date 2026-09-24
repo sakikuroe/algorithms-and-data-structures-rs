@@ -651,20 +651,26 @@ mod tests {
     // get のテスト: 戻り値, および異常系を検証する。
     mod get {
         use super::*;
+        use rstest::rstest;
 
-        /// Scenario: 設定した葉の値をそのまま取得できる。
+        /// Scenario: 設定した葉の値を対応するインデックスから取得できる。
         /// - Given: `[1, 10, 100, 1000, 10000]` を設定し `build` した `sut` がある。
-        /// - When: 各インデックスに対して `get` を呼ぶ。
-        /// - Then: 設定した値がそのまま返る。
-        #[test]
-        fn returns_value_set_at_leaf() {
+        /// - When: 指定したインデックスに対して `get` を呼ぶ。
+        /// - Then: そのインデックスに設定した値が返る。
+        #[rstest]
+        #[case::first(0, 1_i64)]
+        #[case::second(1, 10)]
+        #[case::third(2, 100)]
+        #[case::fourth(3, 1000)]
+        #[case::fifth(4, 10000)]
+        fn returns_value_set_at_leaf(#[case] index: usize, #[case] expected: i64) {
             // Given
             let initial_data = vec![1, 10, 100, 1000, 10000];
             let sut = create_dense_tree::<monoid::AddMonoid>(&initial_data);
-            // When, Then
-            for (i, &expected) in initial_data.iter().enumerate() {
-                assert_eq!(expected, sut.get(i));
-            }
+            // When
+            let result = sut.get(index);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 範囲外のインデックスを指定するとパニックする (異常系)。
