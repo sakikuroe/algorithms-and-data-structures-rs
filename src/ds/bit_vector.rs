@@ -13,15 +13,16 @@ const MASKS: [u64; u64::BITS as usize] = {
 /// 0 と 1 からなるビット列を効率的に格納し, クエリを実行するためのデータ構造である.
 ///
 /// `BitVector` は 64 ビットのブロックごとに 1 の累積和を事前計算することで,
-/// 高速な `sum` クエリを可能にする.
+/// 高速な `rank` クエリを可能にする.
 #[derive(Clone)]
 pub struct BitVector {
+    /// 64 ビット単位にパックしたビット列。
     bits: Vec<u64>,
 
-    // 各ブロックの末尾までに含まれる 1 の累積数を保持する。
+    /// 各ブロックの開始位置より前に含まれる `1` の累積数。
     cumulative_sums: Vec<u32>,
 
-    // ビット列の長さを保持する。
+    /// 元のビット列の長さ。
     len: usize,
 }
 
@@ -153,23 +154,25 @@ impl BitVector {
     ///
     /// `words` は列のビットをリトルエンディアン順に保持する。つまり、要素 `k` は
     /// ワード `k / 64` のビット `k % 64` に対応する。必要なワード数に満たない場合は、
-    /// 不足分を 0 で補う。
+    /// 不足分を 0 で補う。必要なワード数を超える末尾のワードは切り捨てる。
     /// `new` が `0` と `1` を要素ごとに受け取ってワードへ詰めるのに対し、このメソッドは
     /// 既にワードへパックされたビット列を受け取る。Wavelet Matrix の構築時に使用する。
     ///
     /// # Args
     /// - `words`: ビット列を 64 ビット単位で格納したワード列。
-    /// - `len`: 作成するビット列の長さ。`2^32` 未満でなければならない。
+    /// - `len`: 作成するビット列の長さ。`2^32` 未満でなければならない。この制約は
+    ///   呼び出し側の事前条件であり、デバッグビルドでのみ検査される。
     ///
     /// # Returns
     /// `words` から作成した `BitVector` を返す。
     ///
     /// # Examples
     /// ```rust
-    /// use anmitsu::ds::bit_vector;
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
     ///
-    /// let bits = bit_vector::BitVector::new(&[1, 0, 1, 0]);
-    /// assert_eq!(2, bits.rank(4));
+    /// // Wavelet Matrix は各レベルのビットをワードに詰めて内部の BitVector へ渡す。
+    /// let matrix = WaveletMatrix::new(&[1, 0, 1, 0]);
+    /// assert_eq!(2, matrix.count(.., 1..=1));
     /// ```
     pub(super) fn from_words(mut words: Vec<u64>, len: usize) -> Self {
         debug_assert!(len < (1 << u32::BITS as usize));

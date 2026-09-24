@@ -5,10 +5,15 @@ use super::{bit_vector, wavelet_matrix_range};
 /// 値のシーケンスを表現し、範囲内の値の順位クエリをサポートするデータ構造である。
 #[derive(Clone)]
 pub struct WaveletMatrix {
+    /// 各圧縮値を表すビットレベル数。空入力でも探索経路を統一するため 1 以上である。
     pub(super) height: usize,
+    /// 上位ビットから順に並べた各レベルのビット列。
     pub(super) bit_table: Vec<bit_vector::BitVector>,
+    /// 各レベルで 0 側に分割された要素数。
     pub(super) zero_counts: Vec<usize>,
+    /// 圧縮順位から元の値へ戻すための、昇順かつ重複のない値列。
     pub(super) sorted_v: Vec<usize>,
+    /// 元のシーケンスの要素数。
     pub(super) len: usize,
 }
 
@@ -18,14 +23,17 @@ impl WaveletMatrix {
     /// 入力値を座標圧縮し、圧縮値の各ビットを上位から順に並べたビット列を構築する。
     ///
     /// # Args
-    /// - `v`: 元の順序を保ったまま格納する値のスライス。
+    /// - `v`: 元の順序を保ったまま格納する値のスライス。長さは `2^32` 未満でなければならない。
+    ///
+    /// # Panics
+    /// `v` の長さが `2^32` 以上の場合、デバッグビルドでパニックする。
     ///
     /// # Returns
     /// `v` の要素を格納した `WaveletMatrix` を返す。
     ///
     /// # Complexity
-    /// - 時間計算量: $O(N \log U)$ である。$N$ は `v` の長さ、$U$ は異なる値の個数である。
-    /// - 空間計算量: $O(N \log U)$ である。各ビットレベルに `N` 個のビットを保持する。
+    /// - 時間計算量: $O(N \log N + N \log(U + 1))$ である。$N$ は `v` の長さ、$U$ は異なる値の個数である。
+    /// - 空間計算量: $O(N \log(U + 1))$ である。各ビットレベルに `N` 個のビットを保持する。
     ///
     /// # Examples
     /// ```rust
@@ -116,6 +124,10 @@ impl WaveletMatrix {
     /// # Returns
     /// 構築時に渡されたスライスの長さを返す。
     ///
+    /// # Complexity
+    /// - 時間計算量: O(1) である。
+    /// - 空間計算量: O(1) である。
+    ///
     /// # Examples
     /// ```rust
     /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
@@ -131,6 +143,10 @@ impl WaveletMatrix {
     ///
     /// # Returns
     /// 要素数が 0 の場合は `true`、それ以外の場合は `false` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(1) である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -154,6 +170,10 @@ impl WaveletMatrix {
     ///
     /// # Returns
     /// 指定位置の値を `Some` で返す。位置が範囲外の場合は `None` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -194,7 +214,27 @@ impl WaveletMatrix {
         Some(self.sorted_v[compressed_value])
     }
 
-    /// 値の圧縮インデックスが `upper` 未満となる要素の個数を返す。
+    /// 有効なインデックス範囲で、圧縮順位が `upper` 未満となる要素の個数を返す。
+    ///
+    /// # Args
+    /// - `l`: 対象となる半開インデックス範囲の開始位置。
+    /// - `r`: 対象となる半開インデックス範囲の終了位置。`l <= r <= self.len` を満たす。
+    /// - `upper`: 圧縮順位の排他的上限。種類数以上の場合は範囲内の全要素を対象とする。
+    ///
+    /// # Returns
+    /// `[l, r)` 内で圧縮順位が `upper` 未満となる要素数を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[2, 5, 3]);
+    /// assert_eq!(2, matrix.count_less_than(0..3, 5));
+    /// ```
     fn count_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         // 空区間や圧縮順位 0 未満には該当要素がない。
         if r <= l || upper == 0 {
@@ -232,6 +272,28 @@ impl WaveletMatrix {
     }
 
     /// 共通する上位ビットの走査を共有し、圧縮値が `[lower, upper)` に含まれる要素数を返す。
+    ///
+    /// # Args
+    /// - `l`: 対象となる半開インデックス範囲の開始位置。
+    /// - `r`: 対象となる半開インデックス範囲の終了位置。`l <= r <= self.len` を満たす。
+    /// - `lower`: 圧縮順位の包含的下限。
+    /// - `upper`: 圧縮順位の排他的上限。
+    ///
+    /// # Returns
+    /// `[l, r)` のうち圧縮順位が `[lower, upper)` に含まれる要素数を返す。
+    /// 空区間または `upper <= lower` の場合は `0` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[2, 5, 3]);
+    /// assert_eq!(2, matrix.count(0..3, 2..=3));
+    /// ```
     fn count_in_value_range_compressed(
         &self,
         mut l: usize,
@@ -320,11 +382,16 @@ impl WaveletMatrix {
     /// `index_range` に含まれる `upper` 未満の要素数を返す。
     ///
     /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `index_range`: 要素を調べるインデックス範囲。`RangeBounds` の包含・排他境界を
+    ///   使用でき、範囲外の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
     /// - `upper`: 比較に用いる排他的な上限値。
     ///
     /// # Returns
     /// 範囲内で値が `upper` 未満となる要素の個数を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -345,11 +412,16 @@ impl WaveletMatrix {
     /// `index_range` に含まれる `lower` 以上の要素数を返す。
     ///
     /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。
+    /// - `index_range`: 要素を調べるインデックス範囲。境界の包含・排他を指定でき、範囲外
+    ///   の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
     /// - `lower`: 比較に用いる包含的な下限値。
     ///
     /// # Returns
     /// 範囲内で値が `lower` 以上となる要素の個数を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -370,11 +442,16 @@ impl WaveletMatrix {
     /// インデックス範囲と値範囲の両方に含まれる要素数を返す。
     ///
     /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。
-    /// - `value_range`: 数える値の範囲。
+    /// - `index_range`: 要素を調べるインデックス範囲。境界の包含・排他を指定でき、範囲外
+    ///   の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
+    /// - `value_range`: 数える値の範囲。包含・排他・無制限の境界を指定できる。
     ///
     /// # Returns
     /// 両方の範囲を満たす要素の個数を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -402,12 +479,17 @@ impl WaveletMatrix {
     /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
     ///
     /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。
-    /// - `value_range`: 順位付けの対象とする値の範囲。
+    /// - `index_range`: 要素を調べるインデックス範囲。境界の包含・排他を指定でき、範囲外
+    ///   の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
+    /// - `value_range`: 順位付けの対象とする値の範囲。包含・排他・無制限の境界を指定できる。
     /// - `k`: 昇順に並べたときの 0 始まりの順位。
     ///
     /// # Returns
     /// 該当する順位の値を `Some` で返す。該当する要素がない場合は `None` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -437,12 +519,17 @@ impl WaveletMatrix {
     /// `k` は 0 始まりであり、対象要素が存在しない場合は `None` を返す。
     ///
     /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。
-    /// - `value_range`: 順位付けの対象とする値の範囲。
+    /// - `index_range`: 要素を調べるインデックス範囲。境界の包含・排他を指定でき、範囲外
+    ///   の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
+    /// - `value_range`: 順位付けの対象とする値の範囲。包含・排他・無制限の境界を指定できる。
     /// - `k`: 降順に並べたときの 0 始まりの順位。
     ///
     /// # Returns
     /// 該当する順位の値を `Some` で返す。該当する要素がない場合は `None` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
     ///
     /// # Examples
     /// ```rust
@@ -467,7 +554,27 @@ impl WaveletMatrix {
         self.get_kth_smallest_compressed(l, r, end - 1 - k)
     }
 
-    /// 値の圧縮インデックスが `k` 番目となる要素を返す。
+    /// `[l, r)` の要素を圧縮順位の昇順に並べたときの `k` 番目の元の値を返す。
+    ///
+    /// # Args
+    /// - `l`: 対象となる半開インデックス範囲の開始位置。
+    /// - `r`: 対象となる半開インデックス範囲の終了位置。
+    /// - `k`: 0 始まりの順位。`k < r - l` である必要がある。
+    ///
+    /// # Returns
+    /// 指定順位の値を `Some` で返す。空範囲または範囲長以上の `k` では `None` を返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
+    /// - 空間計算量: O(1) である。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
+    ///
+    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
+    /// assert_eq!(Some(3), matrix.get_kth_smallest(1..4, .., 1));
+    /// ```
     fn get_kth_smallest_compressed(
         &self,
         mut l: usize,
@@ -512,9 +619,14 @@ impl WaveletMatrix {
     ///
     /// # Args
     /// - `queries`: 半開インデックス範囲と、その範囲内で求める 0 始まりの順位の組。
+    ///   各範囲は `start <= end <= len()` を満たし、各順位は範囲長未満でなければならない。
     ///
     /// # Returns
     /// 入力順に各クエリの順位要素を格納したベクターを返す。
+    ///
+    /// # Complexity
+    /// - 時間計算量: O(Q log U) である。$Q$ はクエリ数、$U$ は異なる値の個数である。
+    /// - 空間計算量: 出力を除き O(1) である。最大 16 件のクエリ状態を同時に保持する。
     ///
     /// # Panics
     /// 範囲外のインデックスや、区間長以上の `k` を指定した場合にパニックする。
