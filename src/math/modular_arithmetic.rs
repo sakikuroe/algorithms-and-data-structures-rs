@@ -248,6 +248,7 @@ mod tests {
     // add_mod のテスト: 戻り値を検証する。
     mod add_mod {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 桁上がりが発生しない典型的な値の和を返す。
         /// - Given: 和が法未満に収まる 2 つの値がある。
@@ -265,16 +266,19 @@ mod tests {
         /// - Given: 和がちょうど法に達する組み合わせと、法を超える組み合わせがある。
         /// - When: `add_mod` を呼ぶ。
         /// - Then: 法で還元された値が返る。
-        #[test]
-        fn returns_reduced_value_when_sum_reaches_modulus() {
-            let cases = [(3_u64, 4_u64, 7_u64, 0_u64), (4, 5, 7, 2)];
-
-            for (a, b, m, expected) in cases {
-                // Given, When
-                let result = add_mod(a, b, m);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::sum_equals_modulus(3, 4, 7, 0)]
+        #[case::sum_exceeds_modulus(4, 5, 7, 2)]
+        fn returns_reduced_value_when_sum_reaches_modulus(
+            #[case] a: u64,
+            #[case] b: u64,
+            #[case] m: u64,
+            #[case] expected: u64,
+        ) {
+            // Given, When
+            let result = add_mod(a, b, m);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: `u64` の加算がオーバーフローする組み合わせでも正しい値を返す (境界値)。
@@ -388,6 +392,7 @@ mod tests {
     // pow_mod のテスト: 戻り値を検証する。
     mod pow_mod {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 指数が `0` の場合、`1 mod m` を返す (境界値)。
         /// - Given: 指数が `0` である。
@@ -405,16 +410,19 @@ mod tests {
         /// - Given: 底、指数、法の典型的な組み合わせがある。
         /// - When: `pow_mod` を呼ぶ。
         /// - Then: 期待したべき乗の剰余が返る。
-        #[test]
-        fn returns_correct_power_for_typical_values() {
-            let cases = [(2_u64, 10_u64, 7_u64, 2_u64), (3, 4, 5, 1)];
-
-            for (a, n, m, expected) in cases {
-                // Given, When
-                let result = pow_mod(a, n, m);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::two_to_ten_mod_seven(2, 10, 7, 2)]
+        #[case::three_to_four_mod_five(3, 4, 5, 1)]
+        fn returns_correct_power_for_typical_values(
+            #[case] a: u64,
+            #[case] n: u64,
+            #[case] m: u64,
+            #[case] expected: u64,
+        ) {
+            // Given, When
+            let result = pow_mod(a, n, m);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 法が `1` の場合、常に `0` を返す (境界値)。
@@ -433,22 +441,22 @@ mod tests {
     // mod_inv のテスト: 戻り値を検証する。
     mod mod_inv {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な値に対して `a * mod_inv(a, m) ≡ 1 (mod m)` を満たす逆元を返す。
         /// - Given: 法が素数であり、`a` がその法と互いに素である。
         /// - When: `mod_inv` を呼ぶ。
         /// - Then: 返った値が `a` の逆元としての性質を満たす。
-        #[test]
-        fn satisfies_modular_inverse_property_for_typical_values() {
-            let cases = [(2_u64, 7_u64), (3, 7), (1, 998244353), (5, 998244353)];
-
-            for (a, m) in cases {
-                // Given, When
-                let inv = mod_inv(a, m);
-
-                // Then
-                assert_eq!(1, mul_mod(a, inv, m));
-            }
+        #[rstest]
+        #[case::two_mod_seven(2, 7)]
+        #[case::three_mod_seven(3, 7)]
+        #[case::one_mod_998244353(1, 998244353)]
+        #[case::five_mod_998244353(5, 998244353)]
+        fn satisfies_modular_inverse_property_for_typical_values(#[case] a: u64, #[case] m: u64) {
+            // Given, When
+            let inv = mod_inv(a, m);
+            // Then
+            assert_eq!(1, mul_mod(a, inv, m));
         }
 
         /// Scenario: `a` が `1` の場合、逆元は `1` になる (境界値)。
@@ -467,6 +475,7 @@ mod tests {
     // crt のテスト: 戻り値を検証する。
     mod crt {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 法が互いに素な複数の合同式に対して、統合された合同式を返す。
         /// - Given: 互いに素な法を持つ 3 つの合同式がある。
@@ -484,19 +493,18 @@ mod tests {
         /// - Given: `gcd` が `1` より大きい法を持つ、矛盾しない合同式の組がある。
         /// - When: `crt` を呼ぶ。
         /// - Then: `Some((r, lcm))` の形で、元の連立合同式と同値な解が返る。
-        #[test]
-        fn returns_merged_congruence_for_non_coprime_moduli_with_solution() {
-            let cases = [
-                (vec![1_u64, 4], vec![3_u64, 6], Some((4_u64, 6_u64))),
-                (vec![2, 5, 0], vec![4, 9, 10], Some((50, 180))),
-            ];
-
-            for (remainders, moduli, expected) in cases {
-                // Given, When
-                let result = crt(&remainders, &moduli);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::two_congruences(vec![1, 4], vec![3, 6], Some((4, 6)))]
+        #[case::three_congruences(vec![2, 5, 0], vec![4, 9, 10], Some((50, 180)))]
+        fn returns_merged_congruence_for_non_coprime_moduli_with_solution(
+            #[case] remainders: Vec<u64>,
+            #[case] moduli: Vec<u64>,
+            #[case] expected: Option<(u64, u64)>,
+        ) {
+            // Given, When
+            let result = crt(&remainders, &moduli);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 合同式が矛盾する場合、`None` を返す (異常系)。

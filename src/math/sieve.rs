@@ -121,6 +121,7 @@ mod tests {
     // smallest_prime_factors のテスト: 戻り値を検証する。
     mod smallest_prime_factors {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `n = 0` の場合、`spf[0] = 0` のみを持つ `Vec` を返す (境界値)。
         /// - Given: `n` が `0` である。
@@ -170,20 +171,22 @@ mod tests {
         /// - Given: `n` が複数の合成数を含む値である。
         /// - When: `smallest_prime_factors` を呼ぶ。
         /// - Then: 各合成数について、既知の最小素因数と一致する。
-        #[test]
-        fn returns_smallest_prime_factor_for_composite_indices() {
-            let cases = [(4_usize, 2_usize), (9, 3), (15, 3), (21, 3), (25, 5)];
-
-            for (i, expected) in cases {
-                // Given
-                let n = 30;
-
-                // When
-                let spf = smallest_prime_factors(n);
-
-                // Then
-                assert_eq!(expected, spf[i]);
-            }
+        #[rstest]
+        #[case::four(4, 2)]
+        #[case::nine(9, 3)]
+        #[case::fifteen(15, 3)]
+        #[case::twenty_one(21, 3)]
+        #[case::twenty_five(25, 5)]
+        fn returns_smallest_prime_factor_for_composite_indices(
+            #[case] i: usize,
+            #[case] expected: usize,
+        ) {
+            // Given
+            let n = 30;
+            // When
+            let spf = smallest_prime_factors(n);
+            // Then
+            assert_eq!(expected, spf[i]);
         }
     }
 

@@ -209,6 +209,7 @@ mod tests {
     // sum_arithmetic のテスト: 戻り値を検証する。
     mod sum_arithmetic {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 項数が `0` の場合、和は `0` になる (境界値)。
         /// - Given: 項数 `n` が `0` である。
@@ -227,29 +228,28 @@ mod tests {
         ///   両方が含まれる。
         /// - When: `sum_arithmetic` を呼ぶ。
         /// - Then: 期待した和が返る。
-        #[test]
-        fn returns_correct_sum_for_typical_values() {
-            let cases = [
-                // n = 5 (奇数): 1+2+3+4+5 = 15
-                (1_u64, 1_u64, 5_u64, 1_000_000_007_u32, 15_u32),
-                // n = 4 (偶数): 2+5+8+11 = 26
-                (2, 3, 4, 1_000_000_007, 26),
-                // 法による還元が発生する場合
-                (5, 5, 100, 7, 1),
-            ];
-
-            for (a, d, n, modulo, expected) in cases {
-                // Given, When
-                let result = sum_arithmetic(a, d, n, modulo);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::odd_term_count(1, 1, 5, 1_000_000_007, 15)]
+        #[case::even_term_count(2, 3, 4, 1_000_000_007, 26)]
+        #[case::reduced_modulo_seven(5, 5, 100, 7, 1)]
+        fn returns_correct_sum_for_typical_values(
+            #[case] a: u64,
+            #[case] d: u64,
+            #[case] n: u64,
+            #[case] modulo: u32,
+            #[case] expected: u32,
+        ) {
+            // Given, When
+            let result = sum_arithmetic(a, d, n, modulo);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // sum_geometric のテスト: 戻り値を検証する。
     mod sum_geometric {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 項数が `0` の場合、和は `0` になる (境界値)。
         /// - Given: 項数 `n` が `0` である。
@@ -279,29 +279,28 @@ mod tests {
         /// - Given: 初項・公比・項数・法の典型的な組み合わせがある。
         /// - When: `sum_geometric` を呼ぶ。
         /// - Then: 期待した和が返る。
-        #[test]
-        fn returns_correct_sum_for_typical_values() {
-            let cases = [
-                // 1+2+4+8+16 = 31
-                (1_u64, 2_u64, 5_u64, 1_000_000_007_u32, 31_u32),
-                // 3+15+75 = 93
-                (3, 5, 3, 1_000_000_007, 93),
-                // 法による還元が発生する場合
-                (2, 3, 10, 13, 2),
-            ];
-
-            for (a, r, n, modulo, expected) in cases {
-                // Given, When
-                let result = sum_geometric(a, r, n, modulo);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::powers_of_two(1, 2, 5, 1_000_000_007, 31)]
+        #[case::multiples_of_three(3, 5, 3, 1_000_000_007, 93)]
+        #[case::reduced_modulo_thirteen(2, 3, 10, 13, 2)]
+        fn returns_correct_sum_for_typical_values(
+            #[case] a: u64,
+            #[case] r: u64,
+            #[case] n: u64,
+            #[case] modulo: u32,
+            #[case] expected: u32,
+        ) {
+            // Given, When
+            let result = sum_geometric(a, r, n, modulo);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // sum_arithmetic_geometric のテスト: 戻り値を検証する。
     mod sum_arithmetic_geometric {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 項数が `0` の場合、和は `0` になる (境界値)。
         /// - Given: 項数 `n` が `0` である。
@@ -343,22 +342,23 @@ mod tests {
         /// - Given: 等差数列・等比数列・項数・法の典型的な組み合わせがある。
         /// - When: `sum_arithmetic_geometric` を呼ぶ。
         /// - Then: 期待した和が返る。
-        #[test]
-        fn returns_correct_sum_for_typical_values() {
-            let cases = [
-                // (1+0)*1 + (1+1)*2 + (1+2)*4 + (1+3)*8 = 49
-                (1_u64, 1_u64, 1_u64, 2_u64, 4_u64, 1_000_000_007_u32, 49_u32),
-                (2, 1, 3, 2, 5, 1_000_000_007, 480),
-                // 法による還元が発生する場合
-                (1, 2, 1, 3, 6, 17, 8),
-            ];
-
-            for (a, d, b, r, n, modulo, expected) in cases {
-                // Given, When
-                let result = sum_arithmetic_geometric(a, d, b, r, n, modulo);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::four_terms(1, 1, 1, 2, 4, 1_000_000_007, 49)]
+        #[case::five_terms(2, 1, 3, 2, 5, 1_000_000_007, 480)]
+        #[case::reduced_modulo_seventeen(1, 2, 1, 3, 6, 17, 8)]
+        fn returns_correct_sum_for_typical_values(
+            #[case] a: u64,
+            #[case] d: u64,
+            #[case] b: u64,
+            #[case] r: u64,
+            #[case] n: u64,
+            #[case] modulo: u32,
+            #[case] expected: u32,
+        ) {
+            // Given, When
+            let result = sum_arithmetic_geometric(a, d, b, r, n, modulo);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 }

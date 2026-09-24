@@ -165,111 +165,111 @@ mod tests {
     // kth_root のテスト: 戻り値を検証する。
     mod kth_root {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `0` に対しては `k` によらず `0` を返す (境界値)。
         /// - Given: `0` と、いくつかの `k` がある。
         /// - When: `kth_root` を呼ぶ。
         /// - Then: `0` が返る。
-        #[test]
-        fn returns_zero_for_zero() {
-            let cases = [1_u64, 2, 5, 64];
-
-            for k in cases {
-                // Given, When
-                let result = kth_root(0, k);
-                // Then
-                assert_eq!(0, result);
-            }
+        #[rstest]
+        #[case::first_root(1)]
+        #[case::square_root(2)]
+        #[case::fifth_root(5)]
+        #[case::sixty_fourth_root(64)]
+        fn returns_zero_for_zero(#[case] k: u64) {
+            // Given, When
+            let result = kth_root(0, k);
+            // Then
+            assert_eq!(0, result);
         }
 
         /// Scenario: `k = 1` の場合は `a` 自身を返す (境界値)。
         /// - Given: いくつかの `a` がある。
         /// - When: `k = 1` として `kth_root` を呼ぶ。
         /// - Then: `a` がそのまま返る。
-        #[test]
-        fn returns_itself_when_k_is_one() {
-            let cases = [1_u64, 12345, u64::MAX];
-
-            for a in cases {
-                // Given, When
-                let result = kth_root(a, 1);
-                // Then
-                assert_eq!(a, result);
-            }
+        #[rstest]
+        #[case::one(1)]
+        #[case::typical_value(12345)]
+        #[case::maximum(u64::MAX)]
+        fn returns_itself_when_k_is_one(#[case] a: u64) {
+            // Given, When
+            let result = kth_root(a, 1);
+            // Then
+            assert_eq!(a, result);
         }
 
         /// Scenario: 完全累乗数に対しては、その底を厳密に返す。
         /// - Given: `b^k` の形で表せる典型的な完全累乗数がある。
         /// - When: `kth_root` を呼ぶ。
         /// - Then: `b` が返る。
-        #[test]
-        fn returns_exact_base_for_perfect_powers() {
-            let cases = [
-                (8_u64, 3_u64, 2_u64),
-                (27, 3, 3),
-                (1_000_000_000_000_u64, 4, 1000),
-                (81, 4, 3),
-            ];
-
-            for (a, k, expected) in cases {
-                // Given, When
-                let result = kth_root(a, k);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::two_cubed(8, 3, 2)]
+        #[case::three_cubed(27, 3, 3)]
+        #[case::thousand_to_fourth(1_000_000_000_000, 4, 1000)]
+        #[case::three_to_fourth(81, 4, 3)]
+        fn returns_exact_base_for_perfect_powers(
+            #[case] a: u64,
+            #[case] k: u64,
+            #[case] expected: u64,
+        ) {
+            // Given, When
+            let result = kth_root(a, k);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 完全累乗数でない値に対しては、切り捨てた値を返す。
         /// - Given: `k` 乗根が整数にならない値がある。
         /// - When: `kth_root` を呼ぶ。
         /// - Then: 真の値を切り捨てた整数が返る。
-        #[test]
-        fn returns_floored_value_for_non_perfect_powers() {
-            let cases = [(10_u64, 2_u64, 3_u64), (7, 3, 1), (26, 3, 2), (28, 3, 3)];
-
-            for (a, k, expected) in cases {
-                // Given, When
-                let result = kth_root(a, k);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::ten_square_root(10, 2, 3)]
+        #[case::seven_cube_root(7, 3, 1)]
+        #[case::twenty_six_cube_root(26, 3, 2)]
+        #[case::twenty_eight_cube_root(28, 3, 3)]
+        fn returns_floored_value_for_non_perfect_powers(
+            #[case] a: u64,
+            #[case] k: u64,
+            #[case] expected: u64,
+        ) {
+            // Given, When
+            let result = kth_root(a, k);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: `k >= 64` の場合、`a >= 1` であれば常に `1` を返す (境界値)。
         /// - Given: `k` が `64` 以上であり、`a` が `1` 以上である。
         /// - When: `kth_root` を呼ぶ。
         /// - Then: `1` が返る。
-        #[test]
-        fn returns_one_when_k_is_at_least_64() {
-            let cases = [(1_u64, 64_u64), (u64::MAX, 64), (u64::MAX, 100)];
-
-            for (a, k) in cases {
-                // Given, When
-                let result = kth_root(a, k);
-                // Then
-                assert_eq!(1, result);
-            }
+        #[rstest]
+        #[case::one_at_sixty_four(1, 64)]
+        #[case::maximum_at_sixty_four(u64::MAX, 64)]
+        #[case::maximum_at_one_hundred(u64::MAX, 100)]
+        fn returns_one_when_k_is_at_least_64(#[case] a: u64, #[case] k: u64) {
+            // Given, When
+            let result = kth_root(a, k);
+            // Then
+            assert_eq!(1, result);
         }
 
         /// Scenario: `u64` の範囲に収まる大きな値でも正しく計算できる (境界値)。
         /// - Given: `u64::MAX` 付近の大きな値がある。
         /// - When: `kth_root` を呼ぶ。
         /// - Then: 返った値 `x` が `x^k <= a < (x+1)^k` を満たす。
-        #[test]
-        fn returns_correct_value_for_values_near_u64_max() {
-            let cases = [(u64::MAX, 2_u64), (u64::MAX, 3), (u64::MAX - 1, 63)];
-
-            for (a, k) in cases {
-                // Given, When
-                let result = kth_root(a, k);
-
-                // Then
-                assert!(pow_leq(result, k, a), "{result}^{k} は {a} を超えている");
-                assert!(
-                    !pow_leq(result + 1, k, a),
-                    "{result} は {a} の {k} 乗根として大きすぎる"
-                );
-            }
+        #[rstest]
+        #[case::maximum_square_root(u64::MAX, 2)]
+        #[case::maximum_cube_root(u64::MAX, 3)]
+        #[case::below_max_sixty_third_root(u64::MAX - 1, 63)]
+        fn returns_correct_value_for_values_near_u64_max(#[case] a: u64, #[case] k: u64) {
+            // Given, When
+            let result = kth_root(a, k);
+            // Then
+            assert!(pow_leq(result, k, a), "{result}^{k} は {a} を超えている");
+            assert!(
+                !pow_leq(result + 1, k, a),
+                "{result} は {a} の {k} 乗根として大きすぎる"
+            );
         }
     }
 }

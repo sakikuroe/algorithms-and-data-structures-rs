@@ -712,21 +712,20 @@ mod tests {
     // is_prime のテスト: 戻り値を検証する。
     mod is_prime {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `0` と `1` は素数ではない (境界値)。
         /// - Given: `0` と `1` がある。
         /// - When: `is_prime` を呼ぶ。
         /// - Then: `false` が返る。
-        #[test]
-        fn returns_false_for_zero_and_one() {
-            let cases = [0_u64, 1_u64];
-
-            for n in cases {
-                // Given, When
-                let result = is_prime(n);
-                // Then
-                assert!(!result);
-            }
+        #[rstest]
+        #[case::zero(0)]
+        #[case::one(1)]
+        fn returns_false_for_zero_and_one(#[case] n: u64) {
+            // Given, When
+            let result = is_prime(n);
+            // Then
+            assert!(!result);
         }
 
         /// Scenario: `2` は素数である (境界値)。
@@ -745,48 +744,49 @@ mod tests {
         /// - Given: 典型的な素数がいくつかある。
         /// - When: `is_prime` を呼ぶ。
         /// - Then: `true` が返る。
-        #[test]
-        fn returns_true_for_typical_primes() {
-            let cases = [3_u64, 7, 13, 97, 998244353];
-
-            for n in cases {
-                // Given, When
-                let result = is_prime(n);
-                // Then
-                assert!(result);
-            }
+        #[rstest]
+        #[case::three(3)]
+        #[case::seven(7)]
+        #[case::thirteen(13)]
+        #[case::ninety_seven(97)]
+        #[case::modulus_998244353(998244353)]
+        fn returns_true_for_typical_primes(#[case] n: u64) {
+            // Given, When
+            let result = is_prime(n);
+            // Then
+            assert!(result);
         }
 
         /// Scenario: 偶数の合成数に対して `false` を返す。
         /// - Given: `2` より大きい偶数がある。
         /// - When: `is_prime` を呼ぶ。
         /// - Then: `false` が返る。
-        #[test]
-        fn returns_false_for_even_composites() {
-            let cases = [4_u64, 100, 998244352];
-
-            for n in cases {
-                // Given, When
-                let result = is_prime(n);
-                // Then
-                assert!(!result);
-            }
+        #[rstest]
+        #[case::four(4)]
+        #[case::one_hundred(100)]
+        #[case::modulus_minus_one(998244352)]
+        fn returns_false_for_even_composites(#[case] n: u64) {
+            // Given, When
+            let result = is_prime(n);
+            // Then
+            assert!(!result);
         }
 
         /// Scenario: フェルマーテストを誤って通過しやすいカーマイケル数に対して `false` を返す。
         /// - Given: カーマイケル数がいくつかある。
         /// - When: `is_prime` を呼ぶ。
         /// - Then: `false` が返る。
-        #[test]
-        fn returns_false_for_carmichael_numbers() {
-            let cases = [561_u64, 1105, 1729, 2465, 41041];
-
-            for n in cases {
-                // Given, When
-                let result = is_prime(n);
-                // Then
-                assert!(!result);
-            }
+        #[rstest]
+        #[case::five_hundred_sixty_one(561)]
+        #[case::one_thousand_one_hundred_five(1105)]
+        #[case::one_thousand_seven_hundred_twenty_nine(1729)]
+        #[case::two_thousand_four_hundred_sixty_five(2465)]
+        #[case::forty_one_thousand_forty_one(41041)]
+        fn returns_false_for_carmichael_numbers(#[case] n: u64) {
+            // Given, When
+            let result = is_prime(n);
+            // Then
+            assert!(!result);
         }
 
         /// Scenario: `u64` の範囲に収まる大きな素数・合成数でも正しく判定できる (境界値)。
@@ -834,57 +834,53 @@ mod tests {
     // factorize のテスト: 戻り値を検証する。
     mod factorize {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: `0` と `1` は空の `HashMap` を返す (境界値)。
         /// - Given: `0` と `1` がある。
         /// - When: `factorize` を呼ぶ。
         /// - Then: 空の `HashMap` が返る。
-        #[test]
-        fn returns_empty_map_for_zero_and_one() {
-            let cases = [0_u64, 1_u64];
-
-            for n in cases {
-                // Given, When
-                let result = factorize(n);
-                // Then
-                assert_eq!(HashMap::new(), result);
-            }
+        #[rstest]
+        #[case::zero(0)]
+        #[case::one(1)]
+        fn returns_empty_map_for_zero_and_one(#[case] n: u64) {
+            // Given, When
+            let result = factorize(n);
+            // Then
+            assert_eq!(HashMap::new(), result);
         }
 
         /// Scenario: 素数はそれ自身を指数 `1` として返す (境界値)。
         /// - Given: 素数がある。
         /// - When: `factorize` を呼ぶ。
         /// - Then: `{n: 1}` が返る。
-        #[test]
-        fn returns_itself_for_prime_numbers() {
-            let cases = [2_u64, 17, 998244353];
-
-            for n in cases {
-                // Given, When
-                let result = factorize(n);
-                // Then
-                assert_eq!(HashMap::from([(n, 1)]), result);
-            }
+        #[rstest]
+        #[case::two(2)]
+        #[case::seventeen(17)]
+        #[case::modulus_998244353(998244353)]
+        fn returns_itself_for_prime_numbers(#[case] n: u64) {
+            // Given, When
+            let result = factorize(n);
+            // Then
+            assert_eq!(HashMap::from([(n, 1)]), result);
         }
 
         /// Scenario: 典型的な合成数を試し割り法の範囲内で正しく素因数分解する。
         /// - Given: 複数の素因数からなる典型的な合成数がある。
         /// - When: `factorize` を呼ぶ。
         /// - Then: 期待した素因数分解が返る。
-        #[test]
-        fn returns_correct_factorization_for_typical_values() {
-            let cases = [
-                (12_u64, HashMap::from([(2, 2), (3, 1)])),
-                (100, HashMap::from([(2, 2), (5, 2)])),
-                (360, HashMap::from([(2, 3), (3, 2), (5, 1)])),
-            ];
-
-            for (n, expected) in cases {
-                // Given, When
-                let result = factorize(n);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::twelve(12, HashMap::from([(2, 2), (3, 1)]))]
+        #[case::one_hundred(100, HashMap::from([(2, 2), (5, 2)]))]
+        #[case::three_hundred_sixty(360, HashMap::from([(2, 3), (3, 2), (5, 1)]))]
+        fn returns_correct_factorization_for_typical_values(
+            #[case] n: u64,
+            #[case] expected: HashMap<u64, usize>,
+        ) {
+            // Given, When
+            let result = factorize(n);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 完全平方数を正しく素因数分解する。
@@ -910,27 +906,23 @@ mod tests {
         /// - Given: 2 つの大きな素数の積である合成数がある。
         /// - When: `factorize` を呼ぶ。
         /// - Then: 期待した素因数分解が返る。
-        #[test]
-        fn returns_correct_factorization_via_pollards_rho_for_large_semiprimes() {
-            let cases = [
-                // 1000000007, 1000000009 はともに大きな素数である。
-                (
-                    1000000007_u64 * 1000000009,
-                    HashMap::from([(1000000007, 1), (1000000009, 1)]),
-                ),
-                // 999999999000000007 は 1e18 級の大きな素数である。
-                (
-                    999999999000000007_u64 * 2,
-                    HashMap::from([(2, 1), (999999999000000007, 1)]),
-                ),
-            ];
-
-            for (n, expected) in cases {
-                // Given, When
-                let result = factorize(n);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::two_large_prime_factors(
+            1000000007_u64 * 1000000009,
+            HashMap::from([(1000000007, 1), (1000000009, 1)]),
+        )]
+        #[case::twice_large_prime(
+            999999999000000007_u64 * 2,
+            HashMap::from([(2, 1), (999999999000000007, 1)]),
+        )]
+        fn returns_correct_factorization_via_pollards_rho_for_large_semiprimes(
+            #[case] n: u64,
+            #[case] expected: HashMap<u64, usize>,
+        ) {
+            // Given, When
+            let result = factorize(n);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: `2^62` 以上の大きな素因数を含む合成数でも、モンゴメリ乗算
@@ -978,46 +970,41 @@ mod tests {
     // divisors のテスト: 戻り値を検証する。
     mod divisors {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な合成数に対して、昇順に並んだ約数の一覧を返す。
         /// - Given: 複数の素因数からなる典型的な合成数がある。
         /// - When: `divisors` を呼ぶ。
         /// - Then: 期待した約数の一覧が昇順で返る。
-        #[test]
-        fn returns_sorted_divisors_for_typical_values() {
-            let cases = [
-                (12_u64, vec![1_u64, 2, 3, 4, 6, 12]),
-                (
-                    360,
-                    vec![
-                        1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90,
-                        120, 180, 360,
-                    ],
-                ),
-            ];
-
-            for (n, expected) in cases {
-                // Given, When
-                let result = divisors(n);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::twelve(12, vec![1, 2, 3, 4, 6, 12])]
+        #[case::three_hundred_sixty(
+            360,
+            vec![
+                1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90,
+                120, 180, 360,
+            ],
+        )]
+        fn returns_sorted_divisors_for_typical_values(#[case] n: u64, #[case] expected: Vec<u64>) {
+            // Given, When
+            let result = divisors(n);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 素数の約数は `1` と自分自身のみになる。
         /// - Given: 素数がいくつかある。
         /// - When: `divisors` を呼ぶ。
         /// - Then: `[1, n]` が返る。
-        #[test]
-        fn returns_one_and_itself_for_prime_numbers() {
-            let cases = [7_u64, 17, 998244353];
-
-            for n in cases {
-                // Given, When
-                let result = divisors(n);
-                // Then
-                assert_eq!(vec![1, n], result);
-            }
+        #[rstest]
+        #[case::seven(7)]
+        #[case::seventeen(17)]
+        #[case::modulus_998244353(998244353)]
+        fn returns_one_and_itself_for_prime_numbers(#[case] n: u64) {
+            // Given, When
+            let result = divisors(n);
+            // Then
+            assert_eq!(vec![1, n], result);
         }
 
         /// Scenario: `1` の約数は `1` のみになる (境界値)。
@@ -1036,37 +1023,34 @@ mod tests {
     // euler_phi のテスト: 戻り値を検証する。
     mod euler_phi {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な合成数に対して正しい `φ` の値を返す。
         /// - Given: 複数の素因数からなる典型的な合成数がある。
         /// - When: `euler_phi` を呼ぶ。
         /// - Then: 期待した `φ` の値が返る。
-        #[test]
-        fn returns_correct_value_for_typical_values() {
-            let cases = [(12_u64, 4_u64), (9, 6)];
-
-            for (n, expected) in cases {
-                // Given, When
-                let result = euler_phi(n);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::twelve(12, 4)]
+        #[case::nine(9, 6)]
+        fn returns_correct_value_for_typical_values(#[case] n: u64, #[case] expected: u64) {
+            // Given, When
+            let result = euler_phi(n);
+            // Then
+            assert_eq!(expected, result);
         }
 
         /// Scenario: 素数 `p` に対しては `p - 1` を返す。
         /// - Given: 素数がいくつかある。
         /// - When: `euler_phi` を呼ぶ。
         /// - Then: `p - 1` が返る。
-        #[test]
-        fn returns_predecessor_for_prime_numbers() {
-            let cases = [17_u64, 998244353];
-
-            for p in cases {
-                // Given, When
-                let result = euler_phi(p);
-                // Then
-                assert_eq!(p - 1, result);
-            }
+        #[rstest]
+        #[case::seventeen(17)]
+        #[case::modulus_998244353(998244353)]
+        fn returns_predecessor_for_prime_numbers(#[case] p: u64) {
+            // Given, When
+            let result = euler_phi(p);
+            // Then
+            assert_eq!(p - 1, result);
         }
 
         /// Scenario: `1` に対しては `1` を返す (境界値)。
@@ -1087,44 +1071,40 @@ mod tests {
         ///   素因数からなる合成数がある。
         /// - When: `euler_phi` を呼ぶ。
         /// - Then: 期待した `φ` の値が返る。
-        #[test]
-        fn returns_correct_value_without_overflow_for_large_numbers() {
-            let cases = [
-                // 1000000007, 1000000009 はともに大きな素数であり、
-                // φ(p * q) = (p - 1) * (q - 1) である。
-                (1000000007_u64 * 1000000009, 1000000006_u64 * 1000000008),
-                // 999999999000000007 は 1e18 級の大きな素数であり、
-                // φ(2 * p) = p - 1 である。
-                (999999999000000007_u64 * 2, 999999999000000006_u64),
-            ];
-
-            for (n, expected) in cases {
-                // Given, When
-                let result = euler_phi(n);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::two_large_prime_factors(
+            1000000007_u64 * 1000000009,
+            1000000006_u64 * 1000000008,
+        )]
+        #[case::twice_large_prime(999999999000000007_u64 * 2, 999999999000000006)]
+        fn returns_correct_value_without_overflow_for_large_numbers(
+            #[case] n: u64,
+            #[case] expected: u64,
+        ) {
+            // Given, When
+            let result = euler_phi(n);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // is_primitive_root のテスト: 戻り値を検証する。
     mod is_primitive_root {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 原始根に対して `true` を返す。
         /// - Given: 素数 `7` を法とする原始根 (位数が `6` となる元) がある。
         /// - When: `is_primitive_root` を呼ぶ。
         /// - Then: `true` が返る。
-        #[test]
-        fn returns_true_for_primitive_roots() {
-            let cases = [3_u64, 5];
-
-            for a in cases {
-                // Given, When
-                let result = is_primitive_root(a, 7);
-                // Then
-                assert!(result);
-            }
+        #[rstest]
+        #[case::three(3)]
+        #[case::five(5)]
+        fn returns_true_for_primitive_roots(#[case] a: u64) {
+            // Given, When
+            let result = is_primitive_root(a, 7);
+            // Then
+            assert!(result);
         }
 
         /// Scenario: 原始根でない元に対して `false` を返す。
@@ -1132,53 +1112,51 @@ mod tests {
         ///   いくつかある。
         /// - When: `is_primitive_root` を呼ぶ。
         /// - Then: `false` が返る。
-        #[test]
-        fn returns_false_for_non_primitive_roots() {
-            let cases = [1_u64, 2, 4, 6];
-
-            for a in cases {
-                // Given, When
-                let result = is_primitive_root(a, 7);
-                // Then
-                assert!(!result);
-            }
+        #[rstest]
+        #[case::one(1)]
+        #[case::two(2)]
+        #[case::four(4)]
+        #[case::six(6)]
+        fn returns_false_for_non_primitive_roots(#[case] a: u64) {
+            // Given, When
+            let result = is_primitive_root(a, 7);
+            // Then
+            assert!(!result);
         }
 
         /// Scenario: 法が `2` の場合、`1` のみが原始根と判定される (境界値)。
         /// - Given: 法が `2` であり、`a` が `0` または `1` である。
         /// - When: `is_primitive_root` を呼ぶ。
         /// - Then: `a` が `1` のときのみ `true` が返る。
-        #[test]
-        fn returns_true_only_for_one_when_modulus_is_two() {
-            let cases = [(0_u64, false), (1, true)];
-
-            for (a, expected) in cases {
-                // Given, When
-                let result = is_primitive_root(a, 2);
-                // Then
-                assert_eq!(expected, result);
-            }
+        #[rstest]
+        #[case::zero(0, false)]
+        #[case::one(1, true)]
+        fn returns_true_only_for_one_when_modulus_is_two(#[case] a: u64, #[case] expected: bool) {
+            // Given, When
+            let result = is_primitive_root(a, 2);
+            // Then
+            assert_eq!(expected, result);
         }
     }
 
     // find_primitive_root のテスト: 戻り値を検証する。
     mod find_primitive_root {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 見つけた元が、実際に原始根としての性質を満たす。
         /// - Given: 素数がいくつかある。
         /// - When: `find_primitive_root` を呼ぶ。
         /// - Then: 返った元が `is_primitive_root` で `true` と判定される。
-        #[test]
-        fn returns_value_satisfying_is_primitive_root_property() {
-            let cases = [7_u64, 13, 998244353];
-
-            for p in cases {
-                // Given, When
-                let result = find_primitive_root(p);
-                // Then
-                assert!(is_primitive_root(result, p));
-            }
+        #[rstest]
+        #[case::seven(7)]
+        #[case::thirteen(13)]
+        #[case::modulus_998244353(998244353)]
+        fn returns_value_satisfying_is_primitive_root_property(#[case] p: u64) {
+            // Given, When
+            let result = find_primitive_root(p);
+            // Then
+            assert!(is_primitive_root(result, p));
         }
 
         /// Scenario: 法が `2` の場合、`1` を返す (境界値)。

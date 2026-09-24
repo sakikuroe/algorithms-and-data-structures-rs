@@ -398,78 +398,85 @@ mod tests {
     // extended_gcd のテスト: 戻り値を検証する。
     mod extended_gcd {
         use super::*;
+        use rstest::rstest;
 
         /// Scenario: 典型的な正整数の組に対してベズー等式を満たす係数を返す。
         /// - Given: 共通の約数を持つ 2 つの正整数がある。
         /// - When: `extended_gcd` を呼ぶ。
         /// - Then: 期待した係数の組が返る。
-        #[test]
-        fn returns_bezout_coefficients_for_typical_values() {
-            let cases = [
-                (10_i64, 4_i64, 1_i64, -2_i64),
-                (27, 18, 1, -1),
-                (100, 75, 1, -1),
-            ];
-
-            for (a, b, expected_x, expected_y) in cases {
-                // Given, When
-                let result = extended_gcd(a, b);
-                // Then
-                assert_eq!((expected_x, expected_y), result);
-            }
+        #[rstest]
+        #[case::ten_and_four(10, 4, 1, -2)]
+        #[case::twenty_seven_and_eighteen(27, 18, 1, -1)]
+        #[case::one_hundred_and_seventy_five(100, 75, 1, -1)]
+        fn returns_bezout_coefficients_for_typical_values(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
         }
 
         /// Scenario: 互いに素な数の組に対してベズー等式を満たす係数を返す。
         /// - Given: 互いに素な 2 つの正整数がある。
         /// - When: `extended_gcd` を呼ぶ。
         /// - Then: 期待した係数の組が返る。
-        #[test]
-        fn returns_bezout_coefficients_for_coprime_numbers() {
-            let cases = [(7_i64, 5_i64, -2_i64, 3_i64), (13, 17, 4, -3)];
-
-            for (a, b, expected_x, expected_y) in cases {
-                // Given, When
-                let result = extended_gcd(a, b);
-                // Then
-                assert_eq!((expected_x, expected_y), result);
-            }
+        #[rstest]
+        #[case::seven_and_five(7, 5, -2, 3)]
+        #[case::thirteen_and_seventeen(13, 17, 4, -3)]
+        fn returns_bezout_coefficients_for_coprime_numbers(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
         }
 
         /// Scenario: 片方がもう片方の倍数である場合、その関係を反映した係数を返す。
         /// - Given: 一方が他方の倍数となっている 2 つの正整数がある。
         /// - When: `extended_gcd` を呼ぶ。
         /// - Then: 期待した係数の組が返る。
-        #[test]
-        fn returns_bezout_coefficients_when_one_is_multiple_of_other() {
-            let cases = [(10_i64, 2_i64, 0_i64, 1_i64), (5, 20, 1, 0)];
-
-            for (a, b, expected_x, expected_y) in cases {
-                // Given, When
-                let result = extended_gcd(a, b);
-                // Then
-                assert_eq!((expected_x, expected_y), result);
-            }
+        #[rstest]
+        #[case::first_is_multiple(10, 2, 0, 1)]
+        #[case::second_is_multiple(5, 20, 1, 0)]
+        fn returns_bezout_coefficients_when_one_is_multiple_of_other(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
         }
 
         /// Scenario: 片方が `0` の場合、`0` でない方の符号に応じた係数を返す (境界値)。
         /// - Given: 一方が `0`、他方が正または負の整数である組み合わせがある。
         /// - When: `extended_gcd` を呼ぶ。
         /// - Then: 期待した係数の組が返る。
-        #[test]
-        fn returns_bezout_coefficients_when_one_is_zero() {
-            let cases = [
-                (0_i64, 5_i64, 0_i64, 1_i64),
-                (10, 0, 1, 0),
-                (0, -5, 0, -1),
-                (-10, 0, -1, 0),
-            ];
-
-            for (a, b, expected_x, expected_y) in cases {
-                // Given, When
-                let result = extended_gcd(a, b);
-                // Then
-                assert_eq!((expected_x, expected_y), result);
-            }
+        #[rstest]
+        #[case::first_zero_second_positive(0, 5, 0, 1)]
+        #[case::second_zero_first_positive(10, 0, 1, 0)]
+        #[case::first_zero_second_negative(0, -5, 0, -1)]
+        #[case::second_zero_first_negative(-10, 0, -1, 0)]
+        fn returns_bezout_coefficients_when_one_is_zero(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
         }
 
         /// Scenario: 両方が `0` の場合、`(0, 0)` を返す (境界値)。
@@ -488,18 +495,16 @@ mod tests {
         /// - Given: 負の整数を含む 2 つの整数の組み合わせがある。
         /// - When: `extended_gcd` を呼ぶ。
         /// - Then: 返った係数の組がベズー等式を満たす。
-        #[test]
-        fn satisfies_bezout_identity_for_negative_numbers() {
-            let cases = [(-12_i64, 7_i64), (12, -7), (-12, -7)];
-
-            for (a, b) in cases {
-                // Given, When
-                let (x, y) = extended_gcd(a, b);
-                let expected_gcd = gcd(a.unsigned_abs() as u128, b.unsigned_abs() as u128);
-
-                // Then
-                assert_eq!(expected_gcd as i64, a * x + b * y);
-            }
+        #[rstest]
+        #[case::negative_first(-12, 7)]
+        #[case::negative_second(12, -7)]
+        #[case::both_negative(-12, -7)]
+        fn satisfies_bezout_identity_for_negative_numbers(#[case] a: i64, #[case] b: i64) {
+            // Given, When
+            let (x, y) = extended_gcd(a, b);
+            let expected_gcd = gcd(a.unsigned_abs() as u128, b.unsigned_abs() as u128);
+            // Then
+            assert_eq!(expected_gcd as i64, a * x + b * y);
         }
     }
 }
