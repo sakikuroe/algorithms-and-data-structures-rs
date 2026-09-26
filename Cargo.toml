@@ -183,6 +183,14 @@ name = "ac-abc209-d-collision"
 path = "src/bin/atcoder/abc209_d_collision.rs"
 
 [[bin]]
+name = "ac-abc142-d-disjoint-set-of-common-divisors"
+path = "src/bin/atcoder/abc142_d_disjoint_set_of_common_divisors.rs"
+
+[[bin]]
+name = "ac-abc177-e-coprime"
+path = "src/bin/atcoder/abc177_e_coprime.rs"
+
+[[bin]]
 name = "ac-typical90-u-come-back-in-one-piece"
 path = "src/bin/atcoder/typical90_u_come_back_in_one_piece.rs"
 
@@ -277,6 +285,26 @@ path = "src/bin/aoj/grl_5_a_diameter_of_a_tree.rs"
 [[bin]]
 name = "lc-vertex-set-path-composite"
 path = "src/bin/library_checker/vertex_set_path_composite.rs"
+
+[[bin]]
+name = "lc-primality-test"
+path = "src/bin/library_checker/primality_test.rs"
+
+[[bin]]
+name = "lc-factorize"
+path = "src/bin/library_checker/factorize.rs"
+
+[[bin]]
+name = "lc-primitive-root"
+path = "src/bin/library_checker/primitive_root.rs"
+
+[[bin]]
+name = "lc-enumerate-primes"
+path = "src/bin/library_checker/enumerate_primes.rs"
+
+[[bin]]
+name = "lc-kth-root-integer"
+path = "src/bin/library_checker/kth_root_integer.rs"
 
 [[bin]]
 name = "bj-bj15480-lca-and-query"

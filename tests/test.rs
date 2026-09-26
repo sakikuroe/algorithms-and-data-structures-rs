@@ -13,7 +13,9 @@ pub mod bin {
     pub mod atcoder {
         pub mod abc035_c_othello;
         pub mod abc075_c_bridge;
+        pub mod abc142_d_disjoint_set_of_common_divisors;
         pub mod abc176_d_wizard_in_maze;
+        pub mod abc177_e_coprime;
         pub mod abc187_e_through_path;
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
@@ -82,12 +84,15 @@ pub mod bin {
         pub mod bipartitematching;
         pub mod convolution_mod;
         pub mod cycle_detection;
+        pub mod enumerate_primes;
         pub mod eulerian_trail_directed;
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
+        pub mod factorize;
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod jump_on_tree;
+        pub mod kth_root_integer;
         pub mod kth_term_of_linearly_recurrent_sequence;
         pub mod lca;
         pub mod lca_by_euler_tour;
@@ -97,6 +102,8 @@ pub mod bin {
         pub mod partition_function;
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
+        pub mod primality_test;
+        pub mod primitive_root;
         pub mod product_of_polynomial_sequence;
         pub mod range_affine_range_sum;
         pub mod range_kth_smallest;
