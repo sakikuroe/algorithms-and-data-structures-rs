@@ -498,7 +498,18 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
     }
 
     let mut result = HashMap::new();
-    let n = extract_small_prime_factors(n, SMALL_PRIME_LIMIT, &mut result);
+    let mut remaining = n;
+    let mut p = 2;
+    // Pollard's rho に進む前に小さい素因数を除去する。残りの値の平方根を
+    // 超えた時点で、これ以上小さい素因数は存在しない。
+    while p < SMALL_PRIME_LIMIT && p * p <= remaining {
+        while remaining.is_multiple_of(p) {
+            *result.entry(p).or_insert(0) += 1;
+            remaining /= p;
+        }
+        p += 1;
+    }
+    let n = remaining;
 
     if n == 1 {
         return result;
@@ -522,20 +533,6 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
     }
 
     result
-}
-
-/// `n` から `limit` 未満の素因数を試し割りで取り除き、`result` に積算した
-/// うえで、取り除いた後に残った値を返す。
-fn extract_small_prime_factors(mut n: u64, limit: u64, result: &mut HashMap<u64, usize>) -> u64 {
-    let mut p = 2;
-    while p < limit && p * p <= n {
-        while n.is_multiple_of(p) {
-            *result.entry(p).or_insert(0) += 1;
-            n /= p;
-        }
-        p += 1;
-    }
-    n
 }
 
 /// `n` の正の約数を昇順に列挙する。
