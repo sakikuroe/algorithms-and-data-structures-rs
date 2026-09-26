@@ -171,7 +171,7 @@ pub fn is_prime(n: u64) -> bool {
     if n < (1 << 62) {
         is_prime_by_montgomery(n, witnesses)
     } else {
-        is_prime_by_fallback(n, witnesses)
+        is_prime_without_montgomery(n, witnesses)
     }
 }
 
@@ -213,7 +213,7 @@ fn is_prime_by_montgomery(n: u64, witnesses: &[u64]) -> bool {
 
 /// `n >= 2^62` の場合に用いる、`modular_arithmetic` の汎用実装による
 /// Miller-Rabin 法。判定のロジックは [`is_prime_by_montgomery`] と同じである。
-fn is_prime_by_fallback(n: u64, witnesses: &[u64]) -> bool {
+fn is_prime_without_montgomery(n: u64, witnesses: &[u64]) -> bool {
     let s = (n - 1).trailing_zeros();
     let d = (n - 1) >> s;
 
@@ -321,7 +321,7 @@ fn find_divisor(n: u64) -> u64 {
     if n < (1 << 62) {
         find_divisor_by_montgomery(n)
     } else {
-        find_divisor_by_fallback(n)
+        find_divisor_without_montgomery(n)
     }
 }
 
@@ -403,7 +403,7 @@ fn find_divisor_by_montgomery(n: u64) -> u64 {
 /// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
 /// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
 /// `1 / BATCH` に減らす。
-fn find_divisor_by_fallback(n: u64) -> u64 {
+fn find_divisor_without_montgomery(n: u64) -> u64 {
     const BATCH: usize = 128;
 
     // c を変えながら繰り返す。1 つの c で閉路検出が n 自身に退化した (d == n) 場合は
