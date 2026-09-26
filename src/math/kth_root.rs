@@ -60,6 +60,12 @@ pub fn kth_root(a: u64, k: u64) -> u64 {
 /// `k = 2` の場合の `kth_root`。IEEE 754 は `sqrt` を「正しく丸める」ことを
 /// 規格として要求しており (相対誤差 <= 0.5 ULP = `2^-53`)、これは特定の
 /// 実装に依存しない理論的な保証である。
+///
+/// # Args
+/// - `a` - 平方根を求める非負整数。
+///
+/// # Returns
+/// `floor(sqrt(a))` の値。
 fn kth_root_2(a: u64) -> u64 {
     // a as f64 へのキャストも IEEE 754 で正しく丸められる (相対誤差 <= 2^-53)。
     // したがって sqrt(a as f64) は、真の数学的平方根 sqrt(a) に対して相対誤差
@@ -88,6 +94,13 @@ fn kth_root_2(a: u64) -> u64 {
 }
 
 /// `k >= 3` の場合の `kth_root`。
+///
+/// # Args
+/// - `a` - 乗根を求める非負整数。
+/// - `k` - `3` 以上の乗根の次数。
+///
+/// # Returns
+/// `floor(a^(1/k))` の値。
 fn kth_root_general(a: u64, k: u64) -> u64 {
     // f64::powf(a, 1/k) = exp((1/k) * ln(a)) を使う。powf は sqrt と異なり
     // 正しい丸めが規格上保証されているわけではなく、精度は libm の実装に
@@ -133,7 +146,16 @@ fn kth_root_general(a: u64, k: u64) -> u64 {
 /// `checked_mul` を使うのは `saturating_mul` では正確に判定できないためで
 /// ある。「真の値がちょうど `u64::MAX`」なのか「`u64::MAX` を超えている」の
 /// かを区別できず、`a == u64::MAX` の境界で誤判定しうる。
+///
+/// # Args
+/// - `x` - 累乗する底。
+/// - `k` - `1` 以上の指数。
+/// - `a` - 累乗結果と比較する上限。
+///
+/// # Returns
+/// `x^k <= a` が成り立てば `true`。
 fn pow_leq(x: u64, k: u64, a: u64) -> bool {
+    // まだ結果に掛け合わせていない 2 の累乗を base に保持する。
     let mut base = x;
     let mut result = 1_u64;
     let mut exp = k;

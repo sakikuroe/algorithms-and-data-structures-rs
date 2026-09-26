@@ -4,6 +4,7 @@
 use anmitsu::io::fastio::Fastio;
 use anmitsu::math::primality;
 
+/// 各素数に対して原始根を 1 つ求め、問い合わせ順に出力する。
 fn main() {
     let mut io = Fastio::new();
 

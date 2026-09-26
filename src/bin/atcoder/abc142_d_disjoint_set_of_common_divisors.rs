@@ -5,6 +5,7 @@ use anmitsu::io::fastio::Fastio;
 use anmitsu::math::number_theory;
 use anmitsu::math::primality;
 
+/// 2 整数の最大公約数に含まれる相異なる素因数の数から答えを求める。
 fn main() {
     let mut io = Fastio::new();
 

@@ -31,6 +31,16 @@ struct Montgomery {
 }
 
 impl Montgomery {
+    /// 奇数の法に対して、モンゴメリ表現へ変換するための定数を準備する。
+    ///
+    /// # Args
+    /// - `m` - `0 < m < 2^62` を満たす奇数の法。
+    ///
+    /// # Returns
+    /// 法と、モンゴメリ簡約・変換に必要な定数を持つインスタンス。
+    ///
+    /// # Panics
+    /// デバッグビルドでは、`m` が前提条件を満たさない場合にパニックする。
     fn new(m: u64) -> Self {
         debug_assert!(m % 2 == 1);
         debug_assert!(m < (1 << 62));
@@ -44,6 +54,8 @@ impl Montgomery {
             m_inv = m_inv.wrapping_mul(2u64.wrapping_sub(m.wrapping_mul(m_inv)));
         }
 
+        // 2^128 mod m を作り、通常表現の値に掛けることで 2^64 倍の
+        // モンゴメリ表現へ変換できるようにする。
         let r_mod_m = ((1_u128 << 64) % m as u128) as u64;
         let r2 = modular_arithmetic::mul_mod(r_mod_m, r_mod_m, m);
 
@@ -63,12 +75,22 @@ impl Montgomery {
     /// `4m^2 < m * 2^64` すなわち `m < 2^62` に単純化でき、[`Montgomery::new`]
     /// がこの上限を強制しているのはこのためである。`c` が `0` でない一般の
     /// `fma` 呼び出しでは、`c` が `m` に近いほど条件は厳しくなる点に注意する。
+    ///
+    /// # Args
+    /// - `a` - `[0, 2m)` の範囲のモンゴメリ表現の値。
+    /// - `b` - `[0, 2m)` の範囲のモンゴメリ表現の値。
+    /// - `c` - `[0, m)` の範囲の加算値。
+    ///
+    /// # Returns
+    /// 簡約した乗算加算の値。`[0, m)` には正規化しない。
     #[inline(always)]
     fn fma(&self, a: u64, b: u64, c: u64) -> u64 {
         debug_assert!(a < self.m * 2);
         debug_assert!(b < self.m * 2);
         debug_assert!(c < self.m);
 
+        // q * m と t の下位 64 bit を一致させて打ち消し、上位側の差を
+        // 求める。m の加算は負の差を避け、後段の剰余計算を省くためである。
         let t = a as u128 * b as u128;
         let tc = ((t >> 64) as u64).wrapping_add(c);
         let q = (t as u64).wrapping_mul(self.m_inv);
@@ -77,12 +99,25 @@ impl Montgomery {
     }
 
     /// モンゴメリ表現の値同士の乗算を行う。
+    ///
+    /// # Args
+    /// - `a` - `[0, 2m)` の範囲のモンゴメリ表現の値。
+    /// - `b` - `[0, 2m)` の範囲のモンゴメリ表現の値。
+    ///
+    /// # Returns
+    /// モンゴメリ表現の積 (`[0, 2m)` の範囲)。
     #[inline(always)]
     fn mul(&self, a: u64, b: u64) -> u64 {
         self.fma(a, b, 0)
     }
 
     /// 通常表現の値 (`< m`) をモンゴメリ表現へ変換する。
+    ///
+    /// # Args
+    /// - `x` - `[0, m)` の範囲の通常表現の値。
+    ///
+    /// # Returns
+    /// `x * 2^64 mod m` を表す、正規化前のモンゴメリ表現の値。
     #[inline(always)]
     fn encode(&self, x: u64) -> u64 {
         self.mul(x, self.r2)
@@ -91,6 +126,13 @@ impl Montgomery {
     /// `[0, 2m)` の範囲にある 2 つのモンゴメリ表現の値が、mod `m` で等しいか
     /// どうかを判定する。正規化していない値同士は、差が `0` または `m` の
     /// いずれかであれば mod `m` で等しい。
+    ///
+    /// # Args
+    /// - `a` - 比較する `[0, 2m)` の範囲の値。
+    /// - `b` - 比較する `[0, 2m)` の範囲の値。
+    ///
+    /// # Returns
+    /// 2 つの値が法 `m` で等しければ `true`。
     #[inline(always)]
     fn eq(&self, a: u64, b: u64) -> bool {
         let d = a.abs_diff(b);
@@ -98,7 +140,16 @@ impl Montgomery {
     }
 
     /// モンゴメリ表現の `base` を、通常表現の指数 `exp` で累乗する。
+    ///
+    /// # Args
+    /// - `base` - `[0, 2m)` の範囲のモンゴメリ表現の底。
+    /// - `exp` - 非負の指数。
+    ///
+    /// # Returns
+    /// モンゴメリ表現で計算した `base^exp`。
     fn pow(&self, base: u64, mut exp: u64) -> u64 {
+        // 乗法単位元をモンゴメリ表現に直し、指数の各ビットに対応する累乗を
+        // 必要なときだけ掛け合わせる。
         let mut result = self.encode(1);
         let mut base = base;
         while exp > 0 {
@@ -107,6 +158,7 @@ impl Montgomery {
             }
             exp >>= 1;
             if exp > 0 {
+                // 次の指数ビットが表す底は、現在の底の二乗である。
                 base = self.mul(base, base);
             }
         }
@@ -176,6 +228,13 @@ pub fn is_prime(n: u64) -> bool {
 }
 
 /// `n < 2^62` の場合に用いる、モンゴメリ乗算による高速な Miller-Rabin 法。
+///
+/// # Args
+/// - `n` - `3 <= n < 2^62` を満たす奇数の判定対象。
+/// - `witnesses` - 合成数の証拠を探すための基底の列。
+///
+/// # Returns
+/// すべての基底を通過した場合に `true`、合成数の証拠が見つかった場合に `false`。
 fn is_prime_by_montgomery(n: u64, witnesses: &[u64]) -> bool {
     // n - 1 = 2^s * d (d は奇数) と分解する。
     let s = (n - 1).trailing_zeros();
@@ -213,10 +272,20 @@ fn is_prime_by_montgomery(n: u64, witnesses: &[u64]) -> bool {
 
 /// `n >= 2^62` の場合に用いる、`modular_arithmetic` の汎用実装による
 /// Miller-Rabin 法。判定のロジックは [`is_prime_by_montgomery`] と同じである。
+///
+/// # Args
+/// - `n` - `n >= 2^62` を満たす奇数の判定対象。
+/// - `witnesses` - 合成数の証拠を探すための基底の列。
+///
+/// # Returns
+/// すべての基底を通過した場合に `true`、合成数の証拠が見つかった場合に `false`。
 fn is_prime_without_montgomery(n: u64, witnesses: &[u64]) -> bool {
+    // n - 1 を 2^s * d (d は奇数) に分け、各基底で二乗を繰り返す回数を定める。
     let s = (n - 1).trailing_zeros();
     let d = (n - 1) >> s;
 
+    // 基底 a について、a^d が 1 または -1 になるか、二乗を重ねて
+    // -1 に到達すれば、その基底は合成数性の証拠にならない。
     witnesses.iter().all(|&a| {
         let a = a % n;
         if a == 0 {
@@ -249,6 +318,13 @@ fn is_prime_without_montgomery(n: u64, witnesses: &[u64]) -> bool {
 /// 戻れる」という 3 つの性質だけで計算でき、右シフト・比較・引き算のみで
 /// 完結する。`find_divisor` はバッチのたびに `gcd` を頻繁に呼ぶため、
 /// `number_theory::gcd` を書き換えず、この関数だけをここで使う。
+///
+/// # Args
+/// - `x` - 最大公約数を求める非負整数。
+/// - `y` - 最大公約数を求める非負整数。
+///
+/// # Returns
+/// `x` と `y` の最大公約数。
 fn gcd_binary(mut x: u64, mut y: u64) -> u64 {
     if x == 0 {
         return y;
@@ -290,6 +366,12 @@ fn gcd_binary(mut x: u64, mut y: u64) -> u64 {
 /// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
 /// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
 /// `1 / BATCH` に減らす。
+///
+/// # Args
+/// - `n` - 分解対象の合成数。
+///
+/// # Returns
+/// `1` より大きく `n` より小さい約数。
 fn find_divisor(n: u64) -> u64 {
     if n.is_multiple_of(2) {
         return 2;
@@ -308,6 +390,12 @@ fn find_divisor(n: u64) -> u64 {
 
 /// `n < 2^62` の場合に用いる、モンゴメリ乗算による高速な Pollard's rho 法
 /// (Brent のサイクル検出)。
+///
+/// # Args
+/// - `n` - `n < 2^62` を満たす奇数の合成数。
+///
+/// # Returns
+/// `n` の非自明な約数。
 fn find_divisor_by_montgomery(n: u64) -> u64 {
     // gcd の呼び出し回数と、約数の混入位置を後から逐次探索するコストとの
     // バランスを取るための、経験的に妥当なバッチサイズである。
@@ -384,7 +472,14 @@ fn find_divisor_by_montgomery(n: u64) -> u64 {
 /// `gcd(a * b, n) = 1` であることを利用し、差分の積を `BATCH` ステップぶん
 /// 蓄積してから `gcd` を 1 回だけ計算することで、`gcd` の呼び出し回数を
 /// `1 / BATCH` に減らす。
+///
+/// # Args
+/// - `n` - `n >= 2^62` を満たす奇数の合成数。
+///
+/// # Returns
+/// `n` の非自明な約数。
 fn find_divisor_without_montgomery(n: u64) -> u64 {
+    // 汎用の法演算を使うため、1 回のバッチが長くなりすぎないようにする。
     const BATCH: usize = 128;
 
     // c を変えながら繰り返す。1 つの c で閉路検出が n 自身に退化した (d == n) 場合は

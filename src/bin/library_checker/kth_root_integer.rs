@@ -4,6 +4,7 @@
 use anmitsu::io::fastio::Fastio;
 use anmitsu::math::kth_root;
 
+/// 各入力の整数 `k` 乗根を求め、その整数部分を 1 行ずつ出力する。
 fn main() {
     let mut io = Fastio::new();
 

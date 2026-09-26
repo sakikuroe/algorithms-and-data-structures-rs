@@ -6,6 +6,13 @@ use anmitsu::math::number_theory;
 use anmitsu::math::sieve;
 
 /// 文字列トークンを、改行を付けて出力バッファへ書き込む。
+///
+/// # Args
+/// - `io` - 回答を追記する出力バッファ。
+/// - `token` - 改行を付けて出力する判定結果。
+///
+/// # Returns
+/// 返り値はない。`io` に判定結果と改行を追記する。
 fn write_line(io: &mut Fastio, token: &str) {
     for c in token.chars() {
         io.write(c);
@@ -13,6 +20,7 @@ fn write_line(io: &mut Fastio, token: &str) {
     io.write('\n');
 }
 
+/// 入力された数列の共通の素因数を調べ、互いに素かどうかを 3 種類に分類する。
 fn main() {
     let mut io = Fastio::new();
 

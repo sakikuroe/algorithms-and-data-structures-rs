@@ -5,12 +5,20 @@ use anmitsu::io::fastio::Fastio;
 use anmitsu::math::primality;
 
 /// 数値を、空白を挟まずにそのまま出力バッファへ書き込む。
+///
+/// # Args
+/// - `io` - 数値を追記する出力バッファ。
+/// - `value` - 出力する非負整数。
+///
+/// # Returns
+/// 返り値はない。数値の文字列表現を `io` に追記する。
 fn write_value(io: &mut Fastio, value: u64) {
     for c in value.to_string().chars() {
         io.write(c);
     }
 }
 
+/// 各入力値の素因数分解を昇順の素因数列に展開して出力する。
 fn main() {
     let mut io = Fastio::new();
 
