@@ -1,10 +1,22 @@
 //! 任意の法に対するモジュラー演算を提供するモジュールである。
 //!
-//! `mod_inv` を除く関数は `u64` の全域を法として扱える。`mod_inv` は内部で
-//! `number_theory::extended_gcd` (符号付き整数を扱う) を利用するため、
-//! 法は `i64` に収まる範囲に制限される。
+//! `add_mod`・`sub_mod`・`mul_mod`・`pow_mod` は `u64` の全域を法として扱える。
+//! `mod_inv` と `crt` は内部で符号付き整数の拡張ユークリッド互除法を利用するため、
+//! 入力の法は `i64` に収まる範囲に制限される。
 
 use crate::math::number_theory;
+
+/// CRT の解を表す法の最小公倍数が `u64` に収まらない場合のエラー。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CrtOverflow;
+
+impl std::fmt::Display for CrtOverflow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CRT modulus exceeds u64::MAX")
+    }
+}
+
+impl std::error::Error for CrtOverflow {}
 
 /// 法 `m` の下での加算 `(a + b) mod m` を計算する。
 ///
@@ -171,21 +183,25 @@ pub fn mod_inv(a: u64, m: u64) -> u64 {
 /// 素であることを要求しない、一般の法に対応する。
 ///
 /// # Args
-/// - `remainders` - 各合同式の右辺の列
+/// - `remainders` - 各合同式の右辺の列。各値は対応する法で正規化するため、
+///   `u64` の全域を指定できる。
 /// - `moduli` - 各合同式の法の列であり、`remainders` と同じ長さでなければならない。
 ///   各要素は `0` より大きく `i64::MAX` 以下である必要がある。
 ///
 /// # Returns
-/// 連立合同式を満たす `x` が存在する場合、`Some((r, m))` を返す。`m` は `moduli`
+/// 連立合同式を満たす `x` が存在する場合、`Ok(Some((r, m)))` を返す。`m` は `moduli`
 /// 全体の最小公倍数であり、`r` は `[0, m)` の範囲の解で、`x ≡ r (mod m)` が元の
-/// 連立合同式全体と同値になる。連立合同式が矛盾し解が存在しない場合は `None` を
+/// 連立合同式全体と同値になる。連立合同式が矛盾し解が存在しない場合は `Ok(None)` を
 /// 返す。`remainders` と `moduli` がともに空の場合、法 `1` の下では任意の整数が
-/// 合同であることから、「制約なし」を表す単位元として `Some((0, 1))` を返す。
+/// 合同であることから、「制約なし」を表す単位元として `Ok(Some((0, 1)))` を返す。
+///
+/// # Errors
+/// 統合途中の法の最小公倍数が `u64::MAX` を超える場合、`Err(CrtOverflow)` を返す。
 ///
 /// # Complexity
 /// - 時間計算量: $O(n \log(\max(\text{moduli})))$
 ///   - `n = remainders.len()` であり、隣接する 2 つの合同式を 1 つへまとめる処理を
-///     `n - 1` 回繰り返す。各マージは [`number_theory::gcd`]・[`number_theory::extended_gcd`]
+///     `n - 1` 回繰り返す。各マージは [`number_theory::gcd`]・[`mod_inv`]
 ///     の計算が支配的である。
 ///
 /// # Examples
@@ -193,52 +209,60 @@ pub fn mod_inv(a: u64, m: u64) -> u64 {
 /// use anmitsu::math::modular_arithmetic;
 ///
 /// // 法が互いに素な場合
-/// assert_eq!(Some((23, 105)), modular_arithmetic::crt(&[2, 3, 2], &[3, 5, 7]));
+/// assert_eq!(Ok(Some((23, 105))), modular_arithmetic::crt(&[2, 3, 2], &[3, 5, 7]));
 ///
 /// // 法が互いに素でなくても解が存在する場合
-/// assert_eq!(Some((4, 6)), modular_arithmetic::crt(&[1, 4], &[3, 6]));
+/// assert_eq!(Ok(Some((4, 6))), modular_arithmetic::crt(&[1, 4], &[3, 6]));
 ///
 /// // 矛盾して解が存在しない場合
-/// assert_eq!(None, modular_arithmetic::crt(&[0, 1], &[2, 4]));
+/// assert_eq!(Ok(None), modular_arithmetic::crt(&[0, 1], &[2, 4]));
 /// ```
-#[must_use]
-pub fn crt(remainders: &[u64], moduli: &[u64]) -> Option<(u64, u64)> {
+pub fn crt(remainders: &[u64], moduli: &[u64]) -> Result<Option<(u64, u64)>, CrtOverflow> {
     debug_assert_eq!(remainders.len(), moduli.len());
     debug_assert!(moduli.iter().all(|&m| m > 0 && m <= i64::MAX as u64));
 
     if remainders.is_empty() {
-        return Some((0, 1));
+        return Ok(Some((0, 1)));
     }
 
     // (r, m) は、これまでに読んだ合同式をすべてまとめた結果を x ≡ r (mod m) の
     // 形で保持する。最初の合同式は単独では矛盾しえないため、[0, m) に正規化した
     // 上でそのまま初期値として採用する。
-    let mut r = (remainders[0] as i64).rem_euclid(moduli[0] as i64);
-    let mut m = moduli[0] as i64;
+    let mut r = remainders[0] % moduli[0];
+    let mut m = moduli[0];
 
     for i in 1..remainders.len() {
-        let (r1, m1) = (remainders[i] as i64, moduli[i] as i64);
+        let (r1, m1) = (remainders[i] % moduli[i], moduli[i]);
 
         // x ≡ r (mod m) と x ≡ r1 (mod m1) が両立するためには、(r1 - r) が
         // g = gcd(m, m1) で割り切れる必要がある (CRT の一般形における可解条件)。
-        let g = number_theory::gcd(m as u128, m1 as u128) as i64;
-        if (r1 - r) % g != 0 {
-            return None;
+        let g = number_theory::gcd(m as u128, m1 as u128) as u64;
+        if r1 % g != r % g {
+            return Ok(None);
         }
 
-        // m * p + m1 * q == g を満たす p を用いて、2 つの合同式を単一の合同式
-        // x ≡ new_r (mod lcm) へまとめる。
-        let (p, _) = number_theory::extended_gcd(m, m1);
-        let lcm = m / g * m1;
-        let diff = (r1 - r) / g;
-        let new_r = r + m * (diff * p).rem_euclid(m1 / g);
+        // x = r + m * step とおくと、step は法 m1/g の合同式で決まる。
+        // 最小公倍数だけは u128 で計算し、表現可能な範囲を確認してから先へ進む。
+        let new_m = u64::try_from(m as u128 / g as u128 * m1 as u128).map_err(|_| CrtOverflow)?;
+        let reduced_modulus = m1 / g;
+        let step = if reduced_modulus == 1 {
+            0
+        } else {
+            // 差は負にもなり得るため i128 で割ってから正規化する。
+            let diff = (r1 as i128 - r as i128) / g as i128;
+            let rhs = diff.rem_euclid(reduced_modulus as i128) as u64;
+            let inverse = mod_inv((m / g) % reduced_modulus, reduced_modulus);
+            mul_mod(rhs, inverse, reduced_modulus)
+        };
 
-        // 得られた解を [0, lcm) の範囲に正規化し、次の合同式とのマージに備える。
-        r = new_r.rem_euclid(lcm);
-        m = lcm;
+        // 0 <= r < m、0 <= step < m1/g より、new_r < lcm が成り立つ。
+        let new_r = r as u128 + m as u128 * step as u128;
+        debug_assert!(new_r < new_m as u128);
+        r = new_r as u64;
+        m = new_m;
     }
 
-    Some((r as u64, m as u64))
+    Ok(Some((r, m)))
 }
 
 #[cfg(test)]
@@ -480,19 +504,19 @@ mod tests {
         /// Scenario: 法が互いに素な複数の合同式に対して、統合された合同式を返す。
         /// - Given: 互いに素な法を持つ 3 つの合同式がある。
         /// - When: `crt` を呼ぶ。
-        /// - Then: `Some((r, lcm))` の形で、元の連立合同式と同値な解が返る。
+        /// - Then: `Ok(Some((r, lcm)))` の形で、元の連立合同式と同値な解が返る。
         #[test]
         fn returns_merged_congruence_for_pairwise_coprime_moduli() {
             // Given, When
             let result = crt(&[2, 3, 2], &[3, 5, 7]);
             // Then
-            assert_eq!(Some((23, 105)), result);
+            assert_eq!(Ok(Some((23, 105))), result);
         }
 
         /// Scenario: 法が互いに素でなくても解が存在すれば、統合された合同式を返す。
         /// - Given: `gcd` が `1` より大きい法を持つ、矛盾しない合同式の組がある。
         /// - When: `crt` を呼ぶ。
-        /// - Then: `Some((r, lcm))` の形で、元の連立合同式と同値な解が返る。
+        /// - Then: `Ok(Some((r, lcm)))` の形で、元の連立合同式と同値な解が返る。
         #[rstest]
         #[case::two_congruences(vec![1, 4], vec![3, 6], Some((4, 6)))]
         #[case::three_congruences(vec![2, 5, 0], vec![4, 9, 10], Some((50, 180)))]
@@ -504,43 +528,118 @@ mod tests {
             // Given, When
             let result = crt(&remainders, &moduli);
             // Then
-            assert_eq!(expected, result);
+            assert_eq!(Ok(expected), result);
         }
 
-        /// Scenario: 合同式が矛盾する場合、`None` を返す (異常系)。
+        /// Scenario: 合同式が矛盾する場合、`Ok(None)` を返す (異常系)。
         /// - Given: `gcd` が `1` より大きい法を持ち、互いに矛盾する合同式の組がある。
         /// - When: `crt` を呼ぶ。
-        /// - Then: `None` が返る。
+        /// - Then: `Ok(None)` が返る。
         #[test]
         fn returns_none_for_contradictory_congruences() {
             // Given, When
             let result = crt(&[0, 1], &[2, 4]);
             // Then
-            assert!(result.is_none());
+            assert_eq!(Ok(None), result);
         }
 
         /// Scenario: 合同式が 1 つだけの場合、その合同式自身を返す (境界値)。
         /// - Given: 合同式が 1 つだけある。
         /// - When: `crt` を呼ぶ。
-        /// - Then: `Some((remainders[0], moduli[0]))` が返る。
+        /// - Then: `Ok(Some((remainders[0], moduli[0])))` が返る。
         #[test]
         fn returns_single_congruence_as_is_for_single_element() {
             // Given, When
             let result = crt(&[5], &[11]);
             // Then
-            assert_eq!(Some((5, 11)), result);
+            assert_eq!(Ok(Some((5, 11))), result);
         }
 
         /// Scenario: 合同式が 1 つもない場合、制約なしを表す単位元を返す (境界値)。
         /// - Given: `remainders` と `moduli` がともに空である。
         /// - When: `crt` を呼ぶ。
-        /// - Then: `Some((0, 1))` が返る。
+        /// - Then: `Ok(Some((0, 1)))` が返る。
         #[test]
         fn returns_identity_for_empty_input() {
             // Given, When
             let result = crt(&[], &[]);
             // Then
-            assert_eq!(Some((0, 1)), result);
+            assert_eq!(Ok(Some((0, 1))), result);
+        }
+
+        /// Scenario: `i64::MAX` を超える剰余も、符号を変えずに正規化する。
+        /// - Given: `u64::MAX` を右辺に持つ合同式がある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: 元の非負整数の剰余に対応する解が返る。
+        #[rstest]
+        #[case::single_congruence(vec![u64::MAX], vec![7], Some((1, 7)))]
+        #[case::later_congruence(vec![0, u64::MAX], vec![2, 7], Some((8, 14)))]
+        fn normalizes_large_unsigned_remainders(
+            #[case] remainders: Vec<u64>,
+            #[case] moduli: Vec<u64>,
+            #[case] expected: Option<(u64, u64)>,
+        ) {
+            // Given, When
+            let result = crt(&remainders, &moduli);
+            // Then
+            assert_eq!(Ok(expected), result);
+        }
+
+        /// Scenario: 統合結果の法が `i64` を超えても `u64` に収まれば返す。
+        /// - Given: 法の最小公倍数が `i64::MAX` より大きく `u64::MAX` 以下である。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: 正しい法を持つ解が返る。
+        #[test]
+        fn returns_solution_when_modulus_exceeds_i64_max() {
+            // Given, When
+            let result = crt(&[0, 0], &[4_000_000_000, 4_000_000_001]);
+            // Then
+            assert_eq!(Ok(Some((0, 16_000_000_004_000_000_000))), result);
+        }
+
+        /// Scenario: 法の最小公倍数がちょうど `u64::MAX` なら解を返す。
+        /// - Given: 互いに素な法 `2^32 - 1` と `2^32 + 1` がある。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: 法が `u64::MAX` の解が返る。
+        #[test]
+        fn returns_solution_when_modulus_equals_u64_max() {
+            // Given, When
+            let result = crt(&[0, 0], &[u32::MAX as u64, u32::MAX as u64 + 2]);
+            // Then
+            assert_eq!(Ok(Some((0, u64::MAX))), result);
+        }
+
+        /// Scenario: 統合結果の法が `u64` に収まらない場合は明示的なエラーを返す。
+        /// - Given: 法の最小公倍数が `u64::MAX` より大きい。
+        /// - When: `crt` を呼ぶ。
+        /// - Then: `Err(CrtOverflow)` が返る。
+        #[test]
+        fn returns_overflow_when_modulus_exceeds_u64_max() {
+            // Given, When
+            let result = crt(&[0, 0], &[5_000_000_000, 5_000_000_001]);
+            // Then
+            assert_eq!(Err(CrtOverflow), result);
+        }
+
+        /// Scenario: 小さい法と剰余の全組み合わせで、最小の非負解と一致する。
+        /// - Given: 1 から 8 までの法と、各法以上も含む 0 から 10 までの剰余がある。
+        /// - When: 2 つの合同式を `crt` でまとめる。
+        /// - Then: 合同式を直接調べて得た最小解、または矛盾と一致する。
+        #[test]
+        fn matches_bruteforce_for_small_moduli_and_remainders() {
+            for m0 in 1_u64..=8 {
+                for m1 in 1_u64..=8 {
+                    let lcm = m0 / number_theory::gcd(m0 as u128, m1 as u128) as u64 * m1;
+                    for r0 in 0_u64..=10 {
+                        for r1 in 0_u64..=10 {
+                            let expected = (0..lcm)
+                                .find(|&x| x % m0 == r0 % m0 && x % m1 == r1 % m1)
+                                .map(|x| (x, lcm));
+                            assert_eq!(Ok(expected), crt(&[r0, r1], &[m0, m1]));
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -666,11 +666,13 @@ pub fn divisors(n: u64) -> Vec<u64> {
     for (p, e) in factorize(n) {
         let mut next = Vec::with_capacity(result.len() * (e + 1));
         let mut power = 1_u64;
-        for _ in 0..=e {
+        for exponent in 0..=e {
             for &d in &result {
                 next.push(d * power);
             }
-            power *= p;
+            if exponent < e {
+                power *= p;
+            }
         }
         result = next;
     }
@@ -741,6 +743,11 @@ pub fn euler_phi(n: u64) -> u64 {
 pub fn is_primitive_root(a: u64, p: u64) -> bool {
     debug_assert!(is_prime(p));
     debug_assert!(a < p);
+
+    // 0 は乗法群の元ではなく、非零の元に対する位数判定を適用できない。
+    if a == 0 {
+        return false;
+    }
 
     // p = 2 の場合、乗法群 (Z/2Z)^* の位数は 1 であり、唯一の元である 1 が
     // 原始根となる。
@@ -1101,6 +1108,19 @@ mod tests {
             // Then
             assert_eq!(vec![1], result);
         }
+
+        /// Scenario: 最後の素数冪を生成した後に不要な乗算を行わない。
+        /// - Given: `u64` に収まる最大の 2 の冪 `2^63` がある。
+        /// - When: `divisors` を呼ぶ。
+        /// - Then: `1` から `2^63` までの 64 個の冪を返す。
+        #[test]
+        fn returns_all_divisors_for_two_to_the_sixty_third() {
+            // Given, When
+            let result = divisors(1 << 63);
+            let expected = (0..=63).map(|e| 1_u64 << e).collect::<Vec<_>>();
+            // Then
+            assert_eq!(expected, result);
+        }
     }
 
     // euler_phi のテスト: 戻り値を検証する。
@@ -1191,11 +1211,11 @@ mod tests {
         }
 
         /// Scenario: 原始根でない元に対して `false` を返す。
-        /// - Given: 素数 `7` を法とする、原始根でない元 (位数が `6` 未満となる元) が
-        ///   いくつかある。
+        /// - Given: 素数 `7` を法とする、原始根でない値がいくつかある。
         /// - When: `is_primitive_root` を呼ぶ。
         /// - Then: `false` が返る。
         #[rstest]
+        #[case::zero(0)]
         #[case::one(1)]
         #[case::two(2)]
         #[case::four(4)]

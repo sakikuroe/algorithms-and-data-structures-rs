@@ -125,8 +125,10 @@ pub fn extended_gcd(a: i64, b: i64) -> (i64, i64) {
     // s == a * xs + b * ys, t == a * xt + b * yt を満たす係数の組である。
     // s を t で割った商 q に対して次の組を作ると、この不変条件を保ったまま
     // (s, t) を (t, s % t) へ進めることができる。
-    let (mut xs, mut ys, mut s) = (1_i64, 0_i64, a);
-    let (mut xt, mut yt, mut t) = (0_i64, 1_i64, b);
+    // i64::MIN / -1 や、係数を更新する途中の積が i64 を超える場合も扱えるよう、
+    // ユークリッドの互除法は i128 で計算する。
+    let (mut xs, mut ys, mut s) = (1_i128, 0_i128, a as i128);
+    let (mut xt, mut yt, mut t) = (0_i128, 1_i128, b as i128);
 
     while s % t != 0 {
         let q = s / t;
@@ -137,7 +139,11 @@ pub fn extended_gcd(a: i64, b: i64) -> (i64, i64) {
 
     // t が gcd(a, b) の符号付きの値であり、非負整数の gcd に揃えるため
     // 負の場合は係数の符号を反転させる。
-    if t < 0 { (-xt, -yt) } else { (xt, yt) }
+    let (x, y) = if t < 0 { (-xt, -yt) } else { (xt, yt) };
+    (
+        i64::try_from(x).expect("Bezout coefficient x fits in i64"),
+        i64::try_from(y).expect("Bezout coefficient y fits in i64"),
+    )
 }
 
 #[cfg(test)]
@@ -499,12 +505,19 @@ mod tests {
         #[case::negative_first(-12, 7)]
         #[case::negative_second(12, -7)]
         #[case::both_negative(-12, -7)]
+        #[case::minimum_and_negative_one(i64::MIN, -1)]
+        #[case::minimum_and_zero(i64::MIN, 0)]
+        #[case::zero_and_minimum(0, i64::MIN)]
+        #[case::minimum_and_maximum(i64::MIN, i64::MAX)]
         fn satisfies_bezout_identity_for_negative_numbers(#[case] a: i64, #[case] b: i64) {
             // Given, When
             let (x, y) = extended_gcd(a, b);
             let expected_gcd = gcd(a.unsigned_abs() as u128, b.unsigned_abs() as u128);
             // Then
-            assert_eq!(expected_gcd as i64, a * x + b * y);
+            assert_eq!(
+                expected_gcd as i128,
+                a as i128 * x as i128 + b as i128 * y as i128
+            );
         }
     }
 }
