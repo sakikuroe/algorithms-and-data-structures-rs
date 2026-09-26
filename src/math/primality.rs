@@ -239,25 +239,6 @@ fn is_prime_without_montgomery(n: u64, witnesses: &[u64]) -> bool {
     })
 }
 
-/// 試し割り法によって、閾値未満の合成数 `n` を素因数分解する。
-fn factorize_by_trial_division(mut n: u64) -> HashMap<u64, usize> {
-    let mut result = HashMap::new();
-
-    let mut p = 2;
-    while p * p <= n {
-        while n.is_multiple_of(p) {
-            *result.entry(p).or_insert(0) += 1;
-            n /= p;
-        }
-        p += 1;
-    }
-    if n > 1 {
-        *result.entry(n).or_insert(0) += 1;
-    }
-
-    result
-}
-
 /// `u64` 同士の最大公約数を、除算命令を使わずに求める (Stein のアルゴリズム、
 /// バイナリ GCD)。
 ///
@@ -496,7 +477,24 @@ pub fn factorize(n: u64) -> HashMap<u64, usize> {
         return HashMap::from([(n, 1)]);
     }
     if n < TRIAL_DIVISION_THRESHOLD {
-        return factorize_by_trial_division(n);
+        // 小さい合成数は Pollard's rho より試し割りの方が簡単で速い。割るたびに
+        // 残りの値を小さくし、探索をその平方根までにとどめる。
+        let mut result = HashMap::new();
+        let mut remaining = n;
+        let mut p = 2;
+        while p * p <= remaining {
+            while remaining.is_multiple_of(p) {
+                *result.entry(p).or_insert(0) += 1;
+                remaining /= p;
+            }
+            p += 1;
+        }
+
+        // 1 より大きい残りは素数なので、そのまま最後の素因数として加える。
+        if remaining > 1 {
+            *result.entry(remaining).or_insert(0) += 1;
+        }
+        return result;
     }
 
     let mut result = HashMap::new();
