@@ -77,6 +77,75 @@ pub fn lcm(a: u128, b: u128) -> Option<u128> {
     (a / gcd(a, b)).checked_mul(b)
 }
 
+/// 拡張ユークリッドの互除法により、ベズー等式を満たす係数を求める。
+///
+/// # Args
+/// - `a` - 整数
+/// - `b` - 整数
+///
+/// # Returns
+/// `(x, y)`: `a * x + b * y == gcd(a, b)` を満たす整数の組。
+/// 具体的には:
+/// - `a = 0` かつ `b = 0` の場合、`(0, 0)` を返す。
+/// - それ以外の場合、`gcd(a, b)` は非負整数の最大公約数として計算され、これを満たす `(x, y)` のうち
+///   `max(|x|, |y|) <= max(|a|, |b|)` を満たすものを返す。
+///
+/// # Complexity
+/// - 時間計算量: $O(\log(\min(|a|, |b|)))$
+/// - 空間計算量: $O(1)$
+///
+/// # Examples
+/// ```
+/// use anmitsu::math::number_theory;
+///
+/// // gcd(10, 4) = 2 = 10 * 1 + 4 * (-2)
+/// assert_eq!((1, -2), number_theory::extended_gcd(10, 4));
+///
+/// // gcd(0, 4) = 4 = 0 * 0 + 4 * 1
+/// assert_eq!((0, 1), number_theory::extended_gcd(0, 4));
+///
+/// // gcd(0, 0) = 0 = 0 * 0 + 0 * 0
+/// assert_eq!((0, 0), number_theory::extended_gcd(0, 0));
+///
+/// // gcd(-12, 7) = 1 = -12 * (-3) + 7 * (-5)
+/// assert_eq!((-3, -5), number_theory::extended_gcd(-12, 7));
+/// ```
+pub fn extended_gcd(a: i64, b: i64) -> (i64, i64) {
+    if a == 0 && b == 0 {
+        return (0, 0);
+    }
+    if a == 0 {
+        return (0, if b > 0 { 1 } else { -1 });
+    }
+    if b == 0 {
+        return (if a > 0 { 1 } else { -1 }, 0);
+    }
+
+    // (s, t) はユークリッドの互除法の途中経過であり、(xs, ys), (xt, yt) はそれぞれ
+    // s == a * xs + b * ys, t == a * xt + b * yt を満たす係数の組である。
+    // s を t で割った商 q に対して次の組を作ると、この不変条件を保ったまま
+    // (s, t) を (t, s % t) へ進めることができる。
+    // i64::MIN / -1 や、係数を更新する途中の積が i64 を超える場合も扱えるよう、
+    // ユークリッドの互除法は i128 で計算する。
+    let (mut xs, mut ys, mut s) = (1_i128, 0_i128, a as i128);
+    let (mut xt, mut yt, mut t) = (0_i128, 1_i128, b as i128);
+
+    while s % t != 0 {
+        let q = s / t;
+        let (u, xu, yu) = (s - q * t, xs - q * xt, ys - q * yt);
+        (xs, ys, xt, yt) = (xt, yt, xu, yu);
+        (s, t) = (t, u);
+    }
+
+    // t が gcd(a, b) の符号付きの値であり、非負整数の gcd に揃えるため
+    // 負の場合は係数の符号を反転させる。
+    let (x, y) = if t < 0 { (-xt, -yt) } else { (xt, yt) };
+    (
+        i64::try_from(x).expect("Bezout coefficient x fits in i64"),
+        i64::try_from(y).expect("Bezout coefficient y fits in i64"),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,6 +398,126 @@ mod tests {
 
             // Then
             assert!(result.is_none());
+        }
+    }
+
+    // extended_gcd のテスト: 戻り値を検証する。
+    mod extended_gcd {
+        use super::*;
+        use rstest::rstest;
+
+        /// Scenario: 典型的な正整数の組に対してベズー等式を満たす係数を返す。
+        /// - Given: 共通の約数を持つ 2 つの正整数がある。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: 期待した係数の組が返る。
+        #[rstest]
+        #[case::ten_and_four(10, 4, 1, -2)]
+        #[case::twenty_seven_and_eighteen(27, 18, 1, -1)]
+        #[case::one_hundred_and_seventy_five(100, 75, 1, -1)]
+        fn returns_bezout_coefficients_for_typical_values(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
+        }
+
+        /// Scenario: 互いに素な数の組に対してベズー等式を満たす係数を返す。
+        /// - Given: 互いに素な 2 つの正整数がある。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: 期待した係数の組が返る。
+        #[rstest]
+        #[case::seven_and_five(7, 5, -2, 3)]
+        #[case::thirteen_and_seventeen(13, 17, 4, -3)]
+        fn returns_bezout_coefficients_for_coprime_numbers(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
+        }
+
+        /// Scenario: 片方がもう片方の倍数である場合、その関係を反映した係数を返す。
+        /// - Given: 一方が他方の倍数となっている 2 つの正整数がある。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: 期待した係数の組が返る。
+        #[rstest]
+        #[case::first_is_multiple(10, 2, 0, 1)]
+        #[case::second_is_multiple(5, 20, 1, 0)]
+        fn returns_bezout_coefficients_when_one_is_multiple_of_other(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
+        }
+
+        /// Scenario: 片方が `0` の場合、`0` でない方の符号に応じた係数を返す (境界値)。
+        /// - Given: 一方が `0`、他方が正または負の整数である組み合わせがある。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: 期待した係数の組が返る。
+        #[rstest]
+        #[case::first_zero_second_positive(0, 5, 0, 1)]
+        #[case::second_zero_first_positive(10, 0, 1, 0)]
+        #[case::first_zero_second_negative(0, -5, 0, -1)]
+        #[case::second_zero_first_negative(-10, 0, -1, 0)]
+        fn returns_bezout_coefficients_when_one_is_zero(
+            #[case] a: i64,
+            #[case] b: i64,
+            #[case] expected_x: i64,
+            #[case] expected_y: i64,
+        ) {
+            // Given, When
+            let result = extended_gcd(a, b);
+            // Then
+            assert_eq!((expected_x, expected_y), result);
+        }
+
+        /// Scenario: 両方が `0` の場合、`(0, 0)` を返す (境界値)。
+        /// - Given: `a`, `b` がともに `0` である。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: `(0, 0)` が返る。
+        #[test]
+        fn returns_zero_pair_when_both_are_zero() {
+            // Given, When
+            let result = extended_gcd(0, 0);
+            // Then
+            assert_eq!((0, 0), result);
+        }
+
+        /// Scenario: 負の整数を含む組み合わせでも、ベズー等式 `a * x + b * y == gcd(a, b)` を満たす。
+        /// - Given: 負の整数を含む 2 つの整数の組み合わせがある。
+        /// - When: `extended_gcd` を呼ぶ。
+        /// - Then: 返った係数の組がベズー等式を満たす。
+        #[rstest]
+        #[case::negative_first(-12, 7)]
+        #[case::negative_second(12, -7)]
+        #[case::both_negative(-12, -7)]
+        #[case::minimum_and_negative_one(i64::MIN, -1)]
+        #[case::minimum_and_zero(i64::MIN, 0)]
+        #[case::zero_and_minimum(0, i64::MIN)]
+        #[case::minimum_and_maximum(i64::MIN, i64::MAX)]
+        fn satisfies_bezout_identity_for_negative_numbers(#[case] a: i64, #[case] b: i64) {
+            // Given, When
+            let (x, y) = extended_gcd(a, b);
+            let expected_gcd = gcd(a.unsigned_abs() as u128, b.unsigned_abs() as u128);
+            // Then
+            assert_eq!(
+                expected_gcd as i128,
+                a as i128 * x as i128 + b as i128 * y as i128
+            );
         }
     }
 }
