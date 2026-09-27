@@ -147,7 +147,11 @@ where
     /// assert_eq!(seg.fold(0, 10), 7);
     /// ```
     pub fn set(&mut self, idx: usize, x: M::S) {
-        let rank = self.registered_rank(idx);
+        assert!(idx < self.len, "index out of bounds");
+        let rank = self
+            .coordinates
+            .binary_search(&idx)
+            .expect("index is not registered");
         self.data[self.size + rank] = x;
     }
 
@@ -169,8 +173,9 @@ where
     /// assert_eq!(seg.fold(0, 10), 9);
     /// ```
     pub fn build(&mut self) {
+        // 圧縮座標の葉から親へ、座標順を保って値を集約する。
         for node in (1..self.size).rev() {
-            self.pull(node);
+            self.data[node] = M::op(&self.data[node * 2], &self.data[node * 2 + 1]);
         }
     }
 
@@ -197,12 +202,17 @@ where
     /// assert_eq!(seg.fold(0, 10), 7);
     /// ```
     pub fn update(&mut self, idx: usize, x: M::S) {
-        let rank = self.registered_rank(idx);
+        assert!(idx < self.len, "index out of bounds");
+        let rank = self
+            .coordinates
+            .binary_search(&idx)
+            .expect("index is not registered");
         let mut node = self.size + rank;
         self.data[node] = x;
+        // 葉から根へ進み、変更を受ける祖先だけ再集約する。
         while node > 1 {
             node >>= 1;
-            self.pull(node);
+            self.data[node] = M::op(&self.data[node * 2], &self.data[node * 2 + 1]);
         }
     }
 
@@ -230,7 +240,7 @@ where
     /// assert_eq!(seg.get(4), 0);
     /// ```
     pub fn get(&self, idx: usize) -> M::S {
-        self.check_index(idx);
+        assert!(idx < self.len, "index out of bounds");
         self.coordinates
             .binary_search(&idx)
             .map(|rank| self.data[self.size + rank].clone())
@@ -264,9 +274,10 @@ where
     /// assert_eq!(seg.fold(4, 8), 5);
     /// ```
     pub fn fold(&self, l: usize, r: usize) -> M::S {
-        self.check_range(l, r);
-        let mut left = self.lower_bound(l) + self.size;
-        let mut right = self.lower_bound(r) + self.size;
+        assert!(l <= r && r <= self.len, "range out of bounds");
+        // 未登録座標を含む端点を、最初の登録座標の順位へ写す。
+        let mut left = self.coordinates.partition_point(|&point| point < l) + self.size;
+        let mut right = self.coordinates.partition_point(|&point| point < r) + self.size;
         let mut sum_left = M::id();
         let mut sum_right = M::id();
         while left < right {
@@ -316,7 +327,7 @@ where
     {
         assert!(l <= self.len, "index out of bounds");
         assert!(f(&M::id()), "predicate must accept the identity");
-        let rank = self.lower_bound(l);
+        let rank = self.coordinates.partition_point(|&point| point < l);
         if rank == self.coordinates.len() {
             return self.len;
         }
@@ -379,7 +390,7 @@ where
     {
         assert!(r <= self.len, "index out of bounds");
         assert!(f(&M::id()), "predicate must accept the identity");
-        let rank = self.lower_bound(r);
+        let rank = self.coordinates.partition_point(|&point| point < r);
         if rank == 0 {
             return 0;
         }
@@ -414,36 +425,9 @@ where
         }
         0
     }
-
-    /// 点操作の座標が論理上の区間内であることを確認する。
-    fn check_index(&self, idx: usize) {
-        assert!(idx < self.len, "index out of bounds");
-    }
-
-    /// 区間の両端が論理上の区間内で順序どおりであることを確認する。
-    fn check_range(&self, l: usize, r: usize) {
-        assert!(l <= r && r <= self.len, "range out of bounds");
-    }
-
-    /// 登録済み座標の圧縮後の位置を取得する。
-    fn registered_rank(&self, idx: usize) -> usize {
-        self.check_index(idx);
-        self.coordinates
-            .binary_search(&idx)
-            .expect("index is not registered")
-    }
-
-    /// `idx` 以上の最初の登録座標の圧縮後の位置を返す。
-    fn lower_bound(&self, idx: usize) -> usize {
-        self.coordinates.partition_point(|&point| point < idx)
-    }
-
-    /// 子の集約値から親の集約値を計算する。
-    fn pull(&mut self, node: usize) {
-        self.data[node] = M::op(&self.data[node * 2], &self.data[node * 2 + 1]);
-    }
 }
 
+/// 座標圧縮、集約順序、境界条件を確認するテスト。
 #[cfg(test)]
 mod tests {
     use super::super::super::super::algebra::semi_group;
@@ -455,6 +439,14 @@ mod tests {
     impl semi_group::SemiGroup for ConcatMonoid {
         type S = String;
 
+        /// 左右の文字列を座標順に連結する。
+        ///
+        /// # Args
+        /// - `a` - 左区間の文字列。
+        /// - `b` - 右区間の文字列。
+        ///
+        /// # Returns
+        /// `a` の後に `b` を連結した文字列を返す。
         fn op(a: &Self::S, b: &Self::S) -> Self::S {
             let mut result = String::with_capacity(a.len() + b.len());
             result.push_str(a);
@@ -464,12 +456,16 @@ mod tests {
     }
 
     impl monoid::Monoid for ConcatMonoid {
+        /// 連結の単位元である空文字列を返す。
+        ///
+        /// # Returns
+        /// 空文字列を返す。
         fn id() -> Self::S {
             String::new()
         }
     }
 
-    // set と build のテスト: 圧縮した葉が正しく集約されることを確認する。
+    /// 圧縮した葉が正しく集約されることを確認する。
     mod build {
         use super::*;
 
@@ -496,7 +492,7 @@ mod tests {
         }
     }
 
-    // 区間集約と境界探索のテスト: 愚直な配列との一致を確認する。
+    /// 区間集約と境界探索が愚直な配列と一致することを確認する。
     mod queries {
         use super::*;
 
@@ -567,7 +563,7 @@ mod tests {
         }
     }
 
-    // 空の木のテスト: 登録座標がない場合も扱えることを確認する。
+    /// 登録座標がない場合も扱えることを確認する。
     mod empty {
         use super::*;
 
@@ -631,7 +627,7 @@ mod tests {
         }
     }
 
-    // 入力検査のテスト: 未登録位置と範囲外を受け付けないことを確認する。
+    /// 未登録位置と範囲外を受け付けないことを確認する。
     mod bounds {
         use super::*;
 

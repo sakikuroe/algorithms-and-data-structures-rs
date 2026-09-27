@@ -10,7 +10,9 @@ const NONE: usize = usize::MAX;
 
 /// 区間の集約値と、左右の子の配列内での位置を保持する。
 struct Node<S> {
+    /// この節点が担当する区間の集約値。
     value: S,
+    /// 左右の子の添字。未生成側には `NONE` を入れる。
     children: [usize; 2],
 }
 
@@ -138,7 +140,7 @@ where
     /// assert_eq!(seg.fold(0, 10), 7);
     /// ```
     pub fn set(&mut self, idx: usize, x: M::S) {
-        self.check_index(idx);
+        assert!(idx < self.len, "index out of bounds");
         let mut path = [0; usize::BITS as usize];
         let (leaf, _) = self.locate_or_create(idx, &mut path);
         self.nodes[leaf].value = x;
@@ -191,7 +193,7 @@ where
     /// assert_eq!(seg.fold(0, 10), 7);
     /// ```
     pub fn update(&mut self, idx: usize, x: M::S) {
-        self.check_index(idx);
+        assert!(idx < self.len, "index out of bounds");
         let mut path = [0; usize::BITS as usize];
         let (leaf, depth) = self.locate_or_create(idx, &mut path);
         self.nodes[leaf].value = x;
@@ -223,7 +225,7 @@ where
     /// assert_eq!(seg.get(3), 0);
     /// ```
     pub fn get(&self, idx: usize) -> M::S {
-        self.check_index(idx);
+        assert!(idx < self.len, "index out of bounds");
         let (mut node, mut lo, mut hi) = (0, 0, self.len);
         while hi - lo > 1 {
             let mid = lo + (hi - lo) / 2;
@@ -267,7 +269,7 @@ where
     /// assert_eq!(seg.fold(3, 4), 7);
     /// ```
     pub fn fold(&self, l: usize, r: usize) -> M::S {
-        self.check_range(l, r);
+        assert!(l <= r && r <= self.len, "range out of bounds");
         self.fold_node(0, 0, self.len, l, r)
     }
 
@@ -341,17 +343,18 @@ where
             .unwrap_or(0)
     }
 
-    /// 点操作の座標が論理上の区間内であることを確認する。
-    fn check_index(&self, idx: usize) {
-        assert!(idx < self.len, "index out of bounds");
-    }
-
-    /// 区間の両端が論理上の区間内で順序どおりであることを確認する。
-    fn check_range(&self, l: usize, r: usize) {
-        assert!(l <= r && r <= self.len, "range out of bounds");
-    }
-
-    /// 葉までの経路を必要に応じて作り、親の番号を `path` に記録する。
+    /// 葉までの経路を必要に応じて作り、祖先を `path` に記録する。
+    ///
+    /// `set` と `update` が共有する節点生成の規則をここに集める。
+    /// 新しい子は親より大きい添字で保存されるため、`build` は
+    /// 節点を逆順に走査して親を集約できる。
+    ///
+    /// # Args
+    /// - `idx` - 範囲内と確認済みの更新座標。
+    /// - `path` - 祖先の添字を書き込む領域。最大深さ分の長さが必要。
+    ///
+    /// # Returns
+    /// 葉の添字と、`path` に書き込んだ祖先の個数を返す。
     fn locate_or_create(
         &mut self,
         idx: usize,
@@ -381,6 +384,12 @@ where
     }
 
     /// 子の集約値から親の集約値を計算する。
+    ///
+    /// 未生成の子は単位元とみなし、片方だけ存在するときは
+    /// モノイド演算を省いて存在する子の値を複製する。
+    ///
+    /// # Args
+    /// - `idx` - 集約する内部節点の添字。子の値は更新済みであること。
     fn pull(&mut self, idx: usize) {
         let [left, right] = self.nodes[idx].children;
         // 未生成側は単位元なので、片側だけなら演算を省略できる。
@@ -393,6 +402,14 @@ where
     }
 
     /// 必要な部分木だけを訪問し、区間集約を求める。
+    ///
+    /// # Args
+    /// - `node` - `[lo, hi)` を担当する節点の添字。`NONE` は未生成部分木。
+    /// - `lo`, `hi` - 現在の節点が担当する半開区間の端点。
+    /// - `l`, `r` - 求める半開区間の端点。
+    ///
+    /// # Returns
+    /// 両区間の共通部分の集約値を返す。未生成部分木では単位元を返す。
     fn fold_node(&self, node: usize, lo: usize, hi: usize, l: usize, r: usize) -> M::S {
         if node == NONE || hi <= l || r <= lo {
             return M::id();
@@ -420,6 +437,16 @@ where
     }
 
     /// 左から集約し、最初に述語が偽になる座標を探す。
+    ///
+    /// # Args
+    /// - `node` - `[lo, hi)` を担当する節点の添字。`NONE` は未生成部分木。
+    /// - `lo`, `hi` - 現在の節点が担当する半開区間の端点。
+    /// - `l` - 探索を始める座標。この位置より左は集約しない。
+    /// - `f` - 単位元を受け入れる単調な述語。
+    /// - `sum` - 現在までに左から集約した値。訪問後の値に更新する。
+    ///
+    /// # Returns
+    /// 失敗した葉の座標を返す。最後まで真なら `None` を返す。
     fn max_right_node<F>(
         &self,
         node: usize,
@@ -451,6 +478,16 @@ where
     }
 
     /// 右から集約し、最初に述語が偽になる座標の直後を探す。
+    ///
+    /// # Args
+    /// - `node` - `[lo, hi)` を担当する節点の添字。`NONE` は未生成部分木。
+    /// - `lo`, `hi` - 現在の節点が担当する半開区間の端点。
+    /// - `r` - 探索を終える座標。この位置以右は集約しない。
+    /// - `f` - 単位元を受け入れる単調な述語。
+    /// - `sum` - 現在までに右から集約した値。訪問後の値に更新する。
+    ///
+    /// # Returns
+    /// 失敗した葉の直後の座標を返す。最後まで真なら `None` を返す。
     fn min_left_node<F>(
         &self,
         node: usize,
@@ -482,6 +519,7 @@ where
     }
 }
 
+/// 疎な節点生成、集約順序、境界条件を確認するテスト。
 #[cfg(test)]
 mod tests {
     use super::super::super::super::algebra::semi_group;
@@ -493,6 +531,14 @@ mod tests {
     impl semi_group::SemiGroup for ConcatMonoid {
         type S = String;
 
+        /// 左右の文字列を座標順に連結する。
+        ///
+        /// # Args
+        /// - `a` - 左区間の文字列。
+        /// - `b` - 右区間の文字列。
+        ///
+        /// # Returns
+        /// `a` の後に `b` を連結した文字列を返す。
         fn op(a: &Self::S, b: &Self::S) -> Self::S {
             let mut result = String::with_capacity(a.len() + b.len());
             result.push_str(a);
@@ -502,12 +548,16 @@ mod tests {
     }
 
     impl monoid::Monoid for ConcatMonoid {
+        /// 連結の単位元である空文字列を返す。
+        ///
+        /// # Returns
+        /// 空文字列を返す。
         fn id() -> Self::S {
             String::new()
         }
     }
 
-    // set と build のテスト: 葉の設定後に祖先が再集約されることを確認する。
+    /// 葉の設定後に祖先が再集約されることを確認する。
     mod build {
         use super::*;
 
@@ -534,7 +584,7 @@ mod tests {
         }
     }
 
-    // 区間集約と境界探索のテスト: 愚直な配列との一致を確認する。
+    /// 区間集約と境界探索が愚直な配列と一致することを確認する。
     mod queries {
         use super::*;
 
@@ -605,7 +655,7 @@ mod tests {
         }
     }
 
-    // 空の木のテスト: 座標が存在しない場合の境界を確認する。
+    /// 座標が存在しない場合の境界を確認する。
     mod empty {
         use super::*;
 
@@ -647,7 +697,7 @@ mod tests {
         }
     }
 
-    // 入力検査のテスト: 範囲外を受け付けないことを確認する。
+    /// 範囲外を受け付けないことを確認する。
     mod bounds {
         use super::*;
 
