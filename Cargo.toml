@@ -339,6 +339,10 @@ name = "ac-abc241-d-sequence-query"
 path = "src/bin/atcoder/abc241_d_sequence_query.rs"
 
 [[bin]]
+name = "ac-abc241-d-sequence-query-sparse-offline"
+path = "src/bin/atcoder/abc241_d_sequence_query_sparse_offline.rs"
+
+[[bin]]
 name = "ac-abc405-f-chord-crossing"
 path = "src/bin/atcoder/abc405_f_chord_crossing.rs"
 
