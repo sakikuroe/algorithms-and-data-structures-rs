@@ -347,6 +347,14 @@ name = "ac-abc241-d-sequence-query-sparse-online"
 path = "src/bin/atcoder/abc241_d_sequence_query_sparse_online.rs"
 
 [[bin]]
+name = "ac-abc440-d-forbidden-list-2-sparse-offline"
+path = "src/bin/atcoder/abc440_d_forbidden_list_2_sparse_offline.rs"
+
+[[bin]]
+name = "ac-arc210-b-remove-median-operations-sparse-offline"
+path = "src/bin/atcoder/arc210_b_remove_median_operations_sparse_offline.rs"
+
+[[bin]]
 name = "ac-abc405-f-chord-crossing"
 path = "src/bin/atcoder/abc405_f_chord_crossing.rs"
 
