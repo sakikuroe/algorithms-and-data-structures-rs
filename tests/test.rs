@@ -23,6 +23,7 @@ pub mod bin {
         pub mod abc234_d_prefix_kth_max;
         pub mod abc241_d_sequence_query;
         pub mod abc241_d_sequence_query_sparse_offline;
+        pub mod abc241_d_sequence_query_sparse_online;
         pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
         pub mod abc405_f_chord_crossing;
