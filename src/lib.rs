@@ -21,6 +21,8 @@ pub mod ds {
         pub mod range_assign_add_min_max_sum;
         pub mod range_bitwise_xor_and_or;
         pub mod segment_tree_dense;
+        pub mod segment_tree_sparse_offline;
+        pub mod segment_tree_sparse_online;
     }
     pub mod bit_vector;
     pub mod union_find;
