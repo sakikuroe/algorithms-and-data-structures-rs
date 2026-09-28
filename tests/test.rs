@@ -22,14 +22,18 @@ pub mod bin {
         pub mod abc225_g_x;
         pub mod abc234_d_prefix_kth_max;
         pub mod abc241_d_sequence_query;
+        pub mod abc241_d_sequence_query_sparse_offline;
+        pub mod abc241_d_sequence_query_sparse_online;
         pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
         pub mod abc405_f_chord_crossing;
         pub mod abc406_f_compare_tree_weights;
         pub mod abc422_g_balls_and_boxes;
+        pub mod abc440_d_forbidden_list_2_sparse_offline;
         pub mod abc441_g_takoyaki;
         pub mod abc473_f_valid_string;
         pub mod arc085_e_mul;
+        pub mod arc210_b_remove_median_operations_sparse_offline;
         pub mod fps24_a_snack;
         pub mod fps24_b_tuple_of_integers;
         pub mod fps24_c_sequence;

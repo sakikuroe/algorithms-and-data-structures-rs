@@ -462,7 +462,7 @@ def find_cfg_test_mod_marker(text):
 
 
 def strip_cfg_test_mod(text):
-    # `#[cfg(test)]` に続く `mod tests { ... }` ブロックを、波括弧の対応を数えながら除去する。
+    """テストモジュールと、その直前に付くドキュメントコメントを除去する。"""
     idx = find_cfg_test_mod_marker(text)
     if idx == -1:
         return text
@@ -481,13 +481,14 @@ def strip_cfg_test_mod(text):
         i += 1
     else:
         raise RuntimeError("unbalanced braces while stripping mod tests")
-    # マーカー直前の空行も含めて除去する。
-    start = idx
-    while start > 0 and text[start - 1] in " \t":
-        start -= 1
-    if start > 0 and text[start - 1] == "\n":
-        start -= 1
-    return text[:start] + text[end:]
+    # `///` は cfg 属性より前に置かれるため、モジュールだけを除くと
+    # 対象のないドキュメントコメントが残り、生成物がコンパイルできなくなる。
+    prefix = text[:idx].splitlines(keepends=True)
+    while prefix and prefix[-1].lstrip().startswith("///"):
+        prefix.pop()
+    if prefix and not prefix[-1].strip():
+        prefix.pop()
+    return "".join(prefix) + text[end:]
 
 
 def strip_submodule_decls(text, names):
