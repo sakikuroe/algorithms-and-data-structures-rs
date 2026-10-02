@@ -402,8 +402,37 @@ where
         let layout = self.layouts[node];
         let coordinates =
             &self.y_coordinates[layout.coord_start..layout.coord_start + layout.coord_len];
+        // 接頭辞では右端の順位だけ探し、左側の兄弟を集約する。
+        if left == 0 {
+            let rank = if right == self.width {
+                layout.coord_len
+            } else {
+                coordinates.partition_point(|&col| col < right)
+            };
+            if rank == 0 {
+                return M::id();
+            }
+            if rank == layout.coord_len {
+                return self.data[layout.data_start + 1].clone();
+            }
+            let mut index = layout.size + rank;
+            let mut result = M::id();
+            while index > 1 {
+                if index & 1 == 1 {
+                    result = M::op(&self.data[layout.data_start + index - 1], &result);
+                }
+                index >>= 1;
+            }
+            return result;
+        }
+
         let mut l = layout.size + coordinates.partition_point(|&col| col < left);
-        let mut r = layout.size + coordinates.partition_point(|&col| col < right);
+        let mut r = layout.size
+            + if right == self.width {
+                layout.coord_len
+            } else {
+                coordinates.partition_point(|&col| col < right)
+            };
         let mut result = M::id();
         while l < r {
             if l & 1 == 1 {

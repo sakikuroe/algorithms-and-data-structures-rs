@@ -33,6 +33,7 @@ pub mod bin {
         pub mod abc440_d_forbidden_list_2_sparse_offline;
         pub mod abc441_g_takoyaki;
         pub mod abc473_f_valid_string;
+        pub mod abc477_f_count_cells_in_a_window_2d;
         pub mod arc085_e_mul;
         pub mod arc210_b_remove_median_operations_sparse_offline;
         pub mod fps24_a_snack;
