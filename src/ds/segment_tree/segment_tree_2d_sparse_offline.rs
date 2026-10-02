@@ -71,7 +71,7 @@ where
     /// パニックする。
     ///
     /// # Complexity
-    /// 登録点数を `K` とすると、時間 `O(K log²(K + 1))`、
+    /// 登録点数を `K` とすると、時間 `O(K log(K + 1))`、
     /// 空間 `O(K log(K + 1))`。
     pub fn new(
         height: usize,
@@ -95,17 +95,39 @@ where
         let row_capacity = row_size.checked_mul(2).expect("too many registered rows");
         let mut local_y = vec![Vec::new(); row_capacity];
 
-        // 各登録点の列座標を、その行葉から根までの全節点へ配る。
+        // 点は行・列の順に整列済みなので、各行葉の列座標も昇順になる。
         let mut x_rank = 0;
         for &(row, col) in &points {
             while x_coordinates[x_rank] < row {
                 x_rank += 1;
             }
-            let mut node = row_size + x_rank;
-            while node > 0 {
-                local_y[node].push(col);
-                node >>= 1;
+            local_y[row_size + x_rank].push(col);
+        }
+
+        // 親の列座標は子の整列済み座標を併合する。同じ列は一度だけ残す。
+        for node in (1..row_size).rev() {
+            let left = &local_y[node * 2];
+            let right = &local_y[node * 2 + 1];
+            let mut merged = Vec::with_capacity(left.len() + right.len());
+            let mut left_rank = 0;
+            let mut right_rank = 0;
+            while left_rank < left.len() || right_rank < right.len() {
+                let col = if right_rank == right.len()
+                    || (left_rank < left.len() && left[left_rank] <= right[right_rank])
+                {
+                    let col = left[left_rank];
+                    left_rank += 1;
+                    col
+                } else {
+                    let col = right[right_rank];
+                    right_rank += 1;
+                    col
+                };
+                if merged.last().copied() != Some(col) {
+                    merged.push(col);
+                }
             }
+            local_y[node] = merged;
         }
 
         // 列方向の座標と木を、それぞれ一つの配列に詰めて保持する。
@@ -113,9 +135,7 @@ where
         let mut y_coordinates = Vec::new();
         let mut data = Vec::new();
         for node in 1..row_capacity {
-            let coordinates = &mut local_y[node];
-            coordinates.sort_unstable();
-            coordinates.dedup();
+            let coordinates = &local_y[node];
             let size = if coordinates.is_empty() {
                 0
             } else {
@@ -182,10 +202,14 @@ where
     pub fn set(&mut self, point: (usize, usize), value: M::S) {
         let (row, col) = point;
         assert!(row < self.height && col < self.width, "point out of bounds");
-        let row_rank = self
-            .x_coordinates
-            .binary_search(&row)
-            .expect("point is not registered");
+        // 全行が登録済みなら、論理座標と圧縮後の順位が一致する。
+        let row_rank = if self.x_coordinates.len() == self.height {
+            row
+        } else {
+            self.x_coordinates
+                .binary_search(&row)
+                .expect("point is not registered")
+        };
         let node = self.row_size + row_rank;
         let layout = self.layouts[node];
         let coord = &self.y_coordinates[layout.coord_start..layout.coord_start + layout.coord_len];
@@ -259,10 +283,14 @@ where
     pub fn update(&mut self, point: (usize, usize), mut value: M::S) {
         let (row, col) = point;
         assert!(row < self.height && col < self.width, "point out of bounds");
-        let row_rank = self
-            .x_coordinates
-            .binary_search(&row)
-            .expect("point is not registered");
+        // 全行が登録済みなら、論理座標と圧縮後の順位が一致する。
+        let row_rank = if self.x_coordinates.len() == self.height {
+            row
+        } else {
+            self.x_coordinates
+                .binary_search(&row)
+                .expect("point is not registered")
+        };
         let mut node = self.row_size + row_rank;
         let layout = self.layouts[node];
         let coordinates =
@@ -309,6 +337,9 @@ where
     pub fn get(&self, point: (usize, usize)) -> M::S {
         let (row, col) = point;
         assert!(row < self.height && col < self.width, "point out of bounds");
+        if self.x_coordinates.len() == self.height {
+            return self.inner_get(self.row_size + row, col);
+        }
         match self.x_coordinates.binary_search(&row) {
             Ok(rank) => self.inner_get(self.row_size + rank, col),
             Err(_) => M::id(),
@@ -344,8 +375,17 @@ where
             return M::id();
         }
 
-        let mut top_node = self.row_size + self.x_coordinates.partition_point(|&x| x < top);
-        let mut bottom_node = self.row_size + self.x_coordinates.partition_point(|&x| x < bottom);
+        // 全行が登録済みなら、行端点の座標探索を省ける。
+        let (top_rank, bottom_rank) = if self.x_coordinates.len() == self.height {
+            (top, bottom)
+        } else {
+            (
+                self.x_coordinates.partition_point(|&x| x < top),
+                self.x_coordinates.partition_point(|&x| x < bottom),
+            )
+        };
+        let mut top_node = self.row_size + top_rank;
+        let mut bottom_node = self.row_size + bottom_rank;
         let mut result = M::id();
         while top_node < bottom_node {
             if top_node & 1 == 1 {
@@ -398,6 +438,8 @@ where
     }
 
     /// 行節点内で、登録列座標に対する半開区間を集約する。
+    // 呼び出し元の左端が定数 0 なら、接頭辞専用の経路だけを残せる。
+    #[inline(always)]
     fn inner_fold(&self, node: usize, left: usize, right: usize) -> M::S {
         let layout = self.layouts[node];
         let coordinates =
