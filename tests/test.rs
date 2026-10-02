@@ -13,6 +13,7 @@ pub mod bin {
     pub mod atcoder {
         pub mod abc035_c_othello;
         pub mod abc075_c_bridge;
+        pub mod abc106_d_atcoder_express_2_2d;
         pub mod abc142_d_disjoint_set_of_common_divisors;
         pub mod abc176_d_wizard_in_maze;
         pub mod abc177_e_coprime;

@@ -347,6 +347,18 @@ name = "ac-abc241-d-sequence-query-sparse-online"
 path = "src/bin/atcoder/abc241_d_sequence_query_sparse_online.rs"
 
 [[bin]]
+name = "ac-abc106-d-atcoder-express-2-2d-dense"
+path = "src/bin/atcoder/abc106_d_atcoder_express_2_2d_dense.rs"
+
+[[bin]]
+name = "ac-abc106-d-atcoder-express-2-2d-sparse-offline"
+path = "src/bin/atcoder/abc106_d_atcoder_express_2_2d_sparse_offline.rs"
+
+[[bin]]
+name = "ac-abc106-d-atcoder-express-2-2d-sparse-online"
+path = "src/bin/atcoder/abc106_d_atcoder_express_2_2d_sparse_online.rs"
+
+[[bin]]
 name = "ac-abc440-d-forbidden-list-2-sparse-offline"
 path = "src/bin/atcoder/abc440_d_forbidden_list_2_sparse_offline.rs"
 
