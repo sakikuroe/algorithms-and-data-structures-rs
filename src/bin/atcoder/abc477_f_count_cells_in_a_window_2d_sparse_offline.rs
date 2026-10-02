@@ -57,6 +57,7 @@ fn main() {
         seg.set((row, right), (-1, -(right as i64)));
     }
     seg.build();
+    seg.prepare_prefix_folds();
 
     for _ in 0..q {
         let top = io.usize1();
@@ -66,8 +67,8 @@ fn main() {
 
         // 差分の接頭辞 (個数, 加重和) を (count, weight) とすると、
         // 先頭 x 列の黒マス数は x * count - weight になる。
-        let (right_count, right_weight) = seg.fold((top, 0), (bottom, right));
-        let (left_count, left_weight) = seg.fold((top, 0), (bottom, left));
+        let ((right_count, right_weight), (left_count, left_weight)) =
+            seg.fold_prefix_pair(top, bottom, right, left);
         let answer =
             right as i64 * right_count - right_weight - (left as i64 * left_count - left_weight);
         io.writeln(answer);

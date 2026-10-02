@@ -3,6 +3,8 @@
 //! 行座標を圧縮し、各行方向の節点に現れる列座標だけを保持する。
 //! 登録点数を `K` とすると、領域は `O(K log(K + 1))`、点更新と
 //! 矩形集約は `O(log²(K + 1))` 時間である。矩形集約には可換モノイドを使う。
+//! `build` 後に `prepare_prefix_folds` を呼ぶと、列の先頭からの矩形集約を
+//! `O(log(K + 1))` 時間で処理できる。
 
 use super::super::super::algebra::monoid;
 
@@ -15,8 +17,10 @@ struct InnerLayout {
     coord_len: usize,
     /// 列方向の木の開始位置。
     data_start: usize,
-    /// 列方向の木の葉数。列座標がなければ 0。
+    /// 列方向の木の葉数。登録列座標数と同じ。
     size: usize,
+    /// 親の列順位から左右の子の列順位への対応表の開始位置。
+    rank_start: usize,
 }
 
 /// 更新候補点を事前に指定する疎な 2 次元セグメント木。
@@ -24,6 +28,7 @@ struct InnerLayout {
 /// 論理上の座標範囲は `[0, height) × [0, width)` である。
 /// 未登録点の `get` は単位元を返し、`set` と `update` は登録点だけを
 /// 受け付ける。`set` の後は `build` で祖先を再集約する。
+/// 構築後の接頭辞集約が多い場合は `prepare_prefix_folds` を呼ぶ。
 ///
 /// # Examples
 /// ```
@@ -49,6 +54,12 @@ where
     layouts: Vec<InnerLayout>,
     y_coordinates: Vec<usize>,
     data: Vec<M::S>,
+    /// 親順位に対応する左右の子の順位を下位・上位 32 bit に保持する。
+    child_ranks: Vec<u64>,
+    /// 論理列幅が小さいときの、列端点から根の圧縮順位への対応表。
+    root_ranks: Option<Vec<u32>>,
+    /// 構築後に準備した列方向の接頭辞集約。更新時に無効化する。
+    prefix_data: Option<Vec<M::S>>,
 }
 
 impl<M> SegmentTree2dSparseOffline<M>
@@ -67,8 +78,8 @@ where
     /// 更新候補点に応じた領域だけを確保した木を返す。
     ///
     /// # Panics
-    /// 登録点が範囲外か、配列の長さが `usize` に収まらない場合に
-    /// パニックする。
+    /// 登録点が範囲外か、配列の長さが `usize` に収まらない場合、
+    /// または行節点の登録列数が `u32` に収まらない場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(K log(K + 1))`、
@@ -134,23 +145,39 @@ where
         let mut layouts = vec![InnerLayout::default(); row_capacity];
         let mut y_coordinates = Vec::new();
         let mut data = Vec::new();
+        let mut child_ranks = Vec::new();
         for node in 1..row_capacity {
             let coordinates = &local_y[node];
-            let size = if coordinates.is_empty() {
-                0
-            } else {
-                coordinates
-                    .len()
-                    .checked_next_power_of_two()
-                    .expect("too many registered columns")
-            };
+            // 集約演算が可換なので、葉数を 2 の累乗に揃える必要はない。
+            let size = coordinates.len();
             layouts[node] = InnerLayout {
                 coord_start: y_coordinates.len(),
                 coord_len: coordinates.len(),
                 data_start: data.len(),
                 size,
+                rank_start: child_ranks.len(),
             };
             y_coordinates.extend_from_slice(coordinates);
+            if node < row_size {
+                let left = &local_y[node * 2];
+                let right = &local_y[node * 2 + 1];
+                let mut left_rank = 0;
+                let mut right_rank = 0;
+                child_ranks.push(0);
+                for &col in coordinates {
+                    if left.get(left_rank) == Some(&col) {
+                        left_rank += 1;
+                    }
+                    if right.get(right_rank) == Some(&col) {
+                        right_rank += 1;
+                    }
+                    let left_rank_u32 =
+                        u32::try_from(left_rank).expect("too many registered columns");
+                    let right_rank_u32 =
+                        u32::try_from(right_rank).expect("too many registered columns");
+                    child_ranks.push((u64::from(right_rank_u32) << 32) | u64::from(left_rank_u32));
+                }
+            }
             let capacity = size.checked_mul(2).expect("too many registered columns");
             let new_len = data
                 .len()
@@ -167,6 +194,9 @@ where
             layouts,
             y_coordinates,
             data,
+            child_ranks,
+            root_ranks: None,
+            prefix_data: None,
         }
     }
 
@@ -214,6 +244,7 @@ where
         let layout = self.layouts[node];
         let coord = &self.y_coordinates[layout.coord_start..layout.coord_start + layout.coord_len];
         let col_rank = coord.binary_search(&col).expect("point is not registered");
+        self.prefix_data = None;
         self.data[layout.data_start + layout.size + col_rank] = value;
     }
 
@@ -223,6 +254,7 @@ where
     /// 登録点数を `K` とすると、時間 `O(K log(K + 1))`、
     /// 追加領域 `O(1)`。
     pub fn build(&mut self) {
+        self.prefix_data = None;
         for node in self.row_size..self.layouts.len() {
             self.rebuild_inner(node);
         }
@@ -269,6 +301,45 @@ where
         }
     }
 
+    /// 構築済みの木に対し、列の先頭からの集約を各行節点で事前計算する。
+    ///
+    /// 以後の接頭辞矩形集約は、列方向の木をたどらずに値を取得する。
+    /// `set`、`update`、`build` を行うと事前計算結果は無効になる。
+    ///
+    /// # Complexity
+    /// 登録点数を `K` とすると、時間と追加領域は `O(K log(K + 1))`。
+    pub fn prepare_prefix_folds(&mut self) {
+        if self.root_ranks.is_none() {
+            let root = self.layouts[1];
+            // 論理列幅が登録列数の 4 倍以下なら、直引き表の追加領域も O(K)。
+            if self.width < usize::MAX && self.width <= root.coord_len.saturating_mul(4) {
+                let coordinates =
+                    &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
+                let mut ranks = Vec::with_capacity(self.width + 1);
+                let mut rank = 0;
+                for endpoint in 0..=self.width {
+                    while rank < coordinates.len() && coordinates[rank] < endpoint {
+                        rank += 1;
+                    }
+                    ranks.push(u32::try_from(rank).expect("too many registered columns"));
+                }
+                self.root_ranks = Some(ranks);
+            }
+        }
+        let mut prefix_data = Vec::with_capacity(self.y_coordinates.len());
+        for layout in &self.layouts[1..] {
+            let mut aggregate = M::id();
+            for rank in 0..layout.coord_len {
+                aggregate = M::op(
+                    &aggregate,
+                    &self.data[layout.data_start + layout.size + rank],
+                );
+                prefix_data.push(aggregate.clone());
+            }
+        }
+        self.prefix_data = Some(prefix_data);
+    }
+
     /// 登録点を更新し、行方向・列方向の祖先へ直ちに反映する。
     ///
     /// # Args
@@ -298,6 +369,7 @@ where
         let col_rank = coordinates
             .binary_search(&col)
             .expect("point is not registered");
+        self.prefix_data = None;
         self.data[layout.data_start + layout.size + col_rank] = value.clone();
         self.rebuild_inner_path(node, col_rank);
 
@@ -384,22 +456,218 @@ where
                 self.x_coordinates.partition_point(|&x| x < bottom),
             )
         };
-        let mut top_node = self.row_size + top_rank;
-        let mut bottom_node = self.row_size + bottom_rank;
-        let mut result = M::id();
-        while top_node < bottom_node {
-            if top_node & 1 == 1 {
-                result = M::op(&result, &self.inner_fold(top_node, left, right));
-                top_node += 1;
-            }
-            if bottom_node & 1 == 1 {
-                bottom_node -= 1;
-                result = M::op(&result, &self.inner_fold(bottom_node, left, right));
-            }
-            top_node >>= 1;
-            bottom_node >>= 1;
+        if top_rank == bottom_rank {
+            return M::id();
         }
-        result
+        let root = self.layouts[1];
+        let root_coordinates =
+            &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
+        let (left_rank, right_rank) = if let Some(ranks) = &self.root_ranks {
+            (ranks[left] as usize, ranks[right] as usize)
+        } else {
+            (
+                root_coordinates.partition_point(|&col| col < left),
+                if right == self.width {
+                    root.coord_len
+                } else {
+                    root_coordinates.partition_point(|&col| col < right)
+                },
+            )
+        };
+        if left_rank == right_rank {
+            return M::id();
+        }
+        self.fold_ranked(
+            1,
+            (0, self.row_size),
+            (top_rank, bottom_rank),
+            (left_rank, right_rank),
+        )
+    }
+
+    /// 同じ行範囲について、列の先頭からの二つの集約を同時に返す。
+    ///
+    /// `prepare_prefix_folds` 済みなら行方向の探索を共有する。未準備の
+    /// 場合も通常の矩形集約を二回行い、同じ結果を返す。
+    ///
+    /// # Args
+    /// - `top`, `bottom` - 行方向の半開区間。
+    /// - `first_right`, `second_right` - 二つの列方向接頭辞の右端。
+    ///
+    /// # Returns
+    /// 指定順に二つの接頭辞矩形の集約値を返す。
+    ///
+    /// # Panics
+    /// 行範囲または列の右端が論理上の範囲外の場合にパニックする。
+    ///
+    /// # Complexity
+    /// 登録点数を `K` とすると、事前計算済みの場合は `O(log(K + 1))`、
+    /// 未準備の場合は `O(log²(K + 1))` 時間。
+    pub fn fold_prefix_pair(
+        &self,
+        top: usize,
+        bottom: usize,
+        first_right: usize,
+        second_right: usize,
+    ) -> (M::S, M::S) {
+        assert!(
+            top <= bottom && bottom <= self.height,
+            "row range out of bounds"
+        );
+        assert!(
+            first_right <= self.width && second_right <= self.width,
+            "column range out of bounds"
+        );
+        let Some(prefix_data) = &self.prefix_data else {
+            return (
+                self.fold((top, 0), (bottom, first_right)),
+                self.fold((top, 0), (bottom, second_right)),
+            );
+        };
+        if top == bottom {
+            return (M::id(), M::id());
+        }
+        let (top_rank, bottom_rank) = if self.x_coordinates.len() == self.height {
+            (top, bottom)
+        } else {
+            (
+                self.x_coordinates.partition_point(|&x| x < top),
+                self.x_coordinates.partition_point(|&x| x < bottom),
+            )
+        };
+        if top_rank == bottom_rank {
+            return (M::id(), M::id());
+        }
+        let root = self.layouts[1];
+        let coordinates = &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
+        let (first_rank, second_rank) = if let Some(ranks) = &self.root_ranks {
+            (ranks[first_right] as usize, ranks[second_right] as usize)
+        } else {
+            (
+                coordinates.partition_point(|&col| col < first_right),
+                coordinates.partition_point(|&col| col < second_right),
+            )
+        };
+        self.fold_prefix_pair_ranked(
+            1,
+            (0, self.row_size),
+            (top_rank, bottom_rank),
+            (first_rank, second_rank),
+            prefix_data,
+        )
+    }
+
+    /// 列順位を左右の子へ引き継ぎ、二つの接頭辞を行節点ごとに集約する。
+    #[inline(always)]
+    fn fold_prefix_pair_ranked(
+        &self,
+        node: usize,
+        (row_begin, row_end): (usize, usize),
+        (top_rank, bottom_rank): (usize, usize),
+        (first_rank, second_rank): (usize, usize),
+        prefix_data: &[M::S],
+    ) -> (M::S, M::S) {
+        if top_rank <= row_begin && row_end <= bottom_rank {
+            let layout = self.layouts[node];
+            let first = if first_rank == 0 {
+                M::id()
+            } else {
+                prefix_data[layout.coord_start + first_rank - 1].clone()
+            };
+            let second = if second_rank == 0 {
+                M::id()
+            } else {
+                prefix_data[layout.coord_start + second_rank - 1].clone()
+            };
+            return (first, second);
+        }
+        let mid = (row_begin + row_end) / 2;
+        let layout = self.layouts[node];
+        let first_map = self.child_ranks[layout.rank_start + first_rank];
+        let second_map = self.child_ranks[layout.rank_start + second_rank];
+        if bottom_rank <= mid {
+            self.fold_prefix_pair_ranked(
+                node * 2,
+                (row_begin, mid),
+                (top_rank, bottom_rank),
+                (first_map as u32 as usize, second_map as u32 as usize),
+                prefix_data,
+            )
+        } else if top_rank >= mid {
+            self.fold_prefix_pair_ranked(
+                node * 2 + 1,
+                (mid, row_end),
+                (top_rank, bottom_rank),
+                ((first_map >> 32) as usize, (second_map >> 32) as usize),
+                prefix_data,
+            )
+        } else {
+            let (first_left, second_left) = self.fold_prefix_pair_ranked(
+                node * 2,
+                (row_begin, mid),
+                (top_rank, bottom_rank),
+                (first_map as u32 as usize, second_map as u32 as usize),
+                prefix_data,
+            );
+            let (first_right, second_right) = self.fold_prefix_pair_ranked(
+                node * 2 + 1,
+                (mid, row_end),
+                (top_rank, bottom_rank),
+                ((first_map >> 32) as usize, (second_map >> 32) as usize),
+                prefix_data,
+            );
+            (
+                M::op(&first_left, &first_right),
+                M::op(&second_left, &second_right),
+            )
+        }
+    }
+
+    /// 親の列順位を子へ写しながら、指定した行範囲を分解して集約する。
+    #[inline(always)]
+    fn fold_ranked(
+        &self,
+        node: usize,
+        (row_begin, row_end): (usize, usize),
+        (top_rank, bottom_rank): (usize, usize),
+        (left_rank, right_rank): (usize, usize),
+    ) -> M::S {
+        if top_rank <= row_begin && row_end <= bottom_rank {
+            return self.inner_fold_ranked(node, left_rank, right_rank);
+        }
+        let mid = (row_begin + row_end) / 2;
+        let layout = self.layouts[node];
+        let left_map = self.child_ranks[layout.rank_start + left_rank];
+        let right_map = self.child_ranks[layout.rank_start + right_rank];
+        if bottom_rank <= mid {
+            self.fold_ranked(
+                node * 2,
+                (row_begin, mid),
+                (top_rank, bottom_rank),
+                (left_map as u32 as usize, right_map as u32 as usize),
+            )
+        } else if top_rank >= mid {
+            self.fold_ranked(
+                node * 2 + 1,
+                (mid, row_end),
+                (top_rank, bottom_rank),
+                ((left_map >> 32) as usize, (right_map >> 32) as usize),
+            )
+        } else {
+            let left_result = self.fold_ranked(
+                node * 2,
+                (row_begin, mid),
+                (top_rank, bottom_rank),
+                (left_map as u32 as usize, right_map as u32 as usize),
+            );
+            let right_result = self.fold_ranked(
+                node * 2 + 1,
+                (mid, row_end),
+                (top_rank, bottom_rank),
+                ((left_map >> 32) as usize, (right_map >> 32) as usize),
+            );
+            M::op(&left_result, &right_result)
+        }
     }
 
     /// 行節点に登録された列座標の葉値を取得する。
@@ -437,44 +705,25 @@ where
         }
     }
 
-    /// 行節点内で、登録列座標に対する半開区間を集約する。
-    // 呼び出し元の左端が定数 0 なら、接頭辞専用の経路だけを残せる。
+    /// 行節点内で、登録列座標の順位による半開区間を集約する。
     #[inline(always)]
-    fn inner_fold(&self, node: usize, left: usize, right: usize) -> M::S {
+    fn inner_fold_ranked(&self, node: usize, left_rank: usize, right_rank: usize) -> M::S {
         let layout = self.layouts[node];
-        let coordinates =
-            &self.y_coordinates[layout.coord_start..layout.coord_start + layout.coord_len];
-        // 接頭辞では右端の順位だけ探し、左側の兄弟を集約する。
-        if left == 0 {
-            let rank = if right == self.width {
-                layout.coord_len
-            } else {
-                coordinates.partition_point(|&col| col < right)
-            };
-            if rank == 0 {
+        // 事前計算済みの接頭辞は、行節点ごとに 1 回の参照で得られる。
+        if left_rank == 0 {
+            if right_rank == 0 {
                 return M::id();
             }
-            if rank == layout.coord_len {
+            if let Some(prefix_data) = &self.prefix_data {
+                return prefix_data[layout.coord_start + right_rank - 1].clone();
+            }
+            if right_rank == layout.coord_len {
                 return self.data[layout.data_start + 1].clone();
             }
-            let mut index = layout.size + rank;
-            let mut result = M::id();
-            while index > 1 {
-                if index & 1 == 1 {
-                    result = M::op(&self.data[layout.data_start + index - 1], &result);
-                }
-                index >>= 1;
-            }
-            return result;
         }
 
-        let mut l = layout.size + coordinates.partition_point(|&col| col < left);
-        let mut r = layout.size
-            + if right == self.width {
-                layout.coord_len
-            } else {
-                coordinates.partition_point(|&col| col < right)
-            };
+        let mut l = layout.size + left_rank;
+        let mut r = layout.size + right_rank;
         let mut result = M::id();
         while l < r {
             if l & 1 == 1 {
@@ -588,6 +837,91 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// 構築後の接頭辞集約と、更新時のキャッシュ無効化を確認する。
+    mod prefix_cache {
+        use super::*;
+
+        /// Scenario: 接頭辞二本の同時計算がすべての行範囲で素朴な和に一致する。
+        /// - Given: 登録列が行ごとに異なる 5 × 7 の木がある。
+        /// - When: 構築して接頭辞を準備する。
+        /// - Then: 二本の接頭辞と任意の矩形集約が素朴な和に一致する。
+        #[test]
+        fn matches_naive_prefix_pairs_and_rectangles() {
+            // Given
+            let points = [(0, 1), (0, 5), (2, 0), (2, 4), (3, 5), (4, 2)];
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(5, 7, points);
+            let mut values = [[0_i64; 7]; 5];
+            for (index, (row, col)) in points.into_iter().enumerate() {
+                let value = index as i64 - 2;
+                sut.set((row, col), value);
+                values[row][col] = value;
+            }
+            // When
+            sut.build();
+            sut.prepare_prefix_folds();
+            // Then
+            for top in 0..=5 {
+                for bottom in top..=5 {
+                    for first_right in 0..=7 {
+                        for second_right in 0..=7 {
+                            let first = values[top..bottom]
+                                .iter()
+                                .flat_map(|row| &row[..first_right])
+                                .sum::<i64>();
+                            let second = values[top..bottom]
+                                .iter()
+                                .flat_map(|row| &row[..second_right])
+                                .sum::<i64>();
+                            assert_eq!(
+                                (first, second),
+                                sut.fold_prefix_pair(top, bottom, first_right, second_right)
+                            );
+                            let (left, right) = if first_right <= second_right {
+                                (first_right, second_right)
+                            } else {
+                                (second_right, first_right)
+                            };
+                            assert_eq!(
+                                values[top..bottom]
+                                    .iter()
+                                    .flat_map(|row| &row[left..right])
+                                    .sum::<i64>(),
+                                sut.fold((top, left), (bottom, right))
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        /// Scenario: 点更新後も接頭辞二本の同時計算が現在値を返す。
+        /// - Given: 構築済みの木で接頭辞を準備する。
+        /// - When: 登録点を更新する。
+        /// - Then: 古いキャッシュを参照せず、現在値を返す。
+        #[test]
+        fn invalidates_after_update() {
+            // Given
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
+                4,
+                8,
+                [(0, 1), (2, 3), (3, 6)],
+            );
+            sut.set((0, 1), 2);
+            sut.set((2, 3), 5);
+            sut.build();
+            sut.prepare_prefix_folds();
+            // When
+            sut.update((2, 3), 11);
+            // Then
+            assert_eq!((13, 2), sut.fold_prefix_pair(0, 4, 8, 3));
+            assert_eq!(11, sut.fold((1, 3), (4, 4)));
+            sut.set((3, 6), 4);
+            sut.build();
+            sut.prepare_prefix_folds();
+            assert_eq!((17, 2), sut.fold_prefix_pair(0, 4, 8, 3));
         }
     }
 
