@@ -699,8 +699,12 @@ TRAIT_DEF_RE = re.compile(
 MODULE_DEF_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)\s*\{\s*$"
 )
-USE_SINGLE_RE = re.compile(r"^\s*use\s+[\w:]+::([A-Za-z_]\w*)\s*;")
-USE_GROUP_RE = re.compile(r"^(\s*use\s+[\w:]+::)\{([^{}]*)\}(\s*;\s*)$")
+USE_SINGLE_RE = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?use\s+[\w:]+::([A-Za-z_]\w*)\s*;"
+)
+USE_GROUP_RE = re.compile(
+    r"^(\s*(?:pub(?:\([^)]*\))?\s+)?use\s+[\w:]+::)\{([^{}]*)\}(\s*;\s*)$"
+)
 
 # 丸ごと削除してよい dead_code 診断だけを選ぶ。rustc は enum のバリアントや
 # 構造体のフィールドについても dead_code を報告するが、それらの primary span は
@@ -730,6 +734,7 @@ def build_diagnostics(path):
         capture_output=True, text=True, cwd=WORKDIR,
     )
     dead_lines = []
+    errors = []
     for line in proc.stdout.splitlines():
         try:
             record = json.loads(line)
@@ -738,6 +743,8 @@ def build_diagnostics(path):
         if record.get("reason") != "compiler-message":
             continue
         message = record.get("message", {})
+        if message.get("level") == "error":
+            errors.append(message.get("rendered") or message.get("message", ""))
         if (message.get("code") or {}).get("code") != "dead_code":
             continue
         if not REMOVABLE_DEAD_CODE_RE.match(message.get("message", "")):
@@ -745,6 +752,11 @@ def build_diagnostics(path):
         for span in message.get("spans", []):
             if span.get("is_primary") and span.get("file_name") == PROBE_REL_PATH:
                 dead_lines.append(span["line_start"])
+    if proc.returncode != 0:
+        for error in errors[:3]:
+            print(error, file=sys.stderr)
+        if not errors:
+            print(proc.stderr, file=sys.stderr)
     return proc.returncode == 0, sorted(set(dead_lines))
 
 
@@ -804,7 +816,7 @@ def path_matches(mono_name, source_name):
 
 def is_comment_or_attr(line):
     s = line.strip()
-    return s.startswith("///") or s.startswith("//!") or s.startswith("//") or s.startswith("#[")
+    return s.startswith("///") or s.startswith("//!") or s.startswith("//") or s.startswith(("#[", "#!["))
 
 
 def find_item_range(lines, sig_line_1indexed):
@@ -944,6 +956,7 @@ def find_orphaned_lines(lines, removed_names):
     それらを対象とする `impl Monoid for MinMonoid` や、別モジュールからの
     `use ...::monoid::Monoid;` が参照先を失って取り残される。放置するとコンパイル
     エラーになるので、同じラウンドのうちに回収する。
+    `pub use` による再エクスポートも同じように扱う。
 
     判定に用いるのは、バンドル生成時点では定義されていたのに今は存在しない名前の
     集合である。`impl FastWrite for u32` の `u32` のように、もともと定義がない名前を
@@ -981,7 +994,7 @@ def heal_use_groups(path, removed_names):
     可能性がある。行ごと削除すると、生き残っている名前まで道連れにしてコンパイル
     エラーを起こしかねないため、消えた名前だけを import 一覧から除く。全滅した
     場合に限り、行ごと削除する (`self` はここで定義される名前ではないため、
-    誤って除かれることはない)。
+    誤って除かれることはない)。`pub use` も同様に扱う。
     """
     lines = path.read_text(encoding="utf-8").split("\n")
     changed = 0
@@ -1024,6 +1037,10 @@ def find_unused_impl_lines(lines, mono_pairs):
             continue
         m = IMPL_FOR_RE.match(line)
         if not m:
+            continue
+        # メソッドのない marker trait 実装も型境界の成立には必要だが、
+        # mono-items には呼び出し対象の関数がないため現れない。
+        if line.split("{", 1)[1].strip() == "}":
             continue
         trait_name, type_name = m.group(1), m.group(2)
         if trait_name.rsplit("::", 1)[-1] in NEVER_PRUNE_TRAITS:
@@ -1202,7 +1219,7 @@ EMPTY_BLOCK_RE = re.compile(r"^(\s*)(?:pub(?:\([^)]*\))?\s+)?(mod\s+\w+|impl\s+[
 def is_vacuous_line(line):
     """ブロックの中身として意味を持たない行かどうかを判定する。
 
-    空行とコメントに加えて、`use` の宣言も中身とはみなさない。使われていた型が
+    空行とコメントに加えて、1 行の `use` 宣言も中身とはみなさない。使われていた型が
     すべて消えたモジュールには `use` だけが残ることがあり、それを中身と数えると
     空の殻を畳めなくなるためである。ただし `pub use` は再エクスポートとして
     外部から参照され得るので、中身として扱う。
@@ -1232,8 +1249,16 @@ def strip_empty_blocks(path):
                 continue
             pad = match.group(1)
             j = i + 1
-            while j < len(lines) and is_vacuous_line(lines[j]):
-                j += 1
+            while j < len(lines):
+                if is_vacuous_line(lines[j]):
+                    j += 1
+                elif lines[j].lstrip().startswith("use "):
+                    # 複数行の private use も、1 行の use と同じく空の殻を
+                    # 生かす理由にはならない。文末までまとめて読み飛ばす。
+                    _, end = find_item_range(lines, j + 1)
+                    j = end + 1
+                else:
+                    break
             if j >= len(lines) or lines[j] != pad + "}":
                 continue
             start = i
