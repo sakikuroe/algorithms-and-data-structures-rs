@@ -371,6 +371,7 @@ mod tests {
     /// 点更新の伝播と再構築後の結果を確認する。
     mod update {
         use super::*;
+        use rand::{Rng, SeedableRng, rngs};
 
         /// Scenario: 非 2 冪の格子で点更新がすべての包含矩形に反映される。
         /// - Given: 3 × 5 の木に初期値を設定して構築する。
@@ -400,14 +401,12 @@ mod tests {
             // Given
             let mut sut = SegmentTree2dDense::<monoid::AddMonoid>::new(5, 7);
             let mut values = [[0_i64; 7]; 5];
-            let mut seed = 1_u64;
+            let mut rng = rngs::StdRng::seed_from_u64(1);
             // When
             for _ in 0..40 {
-                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
-                let row = seed as usize % 5;
-                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
-                let col = seed as usize % 7;
-                let value = (seed % 41) as i64 - 20;
+                let row = rng.random_range(0..5);
+                let col = rng.random_range(0..7);
+                let value = rng.random_range(-20..=20);
                 sut.update((row, col), value);
                 values[row][col] = value;
 
