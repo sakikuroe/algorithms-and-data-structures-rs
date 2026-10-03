@@ -669,7 +669,62 @@ mod tests {
 
     /// 境界探索が未生成区間と未伝播作用を扱えることを確認する。
     mod boundary {
+        use super::super::super::super::super::algebra::semi_group;
         use super::*;
+
+        /// 文字列を左から順に連結するモノイド。
+        struct Concat;
+
+        impl semi_group::SemiGroup for Concat {
+            type S = String;
+
+            /// 左右の順序を保って文字列を結合する。
+            fn op(left: &Self::S, right: &Self::S) -> Self::S {
+                left.clone() + right
+            }
+        }
+
+        impl monoid::Monoid for Concat {
+            /// 空文字列を単位元として返す。
+            fn id() -> Self::S {
+                String::new()
+            }
+        }
+
+        /// 区間中の各文字を一つの文字へ置き換える作用。
+        #[derive(Clone)]
+        struct Fill(char);
+
+        impl RangeAction<String> for Fill {
+            /// 区間長と同じ個数の文字を返す。
+            fn apply(&self, _value: &String, len: usize) -> String {
+                self.0.to_string().repeat(len)
+            }
+
+            /// 後から指定された文字を優先する。
+            fn composition(&self, other: &Self) -> Self {
+                other.clone()
+            }
+        }
+
+        /// Scenario: 非可換な連結でも集約順序と左右の境界が保たれる。
+        /// - Given: 文字列連結を用いる長さ 5 の木がある。
+        /// - When: 全域と部分区間へ順に文字を設定する。
+        /// - Then: 集約と境界探索は文字の並びに一致する。
+        #[test]
+        fn preserves_order_for_noncommutative_monoid() {
+            // Given
+            let mut sut = SegmentTreeLazySparseOnline::<Concat, Fill>::new(5);
+            // When
+            sut.effect(.., Fill('x'));
+            sut.effect(1..4, Fill('a'));
+            sut.effect(2..=2, Fill('b'));
+            // Then
+            assert_eq!("xabax", sut.fold(..));
+            assert_eq!("aba", sut.fold(1..4));
+            assert_eq!(2, sut.max_right(0, |value| !value.contains("ab")));
+            assert_eq!(3, sut.min_left(5, |value| !value.contains("ba")));
+        }
 
         /// Scenario: 両側の探索は配列で求めた境界に一致する。
         /// - Given: 長さ 9 の木と非負値の配列がある。
