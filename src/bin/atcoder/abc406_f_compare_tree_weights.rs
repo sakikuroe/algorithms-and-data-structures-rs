@@ -46,8 +46,8 @@ fn main() {
             // 取り除いたときの片側にちょうど対応する。
             let child = if hld.depth(u) > hld.depth(v) { u } else { v };
             let (l, r) = hld.subtree_range(child);
-            let child_side = seg.fold(l, r);
-            let other_side = seg.fold(0, n) - child_side;
+            let child_side = seg.fold(l..r);
+            let other_side = seg.fold(0..n) - child_side;
             io.writeln((child_side - other_side).abs());
         }
     }

@@ -6,6 +6,7 @@
 //! 対する作用を遅延的に適用する。
 
 use super::super::super::algebra::monoid::{self, GeneratedMonoid};
+use std::ops::RangeBounds;
 
 /// モノイドの値に対する準同型写像を表すトレイトである。
 ///
@@ -81,8 +82,8 @@ pub trait Hom<S> {
 ///     AddEffect,
 /// >::new(5);
 /// // 位置 2 の値のみに 10 を加算する。
-/// seg.effect(2, 3, AddEffect(10));
-/// assert_eq!(10, seg.fold(0, 5));
+/// seg.effect(2..3, AddEffect(10));
+/// assert_eq!(10, seg.fold(0..5));
 /// ```
 pub struct SegmentTreeLazyDense<M, F>
 where
@@ -247,7 +248,7 @@ where
     /// let mut seg = bit_segment_tree::BitSegTree::from_values(
     ///     vec![true, false, true],
     /// );
-    /// let data = seg.fold(0, 3);
+    /// let data = seg.fold(0..3);
     /// assert_eq!(2, data.ones);
     /// ```
     pub fn from_values(v: Vec<M::V>) -> Self
@@ -387,15 +388,17 @@ where
         }
     }
 
-    /// 区間 `[l, r)` に作用 `effect` を適用する。
+    /// 指定した範囲に作用 `effect` を適用する。
     ///
     /// 対象区間をカバーするノードの遅延作用に新しい作用を
     /// 合成し、祖先ノードのデータを再計算する。
     ///
     /// # Args
-    /// - `l` - 区間の左端 (0-indexed, inclusive)
-    /// - `r` - 区間の右端 (0-indexed, exclusive)
+    /// - `range` - 適用する範囲。`l..r`、`l..=r`、`..` などを指定できる。
     /// - `effect` - 適用する作用
+    ///
+    /// # Panics
+    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
     ///
     /// # Complexity
     /// - 時間計算量: $O(\log n)$
@@ -420,10 +423,14 @@ where
     ///     AddEffect,
     /// >::from_vec(vec![1, 2, 3, 4, 5]);
     /// // 位置 2 の値に 10 を加算する。
-    /// seg.effect(2, 3, AddEffect(10));
-    /// assert_eq!(25, seg.fold(0, 5));
+    /// seg.effect(2..3, AddEffect(10));
+    /// assert_eq!(25, seg.fold(0..5));
     /// ```
-    pub fn effect(&mut self, mut l: usize, mut r: usize, effect: F) {
+    pub fn effect(&mut self, range: impl RangeBounds<usize>, effect: F) {
+        let (mut l, mut r) = super::range_bounds::normalize(range, self.len(), "index");
+        if l == r {
+            return;
+        }
         // 論理的な添字を 1-indexed の葉ノード添字に変換する。
         l += self.size;
         r += self.size;
@@ -468,17 +475,19 @@ where
         self.update_ancestors(r0 - 1);
     }
 
-    /// 区間 `[l, r)` のモノイド積 (畳み込み) を返す。
+    /// 指定した範囲のモノイド積 (畳み込み) を返す。
     ///
     /// 対象区間の祖先ノードの遅延作用を伝播した上で、
     /// 区間をカバーするノードの値を集約する。
     ///
     /// # Args
-    /// - `l` - 区間の左端 (0-indexed, inclusive)
-    /// - `r` - 区間の右端 (0-indexed, exclusive)
+    /// - `range` - 集約する範囲。`l..r`、`l..=r`、`..` などを指定できる。
     ///
     /// # Returns
-    /// 区間 `[l, r)` のモノイド積を返す。
+    /// 範囲内のモノイド積を返す。空区間では単位元を返す。
+    ///
+    /// # Panics
+    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
     ///
     /// # Complexity
     /// - 時間計算量: $O(\log n)$
@@ -502,10 +511,14 @@ where
     ///     monoid::AddMonoid,
     ///     AddEffect,
     /// >::from_vec(vec![1, 2, 3, 4, 5]);
-    /// assert_eq!(15, seg.fold(0, 5));
-    /// assert_eq!(9, seg.fold(1, 4));
+    /// assert_eq!(15, seg.fold(0..5));
+    /// assert_eq!(9, seg.fold(1..4));
     /// ```
-    pub fn fold(&mut self, mut l: usize, mut r: usize) -> M::S {
+    pub fn fold(&mut self, range: impl RangeBounds<usize>) -> M::S {
+        let (mut l, mut r) = super::range_bounds::normalize(range, self.len(), "index");
+        if l == r {
+            return M::id();
+        }
         // 論理的な添字を 1-indexed の葉ノード添字に変換する。
         l += self.size;
         r += self.size;
@@ -699,7 +712,7 @@ where
         assert!(f(&M::id()));
 
         // 全体が条件を満たす場合は末尾を返す。
-        if l == self.len() || f(&self.fold(l, self.len())) {
+        if l == self.len() || f(&self.fold(l..self.len())) {
             return self.len();
         }
 
@@ -707,7 +720,7 @@ where
         // 線形探索する。
         (l..self.len())
             .rev()
-            .find(|&i| f(&self.fold(l, i)))
+            .find(|&i| f(&self.fold(l..i)))
             .unwrap()
     }
 }

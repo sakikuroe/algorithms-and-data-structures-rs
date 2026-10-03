@@ -27,12 +27,12 @@ fn main() {
             let r = io.u32() as usize;
             let b = modint::ModInt998244353::new(io.u64());
             let c = modint::ModInt998244353::new(io.u64());
-            seg.effect(l, r, range_affine_range_sum::AffineAction::affine(b, c));
+            seg.effect(l..r, range_affine_range_sum::AffineAction::affine(b, c));
         } else {
             // 区間 [l, r) の和を出力する。
             let l = io.u32() as usize;
             let r = io.u32() as usize;
-            let (sum, _) = seg.fold(l, r);
+            let (sum, _) = seg.fold(l..r);
             io.writeln(sum.val());
         }
     }

@@ -39,12 +39,12 @@ fn main() {
     for _ in 0..q {
         let l = io.u32() as usize;
         let r = io.u32() as usize;
-        seg.effect(l - 1, r, FlipEffect(true));
+        seg.effect((l - 1)..r, FlipEffect(true));
     }
 
     // 各マスの最終状態を出力する。
     for i in 0..n {
-        let v = seg.fold(i, i + 1);
+        let v = seg.fold(i..(i + 1));
         io.write(if v == 1 { '1' } else { '0' });
     }
     io.write('\n');

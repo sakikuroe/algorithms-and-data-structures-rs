@@ -45,7 +45,7 @@ fn main() {
         let remaining = y - before_first;
         let start = forbidden[first] + 1;
         let boundary = seg.max_right(start, |&count| count < remaining as i64);
-        let passed = seg.fold(start, boundary) as usize;
+        let passed = seg.fold(start..boundary) as usize;
         let left = if boundary == DOMAIN_END {
             forbidden[n - 1]
         } else {

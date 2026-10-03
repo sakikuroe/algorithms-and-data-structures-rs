@@ -7,6 +7,7 @@
 //! `O(log(K + 1))` 時間で処理できる。
 
 use super::super::super::algebra::monoid;
+use std::ops::RangeBounds;
 
 /// 行節点に付属する列方向の木が、連続配列内で占める範囲。
 #[derive(Clone, Copy, Default)]
@@ -40,7 +41,7 @@ struct InnerLayout {
 /// seg.set((2, 5), 3);
 /// seg.build();
 /// seg.update((80, 90), 7);
-/// assert_eq!(10, seg.fold((0, 0), (100, 100)));
+/// assert_eq!(10, seg.fold(0..100, 0..100));
 /// assert_eq!(0, seg.get((50, 50)));
 /// ```
 pub struct SegmentTree2dSparseOffline<M>
@@ -418,11 +419,11 @@ where
         }
     }
 
-    /// 半開矩形 `[top, bottom) × [left, right)` を集約する。
+    /// 指定した行範囲と列範囲の矩形を集約する。
     ///
     /// # Args
-    /// - `top_left` - 矩形の上端と左端。
-    /// - `bottom_right` - 矩形の下端と右端。
+    /// - `rows` - 行範囲。`top..bottom`、`top..=bottom`、`..` などを指定できる。
+    /// - `columns` - 列範囲。同様に指定できる。
     ///
     /// # Returns
     /// 矩形内の値の集約結果を返す。空矩形では単位元を返す。
@@ -432,17 +433,9 @@ where
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(log²(K + 1))`、追加領域 `O(1)`。
-    pub fn fold(&self, top_left: (usize, usize), bottom_right: (usize, usize)) -> M::S {
-        let (top, left) = top_left;
-        let (bottom, right) = bottom_right;
-        assert!(
-            top <= bottom && bottom <= self.height,
-            "row range out of bounds"
-        );
-        assert!(
-            left <= right && right <= self.width,
-            "column range out of bounds"
-        );
+    pub fn fold(&self, rows: impl RangeBounds<usize>, columns: impl RangeBounds<usize>) -> M::S {
+        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
+        let (left, right) = super::range_bounds::normalize(columns, self.width, "column");
         if top == bottom || left == right {
             return M::id();
         }
@@ -491,7 +484,7 @@ where
     /// 場合も通常の矩形集約を二回行い、同じ結果を返す。
     ///
     /// # Args
-    /// - `top`, `bottom` - 行方向の半開区間。
+    /// - `rows` - 行範囲。`top..bottom`、`top..=bottom`、`..` などを指定できる。
     /// - `first_right`, `second_right` - 二つの列方向接頭辞の右端。
     ///
     /// # Returns
@@ -505,23 +498,19 @@ where
     /// 未準備の場合は `O(log²(K + 1))` 時間。
     pub fn fold_prefix_pair(
         &self,
-        top: usize,
-        bottom: usize,
+        rows: impl RangeBounds<usize>,
         first_right: usize,
         second_right: usize,
     ) -> (M::S, M::S) {
-        assert!(
-            top <= bottom && bottom <= self.height,
-            "row range out of bounds"
-        );
+        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
         assert!(
             first_right <= self.width && second_right <= self.width,
             "column range out of bounds"
         );
         let Some(prefix_data) = &self.prefix_data else {
             return (
-                self.fold((top, 0), (bottom, first_right)),
-                self.fold((top, 0), (bottom, second_right)),
+                self.fold(top..bottom, 0..first_right),
+                self.fold(top..bottom, 0..second_right),
             );
         };
         if top == bottom {
@@ -766,8 +755,8 @@ mod tests {
             // When
             sut.build();
             // Then
-            assert_eq!(10, sut.fold((0, 0), (3, 5)));
-            assert_eq!(7, sut.fold((1, 2), (3, 5)));
+            assert_eq!(10, sut.fold(0..3, 0..5));
+            assert_eq!(7, sut.fold(1..3, 2..5));
             assert_eq!(0, sut.get((1, 4)));
             assert_eq!(0, sut.get((2, 0)));
         }
@@ -795,9 +784,9 @@ mod tests {
             sut.update((4, 3), 2);
             sut.update((1, 8), 11);
             // Then
-            assert_eq!(20, sut.fold((0, 0), (10, 10)));
-            assert_eq!(18, sut.fold((0, 8), (10, 9)));
-            assert_eq!(2, sut.fold((2, 0), (9, 8)));
+            assert_eq!(20, sut.fold(0..10, 0..10));
+            assert_eq!(18, sut.fold(0..10, 8..9));
+            assert_eq!(2, sut.fold(2..9, 0..8));
             assert_eq!(11, sut.get((1, 8)));
         }
 
@@ -831,7 +820,7 @@ mod tests {
                                     .iter()
                                     .flat_map(|line| &line[left..right])
                                     .sum::<i64>();
-                                assert_eq!(expected, sut.fold((top, left), (bottom, right)));
+                                assert_eq!(expected, sut.fold(top..bottom, left..right));
                             }
                         }
                     }
@@ -877,7 +866,7 @@ mod tests {
                                 .sum::<i64>();
                             assert_eq!(
                                 (first, second),
-                                sut.fold_prefix_pair(top, bottom, first_right, second_right)
+                                sut.fold_prefix_pair(top..bottom, first_right, second_right)
                             );
                             let (left, right) = if first_right <= second_right {
                                 (first_right, second_right)
@@ -889,7 +878,7 @@ mod tests {
                                     .iter()
                                     .flat_map(|row| &row[left..right])
                                     .sum::<i64>(),
-                                sut.fold((top, left), (bottom, right))
+                                sut.fold(top..bottom, left..right)
                             );
                         }
                     }
@@ -916,12 +905,13 @@ mod tests {
             // When
             sut.update((2, 3), 11);
             // Then
-            assert_eq!((13, 2), sut.fold_prefix_pair(0, 4, 8, 3));
-            assert_eq!(11, sut.fold((1, 3), (4, 4)));
+            assert_eq!((13, 2), sut.fold_prefix_pair(0..4, 8, 3));
+            assert_eq!(11, sut.fold(1..4, 3..4));
             sut.set((3, 6), 4);
             sut.build();
             sut.prepare_prefix_folds();
-            assert_eq!((17, 2), sut.fold_prefix_pair(0, 4, 8, 3));
+            assert_eq!((17, 2), sut.fold_prefix_pair(0..4, 8, 3));
+            assert_eq!((17, 2), sut.fold_prefix_pair(..=3, 8, 3));
         }
     }
 
@@ -938,7 +928,7 @@ mod tests {
             // Given
             let sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(100, 200, []);
             // When
-            let result = sut.fold((0, 0), (100, 200));
+            let result = sut.fold(0..100, 0..200);
             // Then
             assert_eq!(0, result);
             assert_eq!(0, sut.get((50, 150)));

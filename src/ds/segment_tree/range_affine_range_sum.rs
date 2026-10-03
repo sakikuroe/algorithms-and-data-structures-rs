@@ -24,12 +24,12 @@ use super::lazy_segment_tree;
 ///     vec![(modint::ModInt998244353::new(1), 1)],
 /// );
 /// seg.effect(
-///     0, 1,
+///     0..1,
 ///     range_affine_range_sum::AffineAction::add(
 ///         modint::ModInt998244353::new(10),
 ///     ),
 /// );
-/// let (sum, _) = seg.fold(0, 1);
+/// let (sum, _) = seg.fold(0..1);
 /// assert_eq!(11, sum.val());
 /// ```
 pub type RangeAffineRangeSum =

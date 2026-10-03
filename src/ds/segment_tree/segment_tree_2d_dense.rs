@@ -5,6 +5,7 @@
 //! `O(log(H + 1) log(W + 1))` 時間である。
 
 use super::super::super::algebra::monoid;
+use std::ops::RangeBounds;
 
 /// 可換モノイドによる点更新と矩形集約を扱う密な 2 次元セグメント木。
 ///
@@ -20,7 +21,7 @@ use super::super::super::algebra::monoid;
 /// seg.set((1, 2), 5);
 /// seg.build();
 /// seg.update((2, 3), 7);
-/// assert_eq!(12, seg.fold((1, 2), (3, 4)));
+/// assert_eq!(12, seg.fold(1..3, 2..4));
 /// assert_eq!(0, seg.get((0, 0)));
 /// ```
 pub struct SegmentTree2dDense<M>
@@ -187,11 +188,11 @@ where
         self.data[(self.row_size + row) * (self.col_size * 2) + self.col_size + col].clone()
     }
 
-    /// 半開矩形 `[top, bottom) × [left, right)` を集約する。
+    /// 指定した行範囲と列範囲の矩形を集約する。
     ///
     /// # Args
-    /// - `top_left` - 矩形の上端と左端。
-    /// - `bottom_right` - 矩形の下端と右端。
+    /// - `rows` - 行範囲。`top..bottom`、`top..=bottom`、`..` などを指定できる。
+    /// - `columns` - 列範囲。同様に指定できる。
     ///
     /// # Returns
     /// 矩形内の値の集約結果を返す。空矩形では単位元を返す。
@@ -201,17 +202,9 @@ where
     ///
     /// # Complexity
     /// 時間 `O(log(height + 1) log(width + 1))`、追加領域 `O(1)`。
-    pub fn fold(&self, top_left: (usize, usize), bottom_right: (usize, usize)) -> M::S {
-        let (top, left) = top_left;
-        let (bottom, right) = bottom_right;
-        assert!(
-            top <= bottom && bottom <= self.height,
-            "row range out of bounds"
-        );
-        assert!(
-            left <= right && right <= self.width,
-            "column range out of bounds"
-        );
+    pub fn fold(&self, rows: impl RangeBounds<usize>, columns: impl RangeBounds<usize>) -> M::S {
+        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
+        let (left, right) = super::range_bounds::normalize(columns, self.width, "column");
         if top == bottom || left == right {
             return M::id();
         }
@@ -276,6 +269,36 @@ mod tests {
     mod variants {
         use super::*;
 
+        /// 3 種の実装が包含端点と無制限端点を同じ矩形へ変換する。
+        #[test]
+        fn accepts_range_bounds_on_both_axes() {
+            let mut dense = SegmentTree2dDense::<monoid::AddMonoid>::new(3, 4);
+            let mut offline = segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<
+                monoid::AddMonoid,
+            >::new(3, 4, [(0, 1), (2, 3)]);
+            let mut online = segment_tree_2d_sparse_online::SegmentTree2dSparseOnline::<
+                monoid::AddMonoid,
+            >::new(3, 4);
+            for (point, value) in [((0, 1), 4), ((2, 3), 7)] {
+                dense.update(point, value);
+                offline.update(point, value);
+                online.update(point, value);
+            }
+
+            assert_eq!(11, dense.fold(.., ..));
+            assert_eq!(11, offline.fold(.., ..));
+            assert_eq!(11, online.fold(.., ..));
+            assert_eq!(7, dense.fold(1..=2, 2..=3));
+            assert_eq!(7, offline.fold(1..=2, 2..=3));
+            assert_eq!(7, online.fold(1..=2, 2..=3));
+            assert_eq!(4, dense.fold(..=1, ..2));
+            assert_eq!(4, offline.fold(..=1, ..2));
+            assert_eq!(4, online.fold(..=1, ..2));
+            assert_eq!(0, dense.fold(3..3, ..));
+            assert_eq!(0, offline.fold(3..3, ..));
+            assert_eq!(0, online.fold(3..3, ..));
+        }
+
         /// Scenario: 同じ値への再設定を含む更新列で矩形和が一致する。
         /// - Given: 全点を登録した 3 × 4 の木を 3 種用意する。
         /// - When: 各木に同じ更新を適用する。
@@ -311,9 +334,9 @@ mod tests {
                     for bottom in top..=3 {
                         for left in 0..=4 {
                             for right in left..=4 {
-                                let expected = dense.fold((top, left), (bottom, right));
-                                assert_eq!(expected, offline.fold((top, left), (bottom, right)));
-                                assert_eq!(expected, online.fold((top, left), (bottom, right)));
+                                let expected = dense.fold(top..bottom, left..right);
+                                assert_eq!(expected, offline.fold(top..bottom, left..right));
+                                assert_eq!(expected, online.fold(top..bottom, left..right));
                             }
                         }
                     }
@@ -339,8 +362,8 @@ mod tests {
             // When
             sut.build();
             // Then
-            assert_eq!(11, sut.fold((0, 0), (2, 3)));
-            assert_eq!(4, sut.fold((0, 1), (1, 2)));
+            assert_eq!(11, sut.fold(0..2, 0..3));
+            assert_eq!(4, sut.fold(0..1, 1..2));
             assert_eq!(0, sut.get((1, 1)));
         }
     }
@@ -363,8 +386,8 @@ mod tests {
             // When
             sut.update((2, 4), 9);
             // Then
-            assert_eq!(11, sut.fold((0, 0), (3, 5)));
-            assert_eq!(2, sut.fold((0, 0), (2, 4)));
+            assert_eq!(11, sut.fold(0..3, 0..5));
+            assert_eq!(2, sut.fold(0..2, 0..4));
             assert_eq!(9, sut.get((2, 4)));
         }
 
@@ -397,7 +420,7 @@ mod tests {
                                     .iter()
                                     .flat_map(|line| &line[left..right])
                                     .sum::<i64>();
-                                assert_eq!(expected, sut.fold((top, left), (bottom, right)));
+                                assert_eq!(expected, sut.fold(top..bottom, left..right));
                             }
                         }
                     }
@@ -420,8 +443,8 @@ mod tests {
             let rows = SegmentTree2dDense::<monoid::AddMonoid>::new(0, 5);
             let cols = SegmentTree2dDense::<monoid::AddMonoid>::new(5, 0);
             // When
-            let row_result = rows.fold((0, 0), (0, 5));
-            let col_result = cols.fold((0, 0), (5, 0));
+            let row_result = rows.fold(0..0, 0..5);
+            let col_result = cols.fold(0..5, 0..0);
             // Then
             assert!(rows.is_empty());
             assert!(cols.is_empty());

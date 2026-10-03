@@ -90,8 +90,8 @@ where
             // 読みたい区間 (Reversed) は、番号を反転させて構築してある
             // reversed から、対応する反転後の区間 [n-r, n-l) を取り出す。
             let value = match dir {
-                PathDirection::Forward => self.forward.fold(l, r),
-                PathDirection::Reversed => self.reversed.fold(n - r, n - l),
+                PathDirection::Forward => self.forward.fold(l..r),
+                PathDirection::Reversed => self.reversed.fold((n - r)..(n - l)),
             };
             M::op(&acc, &value)
         })

@@ -68,7 +68,7 @@ fn main() {
         // 差分の接頭辞 (個数, 加重和) を (count, weight) とすると、
         // 先頭 x 列の黒マス数は x * count - weight になる。
         let ((right_count, right_weight), (left_count, left_weight)) =
-            seg.fold_prefix_pair(top, bottom, right, left);
+            seg.fold_prefix_pair(top..bottom, right, left);
         let answer =
             right as i64 * right_count - right_weight - (left as i64 * left_count - left_weight);
         io.writeln(answer);

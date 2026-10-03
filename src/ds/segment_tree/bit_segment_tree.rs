@@ -34,12 +34,12 @@ use super::lazy_segment_tree;
 /// let mut seg = BitSegTree::from_values(
 ///     vec![true, false, true, true, false],
 /// );
-/// assert_eq!(3, seg.fold(0, 5).ones);
+/// assert_eq!(3, seg.fold(0..5).ones);
 ///
 /// // 区間 [1, 4) を反転する。[1, 1, 0, 0, 0]
-/// seg.effect(1, 4, BitAction::flip());
-/// assert_eq!(2, seg.fold(0, 5).ones);
-/// assert_eq!(2, seg.fold(0, 5).longest_ones);
+/// seg.effect(1..4, BitAction::flip());
+/// assert_eq!(2, seg.fold(0..5).ones);
+/// assert_eq!(2, seg.fold(0..5).longest_ones);
 /// ```
 pub type BitSegTree = lazy_segment_tree::SegmentTreeLazyDense<BitRangeMonoid, BitAction>;
 
@@ -493,7 +493,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(3, result.ones);
             assert_eq!(4, result.inv);
@@ -510,12 +510,12 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When / Then
-            let all = sut.fold(0, 5);
+            let all = sut.fold(0..5);
             assert!(!all.and());
             assert!(all.or());
             assert!(all.xor());
 
-            let sub = sut.fold(2, 4);
+            let sub = sut.fold(2..4);
             assert!(sub.and());
             assert!(sub.or());
             assert!(!sub.xor());
@@ -530,7 +530,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(2, 2);
+            let result = sut.fold(2..2);
             // Then
             assert_eq!(BitRangeMonoid::id(), result);
         }
@@ -544,7 +544,7 @@ mod tests {
             // Given
             let mut sut = BitSegTree::from_values(vec![true]);
             // When
-            let result = sut.fold(0, 1);
+            let result = sut.fold(0..1);
             // Then
             assert_eq!(s(true), result);
         }
@@ -559,7 +559,7 @@ mod tests {
             // Given
             let mut sut = BitSegTree::from_vec(vec![]);
             // When
-            let result = sut.fold(0, 0);
+            let result = sut.fold(0..0);
             // Then
             assert_eq!(BitRangeMonoid::id(), result);
         }
@@ -573,7 +573,7 @@ mod tests {
             // Given
             let mut sut = BitSegTree::from_values(vec![true; 4]);
             // When
-            let result = sut.fold(0, 4);
+            let result = sut.fold(0..4);
             // Then
             assert_eq!(4, result.longest_ones);
             assert_eq!(0, result.longest_zeros);
@@ -593,9 +593,9 @@ mod tests {
         fn flip_updates_statistics() {
             // Given
             let mut sut = create_seg();
-            sut.effect(1, 4, BitAction::flip());
+            sut.effect(1..4, BitAction::flip());
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(2, result.ones);
             assert_eq!(2, result.longest_ones);
@@ -610,9 +610,9 @@ mod tests {
         fn set_true_makes_all_ones() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitAction::set(true));
+            sut.effect(0..5, BitAction::set(true));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(5, result.ones);
             assert_eq!(5, result.longest_ones);
@@ -628,9 +628,9 @@ mod tests {
         fn set_false_makes_all_zeros() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitAction::set(false));
+            sut.effect(0..5, BitAction::set(false));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(0, result.ones);
             assert_eq!(5, result.longest_zeros);
@@ -645,10 +645,10 @@ mod tests {
         fn set_then_flip_inverts() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitAction::set(true));
-            sut.effect(0, 5, BitAction::flip());
+            sut.effect(0..5, BitAction::set(true));
+            sut.effect(0..5, BitAction::flip());
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(0, result.ones);
         }
@@ -661,12 +661,12 @@ mod tests {
         fn empty_range_effect_is_noop() {
             // Given
             let mut sut = create_seg();
-            let before = sut.fold(0, 5);
+            let before = sut.fold(0..5);
             // When
-            sut.effect(2, 2, BitAction::flip());
-            sut.effect(2, 2, BitAction::set(true));
+            sut.effect(2..2, BitAction::flip());
+            sut.effect(2..2, BitAction::set(true));
             // Then
-            assert_eq!(before, sut.fold(0, 5));
+            assert_eq!(before, sut.fold(0..5));
         }
 
         /// Scenario: 要素数 1 の木に flip を適用できる。
@@ -678,9 +678,9 @@ mod tests {
             // Given
             let mut sut = BitSegTree::from_values(vec![true]);
             // When
-            sut.effect(0, 1, BitAction::flip());
+            sut.effect(0..1, BitAction::flip());
             // Then
-            assert_eq!(0, sut.fold(0, 1).ones);
+            assert_eq!(0, sut.fold(0..1).ones);
         }
 
         /// Scenario: 要素数 1 の木に set を適用できる。
@@ -692,9 +692,9 @@ mod tests {
             // Given
             let mut sut = BitSegTree::from_values(vec![false]);
             // When
-            sut.effect(0, 1, BitAction::set(true));
+            sut.effect(0..1, BitAction::set(true));
             // Then
-            assert_eq!(1, sut.fold(0, 1).ones);
+            assert_eq!(1, sut.fold(0..1).ones);
         }
 
         /// Scenario: 転倒数が区間操作後に正しく更新される。
@@ -705,11 +705,11 @@ mod tests {
         fn inversion_count_after_operations() {
             // Given
             let mut sut = BitSegTree::from_values(vec![true, true, false, false]);
-            assert_eq!(4, sut.fold(0, 4).inv);
+            assert_eq!(4, sut.fold(0..4).inv);
             // When
-            sut.effect(0, 2, BitAction::flip());
+            sut.effect(0..2, BitAction::flip());
             // Then
-            assert_eq!(0, sut.fold(0, 4).inv);
+            assert_eq!(0, sut.fold(0..4).inv);
         }
     }
 
@@ -853,17 +853,17 @@ mod tests {
                     match rng.random_range(0..4) {
                         // When: set(false)
                         0 => {
-                            sut.effect(l, r, BitAction::set(false));
+                            sut.effect(l..r, BitAction::set(false));
                             naive.set(l, r, false);
                         }
                         // When: set(true)
                         1 => {
-                            sut.effect(l, r, BitAction::set(true));
+                            sut.effect(l..r, BitAction::set(true));
                             naive.set(l, r, true);
                         }
                         // When: flip
                         2 => {
-                            sut.effect(l, r, BitAction::flip());
+                            sut.effect(l..r, BitAction::flip());
                             naive.flip(l, r);
                         }
                         // When: fold
@@ -871,7 +871,7 @@ mod tests {
                             // Then
                             assert_eq!(
                                 naive.fold(l, r),
-                                sut.fold(l, r),
+                                sut.fold(l..r),
                                 "fold({}, {}) が一致しない",
                                 l,
                                 r,
@@ -885,7 +885,7 @@ mod tests {
                     for r in l..=n {
                         assert_eq!(
                             naive.fold(l, r),
-                            sut.fold(l, r),
+                            sut.fold(l..r),
                             "最終 fold({}, {}) が一致しない",
                             l,
                             r,

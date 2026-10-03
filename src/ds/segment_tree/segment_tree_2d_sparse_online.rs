@@ -6,6 +6,7 @@
 //! `O(log(H + 1) log(W + 1))` 時間である。
 
 use super::super::super::algebra::monoid;
+use std::ops::RangeBounds;
 
 /// 子の節点がまだ生成されていないことを表す。
 const NONE: usize = usize::MAX;
@@ -53,7 +54,7 @@ struct Rectangle {
 /// >::new(1_000_000, 1_000_000);
 /// seg.update((2, 5), 3);
 /// seg.set((800_000, 900_000), 7);
-/// assert_eq!(10, seg.fold((0, 0), (1_000_000, 1_000_000)));
+/// assert_eq!(10, seg.fold(0..1_000_000, 0..1_000_000));
 /// assert_eq!(0, seg.get((50, 50)));
 /// ```
 pub struct SegmentTree2dSparseOnline<M>
@@ -230,11 +231,11 @@ where
         self.column_get(self.rows[node].column_root, col)
     }
 
-    /// 半開矩形 `[top, bottom) × [left, right)` を集約する。
+    /// 指定した行範囲と列範囲の矩形を集約する。
     ///
     /// # Args
-    /// - `top_left` - 矩形の上端と左端。
-    /// - `bottom_right` - 矩形の下端と右端。
+    /// - `rows` - 行範囲。`top..bottom`、`top..=bottom`、`..` などを指定できる。
+    /// - `columns` - 列範囲。同様に指定できる。
     ///
     /// # Returns
     /// 矩形内の値の集約結果を返す。空矩形では単位元を返す。
@@ -245,17 +246,9 @@ where
     /// # Complexity
     /// 時間 `O(log(height + 1) log(width + 1))`、
     /// 追加領域 `O(log(height + 1) + log(width + 1))`。
-    pub fn fold(&self, top_left: (usize, usize), bottom_right: (usize, usize)) -> M::S {
-        let (top, left) = top_left;
-        let (bottom, right) = bottom_right;
-        assert!(
-            top <= bottom && bottom <= self.height,
-            "row range out of bounds"
-        );
-        assert!(
-            left <= right && right <= self.width,
-            "column range out of bounds"
-        );
+    pub fn fold(&self, rows: impl RangeBounds<usize>, columns: impl RangeBounds<usize>) -> M::S {
+        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
+        let (left, right) = super::range_bounds::normalize(columns, self.width, "column");
         if top == bottom || left == right {
             return M::id();
         }
@@ -417,9 +410,9 @@ mod tests {
             sut.update((4, 3), 2);
             sut.update((1, 8), 11);
             // Then
-            assert_eq!(20, sut.fold((0, 0), (10, 10)));
-            assert_eq!(18, sut.fold((0, 8), (10, 9)));
-            assert_eq!(2, sut.fold((2, 0), (9, 8)));
+            assert_eq!(20, sut.fold(0..10, 0..10));
+            assert_eq!(18, sut.fold(0..10, 8..9));
+            assert_eq!(2, sut.fold(2..9, 0..8));
             assert_eq!(11, sut.get((1, 8)));
             assert_eq!(0, sut.get((1, 7)));
         }
@@ -450,7 +443,7 @@ mod tests {
                                     .iter()
                                     .flat_map(|line| &line[left..right])
                                     .sum::<i64>();
-                                assert_eq!(expected, sut.fold((top, left), (bottom, right)));
+                                assert_eq!(expected, sut.fold(top..bottom, left..right));
                             }
                         }
                     }
@@ -476,10 +469,10 @@ mod tests {
             sut.update((0, 0), 3);
             sut.update((999_999_999, 999_999_999), 5);
             // Then
-            assert_eq!(8, sut.fold((0, 0), (1_000_000_000, 1_000_000_000)));
+            assert_eq!(8, sut.fold(0..1_000_000_000, 0..1_000_000_000));
             assert_eq!(
                 5,
-                sut.fold((999_999_999, 999_999_999), (1_000_000_000, 1_000_000_000))
+                sut.fold(999_999_999..1_000_000_000, 999_999_999..1_000_000_000)
             );
             assert_eq!(0, sut.get((500_000_000, 500_000_000)));
         }
@@ -498,7 +491,7 @@ mod tests {
             // Given
             let sut = SegmentTree2dSparseOnline::<monoid::AddMonoid>::new(0, 7);
             // When
-            let result = sut.fold((0, 0), (0, 7));
+            let result = sut.fold(0..0, 0..7);
             // Then
             assert_eq!(0, result);
             assert!(sut.is_empty());

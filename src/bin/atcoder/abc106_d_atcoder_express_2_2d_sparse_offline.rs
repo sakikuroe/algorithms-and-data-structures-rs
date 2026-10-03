@@ -36,7 +36,7 @@ fn main() {
         let start = io.usize1();
         let end = io.usize1();
         // 始点が start 以上で終点が end 以下の点は正方形内にある。
-        io.writeln(seg.fold((start, start), (end + 1, end + 1)));
+        io.writeln(seg.fold(start..(end + 1), start..(end + 1)));
     }
     io.flush();
 }

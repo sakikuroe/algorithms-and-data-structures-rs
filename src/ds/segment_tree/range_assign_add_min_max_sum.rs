@@ -34,8 +34,8 @@ use super::lazy_segment_tree;
 ///         vec![3, 1, 4],
 ///     );
 /// // 区間 [0, 3) に 10 を加算する。
-/// seg.effect(0, 3, AssignAddAction::add(10));
-/// let (sum, min, max, _) = seg.fold(0, 3);
+/// seg.effect(0..3, AssignAddAction::add(10));
+/// let (sum, min, max, _) = seg.fold(0..3);
 /// assert_eq!(38, sum);
 /// assert_eq!(11, min);
 /// assert_eq!(14, max);
@@ -109,12 +109,12 @@ impl monoid::GeneratedMonoid for MinMaxSumMonoid {
 ///         vec![1, 2, 3],
 ///     );
 /// // 全区間を 10 に代入する。
-/// seg.effect(0, 3, AssignAddAction::assign(10));
-/// assert_eq!((30, 10, 10, 3), seg.fold(0, 3));
+/// seg.effect(0..3, AssignAddAction::assign(10));
+/// assert_eq!((30, 10, 10, 3), seg.fold(0..3));
 ///
 /// // 区間 [1, 3) に 5 を加算する。
-/// seg.effect(1, 3, AssignAddAction::add(5));
-/// assert_eq!((40, 10, 15, 3), seg.fold(0, 3));
+/// seg.effect(1..3, AssignAddAction::add(5));
+/// assert_eq!((40, 10, 15, 3), seg.fold(0..3));
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct AssignAddAction {
@@ -432,7 +432,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!((15, 1, 5, 5), result);
         }
@@ -446,7 +446,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(1, 4);
+            let result = sut.fold(1..4);
             // Then
             assert_eq!((9, 2, 4, 3), result);
         }
@@ -460,7 +460,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(2, 2);
+            let result = sut.fold(2..2);
             // Then
             assert_eq!(MinMaxSumMonoid::id(), result);
         }
@@ -474,7 +474,7 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![42]);
             // When
-            let result = sut.fold(0, 1);
+            let result = sut.fold(0..1);
             // Then
             assert_eq!((42, 42, 42, 1), result);
         }
@@ -489,7 +489,7 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_vec(vec![]);
             // When
-            let result = sut.fold(0, 0);
+            let result = sut.fold(0..0);
             // Then
             assert_eq!(MinMaxSumMonoid::id(), result);
         }
@@ -503,7 +503,7 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
-            let result = sut.fold(0, 3);
+            let result = sut.fold(0..3);
             // Then
             assert_eq!((0, 0, 0, 3), result);
         }
@@ -512,6 +512,19 @@ mod tests {
     // effect のテスト: 区間更新後の状態変化を検証する。
     mod effect {
         use super::*;
+
+        /// 包含端点と無制限端点を使って遅延更新と集約ができる。
+        #[test]
+        fn accepts_range_bounds_for_update_and_query() {
+            let mut sut = RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3]);
+            assert_eq!(6, sut.fold(..).0);
+            sut.effect(1..=2, AssignAddAction::add(4));
+            assert_eq!(14, sut.fold(..).0);
+            assert_eq!(7, sut.fold(..=1).0);
+            sut.effect(3..3, AssignAddAction::assign(100));
+            assert_eq!(0, sut.fold(3..3).0);
+            assert_eq!(14, sut.fold(..).0);
+        }
 
         /// Scenario: 区間加算後に sum/min/max が正しく反映される。
         /// - Given: [1, 2, 3, 4, 5] に区間 [1, 4) へ +10 を適用する。
@@ -522,10 +535,10 @@ mod tests {
         fn add_updates_statistics() {
             // Given
             let mut sut = create_seg();
-            sut.effect(1, 4, AssignAddAction::add(10));
+            sut.effect(1..4, AssignAddAction::add(10));
             // When / Then
-            assert_eq!((45, 1, 14, 5), sut.fold(0, 5));
-            assert_eq!((39, 12, 14, 3), sut.fold(1, 4));
+            assert_eq!((45, 1, 14, 5), sut.fold(0..5));
+            assert_eq!((39, 12, 14, 3), sut.fold(1..4));
         }
 
         /// Scenario: 区間代入後に全要素が代入値に置き換わる。
@@ -537,10 +550,10 @@ mod tests {
         fn assign_replaces_all_elements() {
             // Given
             let mut sut = create_seg();
-            sut.effect(1, 4, AssignAddAction::assign(0));
+            sut.effect(1..4, AssignAddAction::assign(0));
             // When / Then
-            assert_eq!((6, 0, 5, 5), sut.fold(0, 5));
-            assert_eq!((0, 0, 0, 3), sut.fold(1, 4));
+            assert_eq!((6, 0, 5, 5), sut.fold(0..5));
+            assert_eq!((0, 0, 0, 3), sut.fold(1..4));
         }
 
         /// Scenario: 代入の後に加算を適用すると正しく累積される。
@@ -552,10 +565,10 @@ mod tests {
         fn assign_then_add_composes_correctly() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, AssignAddAction::assign(10));
-            sut.effect(0, 5, AssignAddAction::add(3));
+            sut.effect(0..5, AssignAddAction::assign(10));
+            sut.effect(0..5, AssignAddAction::add(3));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!((65, 13, 13, 5), result);
         }
@@ -570,10 +583,10 @@ mod tests {
         fn add_then_assign_overwrites() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, AssignAddAction::add(100));
-            sut.effect(0, 5, AssignAddAction::assign(0));
+            sut.effect(0..5, AssignAddAction::add(100));
+            sut.effect(0..5, AssignAddAction::assign(0));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!((0, 0, 0, 5), result);
         }
@@ -588,10 +601,10 @@ mod tests {
         fn handles_negative_values() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 3, AssignAddAction::assign(-5));
-            sut.effect(2, 5, AssignAddAction::add(-1));
+            sut.effect(0..3, AssignAddAction::assign(-5));
+            sut.effect(2..5, AssignAddAction::add(-1));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!((-9, -6, 4, 5), result);
         }
@@ -604,9 +617,9 @@ mod tests {
         fn single_element_effect() {
             // Given
             let mut sut = create_seg();
-            sut.effect(2, 3, AssignAddAction::add(10));
+            sut.effect(2..3, AssignAddAction::add(10));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!((25, 1, 13, 5), result);
         }
@@ -619,12 +632,12 @@ mod tests {
         fn empty_range_effect_is_noop() {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![1, 2, 3]);
-            let before = sut.fold(0, 3);
+            let before = sut.fold(0..3);
             // When
-            sut.effect(1, 1, AssignAddAction::add(100));
-            sut.effect(1, 1, AssignAddAction::assign(100));
+            sut.effect(1..1, AssignAddAction::add(100));
+            sut.effect(1..1, AssignAddAction::assign(100));
             // Then
-            assert_eq!(before, sut.fold(0, 3));
+            assert_eq!(before, sut.fold(0..3));
         }
 
         /// Scenario: 要素数 1 の木に加算を適用できる。
@@ -636,9 +649,9 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
-            sut.effect(0, 1, AssignAddAction::add(3));
+            sut.effect(0..1, AssignAddAction::add(3));
             // Then
-            assert_eq!((10, 10, 10, 1), sut.fold(0, 1));
+            assert_eq!((10, 10, 10, 1), sut.fold(0..1));
         }
 
         /// Scenario: 要素数 1 の木に代入を適用できる。
@@ -650,9 +663,9 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![7]);
             // When
-            sut.effect(0, 1, AssignAddAction::assign(0));
+            sut.effect(0..1, AssignAddAction::assign(0));
             // Then
-            assert_eq!((0, 0, 0, 1), sut.fold(0, 1));
+            assert_eq!((0, 0, 0, 1), sut.fold(0..1));
         }
 
         /// Scenario: 要素数 1 の木に代入と加算を連続で
@@ -666,12 +679,12 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0]);
             // When
-            sut.effect(0, 1, AssignAddAction::assign(5));
-            sut.effect(0, 1, AssignAddAction::add(3));
-            sut.effect(0, 1, AssignAddAction::assign(-1));
-            sut.effect(0, 1, AssignAddAction::add(1));
+            sut.effect(0..1, AssignAddAction::assign(5));
+            sut.effect(0..1, AssignAddAction::add(3));
+            sut.effect(0..1, AssignAddAction::assign(-1));
+            sut.effect(0..1, AssignAddAction::add(1));
             // Then
-            assert_eq!((0, 0, 0, 1), sut.fold(0, 1));
+            assert_eq!((0, 0, 0, 1), sut.fold(0..1));
         }
 
         /// Scenario: 全要素 0 に加算すると正しく反映される。
@@ -683,9 +696,9 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
-            sut.effect(0, 3, AssignAddAction::add(5));
+            sut.effect(0..3, AssignAddAction::add(5));
             // Then
-            assert_eq!((15, 5, 5, 3), sut.fold(0, 3));
+            assert_eq!((15, 5, 5, 3), sut.fold(0..3));
         }
 
         /// Scenario: 全要素 0 に 0 を代入しても状態が変わらない。
@@ -697,9 +710,9 @@ mod tests {
             // Given
             let mut sut = RangeAssignAddMinMaxSum::from_values(vec![0, 0, 0]);
             // When
-            sut.effect(0, 3, AssignAddAction::assign(0));
+            sut.effect(0..3, AssignAddAction::assign(0));
             // Then
-            assert_eq!((0, 0, 0, 3), sut.fold(0, 3));
+            assert_eq!((0, 0, 0, 3), sut.fold(0..3));
         }
     }
 
@@ -774,13 +787,13 @@ mod tests {
                         // When: 区間加算
                         0 => {
                             let v = rng.random_range(value_range.clone());
-                            sut.effect(l, r, AssignAddAction::add(v));
+                            sut.effect(l..r, AssignAddAction::add(v));
                             naive.add(l, r, v);
                         }
                         // When: 区間代入
                         1 => {
                             let v = rng.random_range(value_range.clone());
-                            sut.effect(l, r, AssignAddAction::assign(v));
+                            sut.effect(l..r, AssignAddAction::assign(v));
                             naive.assign(l, r, v);
                         }
                         // When: 区間 fold
@@ -788,7 +801,7 @@ mod tests {
                             // Then
                             assert_eq!(
                                 naive.fold(l, r),
-                                sut.fold(l, r),
+                                sut.fold(l..r),
                                 "fold({}, {}) が一致しない",
                                 l,
                                 r,
@@ -802,7 +815,7 @@ mod tests {
                     for r in l..=n {
                         assert_eq!(
                             naive.fold(l, r),
-                            sut.fold(l, r),
+                            sut.fold(l..r),
                             "最終 fold({}, {}) が一致しない",
                             l,
                             r,
