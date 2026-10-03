@@ -23,7 +23,8 @@ struct RowNode {
 struct ColumnNode<S> {
     /// 担当する行・列区間の集約値。
     value: S,
-    /// 左右の列子。未生成の子には `NONE` を入れる。
+    /// 内部節点では左右の列子。列葉では先頭を `leaf_sides` の番号に使う。
+    /// 未生成の子と未割当の番号には `NONE` を入れる。
     children: [usize; 2],
 }
 
@@ -65,6 +66,8 @@ where
     width: usize,
     rows: Vec<RowNode>,
     columns: Vec<ColumnNode<M::S>>,
+    /// 行の内部節点に属する列葉について、左右の行子の同じ列の値を保持する。
+    leaf_sides: Vec<[M::S; 2]>,
 }
 
 impl<M> SegmentTree2dSparseOnline<M>
@@ -92,6 +95,7 @@ where
                 column_root: NONE,
             }],
             columns: Vec::new(),
+            leaf_sides: Vec::new(),
         }
     }
 
@@ -174,25 +178,14 @@ where
                 lower = middle;
             }
         }
-        self.update_column(node, col, value.clone());
+        value = self.update_column(node, col, value, None);
 
-        // 兄弟の同じ列にある値を集約し、祖先の列方向の木へ反映する。
+        // 各行祖先の列葉に保持した左右の値を使い、兄弟の列木の再探索を省く。
         while depth > 0 {
             depth -= 1;
             let parent = path[depth];
             let direction = directions[depth];
-            let sibling = self.rows[parent].children[1 - direction];
-            let sibling_value = if sibling == NONE {
-                M::id()
-            } else {
-                self.column_get(self.rows[sibling].column_root, col)
-            };
-            value = if direction == 0 {
-                M::op(&value, &sibling_value)
-            } else {
-                M::op(&sibling_value, &value)
-            };
-            self.update_column(parent, col, value.clone());
+            value = self.update_column(parent, col, value, Some(direction));
         }
     }
 
@@ -262,7 +255,14 @@ where
     }
 
     /// 行節点の列方向の木に点値を設定し、列の祖先を再集約する。
-    fn update_column(&mut self, row_node: usize, col: usize, value: M::S) {
+    /// `side` がある場合は親行の列葉に片側の値を記録し、左右の集約値を返す。
+    fn update_column(
+        &mut self,
+        row_node: usize,
+        col: usize,
+        value: M::S,
+        side: Option<usize>,
+    ) -> M::S {
         let mut node = self.rows[row_node].column_root;
         if node == NONE {
             node = self.columns.len();
@@ -299,7 +299,22 @@ where
                 lower = middle;
             }
         }
-        self.columns[node].value = value;
+        // 列葉の children[0] は、左右の行子の値を保持する配列の番号に使う。
+        debug_assert_eq!(upper - lower, 1);
+        let value = if let Some(direction) = side {
+            let mut cache_index = self.columns[node].children[0];
+            if cache_index == NONE {
+                cache_index = self.leaf_sides.len();
+                self.leaf_sides.push([M::id(), M::id()]);
+                self.columns[node].children[0] = cache_index;
+            }
+            let sides = &mut self.leaf_sides[cache_index];
+            sides[direction] = value;
+            M::op(&sides[0], &sides[1])
+        } else {
+            value
+        };
+        self.columns[node].value = value.clone();
 
         let identity = M::id();
         while depth > 0 {
@@ -318,6 +333,7 @@ where
             };
             self.columns[node].value = M::op(left_value, right_value);
         }
+        value
     }
 
     /// 行節点に付属する列方向の木から、指定列の値を読む。
@@ -460,6 +476,25 @@ mod tests {
     /// 点更新が矩形集約へ反映されることを確認する。
     mod update {
         use super::*;
+
+        /// Scenario: 単位元が 0 でないモノイドでも両側の値から親を再集約する。
+        /// - Given: 同じ列の異なる行に最小値を設定する。
+        /// - When: 小さい値を持つ行を、もう一方より大きな値へ更新する。
+        /// - Then: 他方の行の値が矩形の最小値になる。
+        #[test]
+        fn recomputes_minimum_after_increasing_a_point() {
+            // Given
+            let mut sut = SegmentTree2dSparseOnline::<monoid::MinMonoid>::new(3, 2);
+            sut.update((0, 1), 9);
+            sut.update((2, 1), 4);
+
+            // When
+            sut.update((2, 1), 12);
+
+            // Then
+            assert_eq!(9, sut.fold(.., 1..2));
+            assert_eq!(i64::MAX, sut.fold(.., 0..1));
+        }
 
         /// Scenario: 行ごとに異なる列の値も正しく集約する。
         /// - Given: まばらな点を持つ論理範囲がある。
