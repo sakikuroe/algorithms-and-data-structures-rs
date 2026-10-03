@@ -17,6 +17,8 @@ pub mod ds {
     pub mod segment_tree {
         pub mod bit_segment_tree;
         pub mod lazy_segment_tree;
+        pub mod lazy_segment_tree_sparse_offline;
+        pub mod lazy_segment_tree_sparse_online;
         pub mod range_affine_range_sum;
         pub mod range_assign_add_min_max_sum;
         pub mod range_bitwise_xor_and_or;
