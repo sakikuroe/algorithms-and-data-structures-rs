@@ -80,12 +80,12 @@ fn main() {
 
         // 中央値を順に除いた後には、全要素の両端 N/2 個ずつが残る。
         let small_boundary = seg.max_right(0, |&(count, _)| count < half);
-        let small_before = seg.fold(0, small_boundary);
+        let small_before = seg.fold(0..small_boundary);
         let small_sum = small_before.1 + (half - small_before.0) * small_boundary as i64;
 
         // min_left の返す位置は、境界値の 1 つ右である。
         let large_boundary = seg.min_left(DOMAIN_END, |&(count, _)| count < half);
-        let large_after = seg.fold(large_boundary, DOMAIN_END);
+        let large_after = seg.fold(large_boundary..DOMAIN_END);
         let large_sum = large_after.1 + (half - large_after.0) * (large_boundary - 1) as i64;
         io.writeln(small_sum + large_sum);
     }

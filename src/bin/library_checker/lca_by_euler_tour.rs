@@ -37,7 +37,7 @@ fn main() {
         let v = io.u32() as usize;
         let lo = forest.first_occurrence(u).min(forest.first_occurrence(v));
         let hi = forest.first_occurrence(u).max(forest.first_occurrence(v));
-        let key = seg.fold(lo, hi + 1);
+        let key = seg.fold(lo..(hi + 1));
         let idx = (key % m as i64) as usize;
         io.writeln(tour[idx] as u32);
     }

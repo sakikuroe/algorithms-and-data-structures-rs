@@ -46,7 +46,7 @@ fn main() {
             let sum = hld
                 .vertex_path_ranges(u, v)
                 .into_iter()
-                .fold(0_i64, |acc, (l, r, _)| acc + seg.fold(l, r));
+                .fold(0_i64, |acc, (l, r, _)| acc + seg.fold(l..r));
             io.writeln(sum);
         }
     }

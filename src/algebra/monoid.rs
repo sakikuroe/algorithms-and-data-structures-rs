@@ -11,6 +11,12 @@ pub trait Monoid: semi_group::SemiGroup {
     fn id() -> Self::S;
 }
 
+/// 演算順序を入れ替えても結果が変わらないモノイドを表す。
+///
+/// 2 次元セグメント木の矩形集約では、行方向と列方向の集約順が
+/// 節点ごとに変わるため、この性質が必要である。
+pub trait CommutativeMonoid: Monoid {}
+
 /// 基底集合からの埋め込みを持つモノイドである。
 ///
 /// 自由モノイド $V^*$ から $(S, \oplus, e)$ への準同型
@@ -51,6 +57,8 @@ impl Monoid for MinMonoid {
     }
 }
 
+impl CommutativeMonoid for MinMonoid {}
+
 /// `i64` 型の最大値を求めるモノイドである.
 pub struct MaxMonoid;
 
@@ -66,6 +74,8 @@ impl Monoid for MaxMonoid {
         i64::MIN
     }
 }
+
+impl CommutativeMonoid for MaxMonoid {}
 
 /// `i64` 型の加算を行うモノイドである.
 pub struct AddMonoid;
@@ -83,6 +93,8 @@ impl Monoid for AddMonoid {
     }
 }
 
+impl CommutativeMonoid for AddMonoid {}
+
 /// `u64` 型の排他的論理和 (XOR) を行うモノイドである.
 pub struct XorMonoid;
 
@@ -98,6 +110,8 @@ impl Monoid for XorMonoid {
         0
     }
 }
+
+impl CommutativeMonoid for XorMonoid {}
 
 /// `u64` 型のビット単位の論理積 (AND) を行うモノイドである.
 pub struct AndMonoid;
@@ -115,6 +129,8 @@ impl Monoid for AndMonoid {
     }
 }
 
+impl CommutativeMonoid for AndMonoid {}
+
 /// `u64` 型のビット単位の論理和 (OR) を行うモノイドである.
 pub struct OrMonoid;
 
@@ -130,6 +146,8 @@ impl Monoid for OrMonoid {
         0
     }
 }
+
+impl CommutativeMonoid for OrMonoid {}
 
 /// `MOD` を法とする一次関数 `f(x) = ax + b` の合成を行うモノイドである.
 ///

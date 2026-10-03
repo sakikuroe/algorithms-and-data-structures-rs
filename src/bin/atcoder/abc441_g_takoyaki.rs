@@ -120,8 +120,7 @@ fn main() {
                 let r = io.u32() as usize;
                 let x = io.i64();
                 seg.effect(
-                    l - 1,
-                    r,
+                    (l - 1)..r,
                     PlateAction {
                         zero: false,
                         flip: false,
@@ -133,8 +132,7 @@ fn main() {
                 let l = io.u32() as usize;
                 let r = io.u32() as usize;
                 seg.effect(
-                    l - 1,
-                    r,
+                    (l - 1)..r,
                     PlateAction {
                         zero: true,
                         flip: true,
@@ -145,7 +143,7 @@ fn main() {
             3 => {
                 let l = io.u32() as usize;
                 let r = io.u32() as usize;
-                let result = seg.fold(l - 1, r);
+                let result = seg.fold((l - 1)..r);
                 // 裏向きの皿は常にたこ焼き 0 個であるため、
                 // 表向きの最大値と 0 の大きい方が答えとなる。
                 let ans = result.max_up.max(0);

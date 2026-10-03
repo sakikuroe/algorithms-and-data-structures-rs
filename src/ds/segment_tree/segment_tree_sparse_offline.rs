@@ -11,6 +11,8 @@
 //! 異なる登録座標数を `K` とすると、一点操作、区間集約、境界探索は
 //! `O(log K)` 時間、保持領域は `O(K)` である。`K = 0` の木も構築できる。
 
+use std::ops::RangeBounds;
+
 use super::super::super::algebra::monoid;
 
 /// 更新対象の座標を構築時に登録する疎なセグメント木。
@@ -27,7 +29,7 @@ use super::super::super::algebra::monoid;
 /// >::new(1_000_000_000, [7, 999_999_999]);
 /// seg.update(7, 3);
 /// seg.update(999_999_999, 4);
-/// assert_eq!(seg.fold(0, 1_000_000_000), 7);
+/// assert_eq!(seg.fold(0..1_000_000_000), 7);
 /// ```
 pub struct SegmentTreeSparseOffline<M>
 where
@@ -152,7 +154,7 @@ where
     /// >::new(10, [3]);
     /// seg.set(3, 7);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 10), 7);
+    /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn set(&mut self, idx: usize, x: M::S) {
         assert!(idx < self.len, "index out of bounds");
@@ -178,7 +180,7 @@ where
     /// seg.set(2, 4);
     /// seg.set(7, 5);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 10), 9);
+    /// assert_eq!(seg.fold(0..10), 9);
     /// ```
     pub fn build(&mut self) {
         // 圧縮座標の葉から親へ、座標順を保って値を集約する。
@@ -207,7 +209,7 @@ where
     ///     monoid::AddMonoid,
     /// >::new(10, [3]);
     /// seg.update(3, 7);
-    /// assert_eq!(seg.fold(0, 10), 7);
+    /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn update(&mut self, idx: usize, x: M::S) {
         assert!(idx < self.len, "index out of bounds");
@@ -255,17 +257,17 @@ where
             .unwrap_or_else(|_| M::id())
     }
 
-    /// 半開区間 `[l, r)` の値を座標順に集約する。
+    /// 指定した範囲の値を座標順に集約する。
     ///
     /// # Args
-    /// - `l` - 区間の左端。登録不要である。
-    /// - `r` - 区間の右端。登録不要である。
+    /// - `range` - 集約する範囲。`l..r`、`l..=r`、`..` などを指定できる。
+    ///   端点の座標は登録不要である。
     ///
     /// # Returns
     /// 空区間では `M::id()` を返す。
     ///
     /// # Panics
-    /// `l > r` または `r > len` の場合にパニックする。
+    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
     ///
     /// # Complexity
     /// 異なる登録座標数を `K` とすると、時間 $O(\log K)$、
@@ -279,10 +281,10 @@ where
     /// >::new(10, [3, 7]);
     /// seg.update(3, 4);
     /// seg.update(7, 5);
-    /// assert_eq!(seg.fold(4, 8), 5);
+    /// assert_eq!(seg.fold(4..8), 5);
     /// ```
-    pub fn fold(&self, l: usize, r: usize) -> M::S {
-        assert!(l <= r && r <= self.len, "range out of bounds");
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
+        let (l, r) = super::range_bounds::normalize(range, self.len, "index");
         // 未登録座標を含む端点を、最初の登録座標の順位へ写す。
         let mut left = self.coordinates.partition_point(|&point| point < l) + self.size;
         let mut right = self.coordinates.partition_point(|&point| point < r) + self.size;
@@ -494,9 +496,9 @@ mod tests {
             assert!(!sut.is_empty());
             assert_eq!(2, sut.get(1));
             assert_eq!(0, sut.get(2));
-            assert_eq!(5, sut.fold(0, 17));
+            assert_eq!(5, sut.fold(0..17));
             sut.update(16, 4);
-            assert_eq!(6, sut.fold(0, 17));
+            assert_eq!(6, sut.fold(0..17));
         }
     }
 
@@ -520,7 +522,7 @@ mod tests {
                 // Then
                 for l in 0..=values.len() {
                     for r in l..=values.len() {
-                        assert_eq!(values[l..r].iter().sum::<i64>(), sut.fold(l, r));
+                        assert_eq!(values[l..r].iter().sum::<i64>(), sut.fold(l..r));
                     }
                     for limit in [1, 3, 5, 8, 12] {
                         let mut expected = l;
@@ -559,8 +561,8 @@ mod tests {
             sut.set(7, "c".to_owned());
             sut.build();
             // When
-            let all = sut.fold(0, 10);
-            let suffix = sut.fold(2, 8);
+            let all = sut.fold(0..10);
+            let suffix = sut.fold(2..8);
             let right = sut.max_right(0, |s| "ab".starts_with(s));
             let left = sut.min_left(10, |s| "bc".ends_with(s));
             // Then
@@ -585,7 +587,7 @@ mod tests {
             let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(0, []);
             sut.build();
             // When
-            let fold = sut.fold(0, 0);
+            let fold = sut.fold(0..0);
             let right = sut.max_right(0, |&sum| sum == 0);
             let left = sut.min_left(0, |&sum| sum == 0);
             // Then
@@ -605,7 +607,7 @@ mod tests {
             let sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(10, []);
             // When
             let point = sut.get(4);
-            let fold = sut.fold(2, 9);
+            let fold = sut.fold(2..9);
             let right = sut.max_right(2, |&sum| sum == 0);
             let left = sut.min_left(9, |&sum| sum == 0);
             // Then
@@ -629,7 +631,7 @@ mod tests {
             sut.update(usize::MAX - 1, 1);
             // Then
             assert_eq!(1, sut.get(usize::MAX - 1));
-            assert_eq!(1, sut.fold(usize::MAX - 1, usize::MAX));
+            assert_eq!(1, sut.fold((usize::MAX - 1)..usize::MAX));
             assert_eq!(usize::MAX - 1, sut.max_right(0, |&sum| sum < 1));
             assert_eq!(usize::MAX, sut.min_left(usize::MAX, |&sum| sum < 1));
         }
@@ -677,7 +679,9 @@ mod tests {
             // Given
             let sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(3, [1]);
             // When
-            sut.fold(2, 1);
+            let left = 2;
+            let right = 1;
+            sut.fold(left..right);
             // Then
         }
     }
