@@ -32,7 +32,7 @@ fn main() {
     for _ in 0..q {
         let left = io.usize1();
         let right = io.u32() as usize;
-        seg.effect(left, right, FlipEffect(true));
+        seg.effect(left..right, FlipEffect(true));
     }
 
     for index in 0..n {

@@ -5,6 +5,7 @@
 //! 更新で生成した節点だけを保持する。
 
 use super::super::super::algebra::monoid;
+use std::ops::RangeBounds;
 
 /// 子の節点がまだ生成されていないことを表す。
 const NONE: usize = usize::MAX;
@@ -97,8 +98,8 @@ struct Traversal {
 ///     monoid::AddMonoid,
 ///     Add,
 /// >::new(1_000_000_000);
-/// seg.effect(10, 20, Add(3));
-/// assert_eq!(30, seg.fold(0, 1_000_000_000));
+/// seg.effect(10..20, Add(3));
+/// assert_eq!(30, seg.fold(..));
 /// assert_eq!(3, seg.get(15));
 /// ```
 pub struct SegmentTreeLazySparseOnline<M, F>
@@ -154,10 +155,10 @@ where
         self.len == 0
     }
 
-    /// 半開区間 `[left, right)` に作用を適用する。
+    /// 指定した区間に作用を適用する。
     ///
     /// # Args
-    /// - `left`, `right` - 更新する半開区間の端点。
+    /// - `range` - 更新する区間。`left..right`、`left..=right`、`..` などを指定できる。
     /// - `effect` - 現在の値へ後から適用する作用。
     ///
     /// # Panics
@@ -165,17 +166,17 @@ where
     ///
     /// # Complexity
     /// 時間・追加領域ともに `O(log(len + 1))`。空区間では `O(1)`。
-    pub fn effect(&mut self, left: usize, right: usize, effect: F) {
-        assert!(left <= right && right <= self.len, "range out of bounds");
+    pub fn effect(&mut self, range: impl RangeBounds<usize>, effect: F) {
+        let (left, right) = super::range_bounds::normalize(range, self.len, "index");
         if left < right {
             self.effect_node(0, 0, self.len, left, right, &effect);
         }
     }
 
-    /// 半開区間 `[left, right)` の集約値を返す。
+    /// 指定した区間の集約値を返す。
     ///
     /// # Args
-    /// - `left`, `right` - 集約する半開区間の端点。
+    /// - `range` - 集約する区間。`left..right`、`left..=right`、`..` などを指定できる。
     ///
     /// # Returns
     /// 区間の集約値。空区間では単位元を返す。
@@ -185,8 +186,8 @@ where
     ///
     /// # Complexity
     /// 時間 `O(log(len + 1))`、再帰スタック `O(log(len + 1))`。
-    pub fn fold(&self, left: usize, right: usize) -> M::S {
-        assert!(left <= right && right <= self.len, "range out of bounds");
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
+        let (left, right) = super::range_bounds::normalize(range, self.len, "index");
         if left == right {
             return M::id();
         }
@@ -205,7 +206,7 @@ where
     /// `index >= len` の場合にパニックする。
     pub fn get(&self, index: usize) -> M::S {
         assert!(index < self.len, "index out of bounds");
-        self.fold(index, index + 1)
+        self.fold(index..index + 1)
     }
 
     /// `[left, right)` の集約値を述語が受け入れる最大の `right` を返す。
@@ -605,12 +606,12 @@ mod tests {
             // Given
             let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Add>::new(8);
             // When
-            sut.effect(0, 8, Add(2));
+            sut.effect(.., Add(2));
             assert_eq!(1, sut.nodes.len());
-            sut.effect(3, 6, Add(5));
+            sut.effect(3..6, Add(5));
             // Then
-            assert_eq!(31, sut.fold(0, 8));
-            assert_eq!(21, sut.fold(3, 6));
+            assert_eq!(31, sut.fold(..));
+            assert_eq!(21, sut.fold(3..6));
             assert_eq!(2, sut.get(0));
             assert_eq!(7, sut.get(5));
             assert_eq!(2, sut.get(7));
@@ -625,15 +626,15 @@ mod tests {
             // Given
             let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Affine>::new(4);
             // When
-            sut.effect(0, 4, Affine { a: 1, b: 2 });
-            sut.effect(1, 3, Affine { a: 3, b: 1 });
-            sut.effect(0, 4, Affine { a: 2, b: 4 });
+            sut.effect(.., Affine { a: 1, b: 2 });
+            sut.effect(1..3, Affine { a: 3, b: 1 });
+            sut.effect(.., Affine { a: 2, b: 4 });
             // Then
             assert_eq!(8, sut.get(0));
             assert_eq!(18, sut.get(1));
             assert_eq!(18, sut.get(2));
             assert_eq!(8, sut.get(3));
-            assert_eq!(52, sut.fold(0, 4));
+            assert_eq!(52, sut.fold(..));
         }
 
         /// Scenario: 複数の区間更新後も素朴な配列と一致する。
@@ -650,7 +651,7 @@ mod tests {
                 let left = step * 7 % 10;
                 let right = left + step * 5 % (10 - left);
                 let delta = step as i64 - 8;
-                sut.effect(left, right, Add(delta));
+                sut.effect(left..right, Add(delta));
                 for value in &mut values[left..right] {
                     *value += delta;
                 }
@@ -659,7 +660,7 @@ mod tests {
                 for query_left in 0..=9 {
                     for query_right in query_left..=9 {
                         let expected = values[query_left..query_right].iter().sum::<i64>();
-                        assert_eq!(expected, sut.fold(query_left, query_right));
+                        assert_eq!(expected, sut.fold(query_left..query_right));
                     }
                 }
             }
@@ -681,7 +682,7 @@ mod tests {
             let mut values = [0_i64; 9];
             // When
             for (left, right, delta) in [(0, 9, 2), (2, 7, 3), (4, 5, 6)] {
-                sut.effect(left, right, Add(delta));
+                sut.effect(left..right, Add(delta));
                 for value in &mut values[left..right] {
                     *value += delta;
                 }
@@ -721,17 +722,34 @@ mod tests {
             // Given
             let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Add>::new(1_000_000_000);
             // When
-            sut.effect(999_999_999, 1_000_000_000, Add(7));
+            sut.effect(999_999_999..1_000_000_000, Add(7));
             // Then
             assert_eq!(999_999_999, sut.max_right(0, |&sum| sum < 7));
             assert_eq!(1_000_000_000, sut.min_left(1_000_000_000, |&sum| sum < 7));
-            assert_eq!(0, sut.fold(0, 999_999_999));
+            assert_eq!(0, sut.fold(..999_999_999));
         }
     }
 
     /// 空区間と範囲外を確認する。
     mod bounds {
         use super::*;
+
+        /// Scenario: 包含端点と無制限端点で作用と集約を指定できる。
+        /// - Given: 長さ 4 の空の木がある。
+        /// - When: 先頭と末尾を異なる範囲表記で更新する。
+        /// - Then: 集約は指定された端点を正しく含む。
+        #[test]
+        fn accepts_inclusive_and_unbounded_ranges() {
+            // Given
+            let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Add>::new(4);
+            // When
+            sut.effect(..=1, Add(3));
+            sut.effect(2.., Add(2));
+            // Then
+            assert_eq!(10, sut.fold(..));
+            assert_eq!(5, sut.fold(1..=2));
+            assert_eq!(4, sut.fold(2..));
+        }
 
         /// Scenario: 長さ 0 の木は空区間の作用と集約を受け付ける。
         /// - Given: 長さ 0 の木がある。
@@ -742,11 +760,11 @@ mod tests {
             // Given
             let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Add>::new(0);
             // When
-            sut.effect(0, 0, Add(3));
+            sut.effect(.., Add(3));
             // Then
             assert!(sut.is_empty());
             assert_eq!(0, sut.len());
-            assert_eq!(0, sut.fold(0, 0));
+            assert_eq!(0, sut.fold(..));
             assert_eq!(0, sut.max_right(0, |&sum| sum < 1));
             assert_eq!(0, sut.min_left(0, |&sum| sum < 1));
             assert_eq!(1, sut.nodes.len());
@@ -762,7 +780,7 @@ mod tests {
             // Given
             let mut sut = SegmentTreeLazySparseOnline::<monoid::AddMonoid, Add>::new(4);
             // When
-            sut.effect(0, 5, Add(1));
+            sut.effect(0..5, Add(1));
         }
 
         /// Scenario: 単位元を拒否する述語は境界探索に使用できない。
