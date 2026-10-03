@@ -7,53 +7,10 @@
 use super::super::super::algebra::monoid;
 use std::ops::RangeBounds;
 
+pub use super::lazy_segment_tree::RangeAction;
+
 /// 子の節点がまだ生成されていないことを表す。
 const NONE: usize = usize::MAX;
-
-/// 区間長を受け取ってモノイド値へ作用する写像を表す。
-///
-/// 既存の `lazy_segment_tree::Hom` は区間長を受け取らない。
-/// 未生成区間にも区間加算・区間和を作用させるため、こちらは
-/// `apply` に対象区間の長さを渡す。`composition` の順序は
-/// `Hom` と同じで、`self` を先、`other` を後に適用する。
-/// `apply(op(a, b), len_a + len_b)` と
-/// `op(apply(a, len_a), apply(b, len_b))` は一致する必要がある。
-///
-/// # Examples
-/// ```
-/// use anmitsu::ds::segment_tree::lazy_segment_tree_sparse_online;
-///
-/// #[derive(Clone)]
-/// struct Add(i64);
-/// impl lazy_segment_tree_sparse_online::RangeAction<i64> for Add {
-///     fn apply(&self, value: &i64, len: usize) -> i64 {
-///         value + self.0 * len as i64
-///     }
-///     fn composition(&self, other: &Self) -> Self {
-///         Add(self.0 + other.0)
-///     }
-/// }
-/// ```
-pub trait RangeAction<S>: Clone {
-    /// 区間全体の集約値に作用を適用する。
-    ///
-    /// # Args
-    /// - `value` - 作用前の区間集約値。
-    /// - `len` - 作用対象の区間に含まれる点数。
-    ///
-    /// # Returns
-    /// 作用後の区間集約値を返す。
-    fn apply(&self, value: &S, len: usize) -> S;
-
-    /// `self` を先に、`other` を後に適用した合成作用を返す。
-    ///
-    /// # Args
-    /// - `other` - `self` の後に適用する作用。
-    ///
-    /// # Returns
-    /// `other.apply(&self.apply(value, len), len)` と等価な作用。
-    fn composition(&self, other: &Self) -> Self;
-}
 
 /// 節点の集約値、未伝播の作用、子の位置を保持する。
 struct Node<S, F> {

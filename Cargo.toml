@@ -327,6 +327,10 @@ name = "ac-abc035-c-othello-sparse-lazy-online"
 path = "src/bin/atcoder/abc035_c_othello_sparse_lazy_online.rs"
 
 [[bin]]
+name = "ac-abc035-c-othello-sparse-lazy-offline"
+path = "src/bin/atcoder/abc035_c_othello_sparse_lazy_offline.rs"
+
+[[bin]]
 name = "ac-abc441-g-takoyaki"
 path = "src/bin/atcoder/abc441_g_takoyaki.rs"
 
