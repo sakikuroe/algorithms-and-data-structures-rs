@@ -228,12 +228,20 @@ where
     }
 
     /// 行節点内で、変更した列の祖先だけを再集約する。
+    /// `row_node` は確保済みの行節点、`col_leaf` は列の葉節点を指す。
     fn rebuild_columns(&mut self, row_node: usize, col_leaf: usize) {
+        debug_assert!(row_node > 0 && row_node < self.row_size * 2);
+        debug_assert!(col_leaf >= self.col_size && col_leaf < self.col_size * 2);
         let base = row_node * (self.col_size * 2);
+        let data = self.data.as_mut_ptr();
         let mut col = col_leaf >> 1;
         while col > 0 {
-            self.data[base + col] =
-                M::op(&self.data[base + col * 2], &self.data[base + col * 2 + 1]);
+            // SAFETY: 1 <= col < col_size なので、親と左右の子は異なる節点で、
+            // いずれも確保済みの row_node の範囲にある。この間 data は再確保しない。
+            unsafe {
+                let merged = M::op(&*data.add(base + col * 2), &*data.add(base + col * 2 + 1));
+                *data.add(base + col) = merged;
+            }
             col >>= 1;
         }
     }
