@@ -13,6 +13,7 @@ pub mod bin {
     pub mod atcoder {
         pub mod abc035_c_othello;
         pub mod abc075_c_bridge;
+        pub mod abc106_d_atcoder_express_2_2d;
         pub mod abc142_d_disjoint_set_of_common_divisors;
         pub mod abc176_d_wizard_in_maze;
         pub mod abc177_e_coprime;
@@ -32,6 +33,7 @@ pub mod bin {
         pub mod abc440_d_forbidden_list_2_sparse_offline;
         pub mod abc441_g_takoyaki;
         pub mod abc473_f_valid_string;
+        pub mod abc477_f_count_cells_in_a_window_2d;
         pub mod arc085_e_mul;
         pub mod arc210_b_remove_median_operations_sparse_offline;
         pub mod fps24_a_snack;

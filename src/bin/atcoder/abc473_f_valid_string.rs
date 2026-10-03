@@ -63,7 +63,7 @@ fn main() {
             // 1-indexed の区間 [l, r] が有効文字列かを判定する。
             let l = io.u32() as usize - 1;
             let r = io.u32() as usize;
-            let result = seg.fold(l, r);
+            let result = seg.fold(l..r);
             if result.1 >= 0 {
                 io.write('Y');
                 io.write('e');

@@ -1,6 +1,7 @@
 //! `Segment tree` の実装であり, range query と更新をサポートする.
 
 use super::super::super::algebra::monoid::Monoid;
+use std::ops::RangeBounds;
 
 // テストでのみ使用する追加のインポート. `monoid::AddMonoid` や `semi_group::SemiGroup` は
 // 実装本体では使用しないため, `#[cfg(test)]` で分離する.
@@ -120,7 +121,7 @@ where
     /// seg.set(2, 3);
     /// // `set` is lazy. Use `build` to apply changes.
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 3), 6);
+    /// assert_eq!(seg.fold(0..3), 6);
     /// ```
     pub fn set(&mut self, mut idx: usize, x: M::S) {
         assert!(
@@ -151,7 +152,7 @@ where
     /// seg.set(1, 10);
     /// seg.set(2, 15);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 3), 30);
+    /// assert_eq!(seg.fold(0..3), 30);
     /// ```
     pub fn build(&mut self) {
         // Iterate from the last parent node down to the root.
@@ -182,9 +183,9 @@ where
     /// seg.set(1, 2);
     /// seg.set(2, 3);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 3), 6);
+    /// assert_eq!(seg.fold(0..3), 6);
     /// seg.update(1, 10);
-    /// assert_eq!(seg.fold(0, 3), 14);
+    /// assert_eq!(seg.fold(0..3), 14);
     /// ```
     pub fn update(&mut self, mut idx: usize, x: M::S) {
         assert!(
@@ -238,19 +239,16 @@ where
         self.data[idx].clone()
     }
 
-    /// 区間 `[l, r)` 上の値に対して `fold` (畳み込み) を行う `query` を実行する.
-    /// この操作は, 指定された範囲の要素をモノイドの二項演算 `op` を用いて集約する.
-    /// 例えば, 演算が加算の場合, `data[l] + data[l+1] + ... + data[r-1]` を計算する.
+    /// 指定した範囲の値をモノイドの二項演算 `op` で集約する。
     ///
     /// # Args
-    /// - `l` - `query` 区間の開始インデックス (含む).
-    /// - `r` - `query` 区間の終了インデックス (含まない).
+    /// - `range` - 集約する範囲。`l..r`、`l..=r`、`..` などを指定できる。
     ///
     /// # Returns
-    /// `M::S` - 区間 `[l, r)` の畳み込み結果. 区間が空の場合, 単位元 `M::id()` となる.
+    /// 範囲内の集約結果。空区間では単位元 `M::id()` を返す。
     ///
     /// # Panics
-    /// `r > self.len()` の場合にパニックする.
+    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
     ///
     /// # Complexity
     /// - 時間計算量: $O(\log(n))$。ここで `n` は `segment tree` のサイズである.
@@ -268,19 +266,13 @@ where
     /// seg.set(3, 1000);
     /// seg.set(4, 10000);
     /// seg.build();
-    /// assert_eq!(seg.fold(1, 3), 110);
+    /// assert_eq!(seg.fold(1..3), 110);
     /// ```
-    pub fn fold(&self, mut l: usize, mut r: usize) -> M::S {
-        if l >= r {
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
+        let (mut l, mut r) = super::range_bounds::normalize(range, self.len(), "index");
+        if l == r {
             return M::id();
         }
-
-        assert!(
-            r <= self.len(),
-            "index out of bounds: r must be less than or equal to the len (r: {}, len: {})",
-            r,
-            self.len()
-        );
 
         // Map logical indices to internal data array indices.
         l += self.len - 1;
@@ -361,7 +353,7 @@ where
         );
 
         // If the full range `[l, self.len())` satisfies f, return self.len().
-        if l == self.len() || f(&self.fold(l, self.len())) {
+        if l == self.len() || f(&self.fold(l..self.len())) {
             return self.len();
         }
 
@@ -441,7 +433,7 @@ where
         );
 
         // If the full range `[0, r)` satisfies f, return 0.
-        if r == 0 || f(&self.fold(0, r)) {
+        if r == 0 || f(&self.fold(0..r)) {
             return 0;
         }
 
@@ -690,11 +682,41 @@ mod tests {
     // fold のテスト: 戻り値, 境界値, および異常系を検証する。
     mod fold {
         use super::*;
+        use crate::ds::segment_tree::{segment_tree_sparse_offline, segment_tree_sparse_online};
         use rstest::rstest;
+        use std::ops::Bound;
+
+        /// 1 次元の密・疎 2 種で `RangeBounds` の指定結果が一致する。
+        #[test]
+        fn accepts_all_range_bounds_forms_in_each_variant() {
+            let dense = create_dense_tree::<monoid::AddMonoid>(&[2, 0, 3, 0, 5]);
+            let mut offline = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
+                monoid::AddMonoid,
+            >::new(5, [0, 2, 4]);
+            let mut online =
+                segment_tree_sparse_online::SegmentTreeSparseOnline::<monoid::AddMonoid>::new(5);
+            for (index, value) in [(0, 2), (2, 3), (4, 5)] {
+                offline.update(index, value);
+                online.update(index, value);
+            }
+
+            assert_eq!(10, dense.fold(..));
+            assert_eq!(10, offline.fold(..));
+            assert_eq!(10, online.fold(..));
+            assert_eq!(8, dense.fold(2..=4));
+            assert_eq!(8, offline.fold(2..=4));
+            assert_eq!(8, online.fold(2..=4));
+            assert_eq!(3, dense.fold((Bound::Excluded(0), Bound::Included(2))));
+            assert_eq!(3, offline.fold((Bound::Excluded(0), Bound::Included(2))));
+            assert_eq!(3, online.fold((Bound::Excluded(0), Bound::Included(2))));
+            assert_eq!(0, dense.fold(3..3));
+            assert_eq!(0, offline.fold(3..3));
+            assert_eq!(0, online.fold(3..3));
+        }
 
         /// Scenario: 典型的な複数の区間に対して, 愚直実装と同じ畳み込み結果を返す。
         /// - Given: `[1, 10, 100, 1000, 10000]` を持つ `sut` と, 同じデータの `naive` オラクルがある。
-        /// - When: `[0, n]` の範囲に含まれる全ての `(i, j)` の組で `fold(i, j)` を求める。
+        /// - When: `[0, n]` の範囲に含まれる全ての `(i, j)` の組で `fold(i..j)` を求める。
         /// - Then: 各組について `naive.fold` の結果と一致する。
         #[test]
         fn matches_naive_for_all_ranges() {
@@ -705,12 +727,12 @@ mod tests {
             // When, Then
             for i in 0..=n {
                 for j in i..=n {
-                    assert_eq!(naive.fold(i, j), sut.fold(i, j));
+                    assert_eq!(naive.fold(i, j), sut.fold(i..j));
                 }
             }
         }
 
-        /// Scenario: 空区間 (`l >= r`) を畳み込むと単位元を返す (境界値)。
+        /// Scenario: 空区間 (`l == r`) を畳み込むと単位元を返す (境界値)。
         /// - Given: サイズ `5` の `sut` がある。
         /// - When: `(0, 0)`, `(3, 3)`, `(5, 5)` のいずれかの区間で `fold` を呼ぶ。
         /// - Then: いずれも単位元 (`AddMonoid::id()`) が返る。
@@ -722,22 +744,22 @@ mod tests {
             // Given
             let sut = SegmentTreeDense::<monoid::AddMonoid>::new(5);
             // When
-            let result = sut.fold(index, index);
+            let result = sut.fold(index..index);
             // Then
             assert_eq!(monoid::AddMonoid::id(), result);
         }
 
         /// Scenario: 範囲外 (`r > len`) を指定するとパニックする (異常系)。
         /// - Given: サイズ `5` の `sut` がある。
-        /// - When: `fold(0, 6)` を呼ぶ。
+        /// - When: `fold(0..6)` を呼ぶ。
         /// - Then: パニックする。
         #[test]
-        #[should_panic(expected = "index out of bounds")]
+        #[should_panic(expected = "index range out of bounds")]
         fn panics_when_r_exceeds_len() {
             // Given
             let sut = SegmentTreeDense::<monoid::AddMonoid>::new(5);
             // When, Then (panic)
-            let _ = sut.fold(0, 6);
+            let _ = sut.fold(0..6);
         }
     }
 
@@ -760,8 +782,8 @@ mod tests {
             naive.update(2, 10);
             // Then
             assert_eq!(10, sut.get(2));
-            assert_eq!(naive.fold(0, n), sut.fold(0, n));
-            assert_eq!(naive.fold(1, 4), sut.fold(1, 4));
+            assert_eq!(naive.fold(0, n), sut.fold(0..n));
+            assert_eq!(naive.fold(1, 4), sut.fold(1..4));
         }
 
         /// Scenario: 範囲外のインデックスを指定するとパニックする (異常系)。
@@ -923,7 +945,7 @@ mod tests {
                         if l > r {
                             mem::swap(&mut l, &mut r);
                         }
-                        assert_eq!(naive.fold(l, r), sut.fold(l, r));
+                        assert_eq!(naive.fold(l, r), sut.fold(l..r));
                     }
                     2 => {
                         // max_right の一致を検証する。

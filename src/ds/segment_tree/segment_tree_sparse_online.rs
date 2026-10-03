@@ -13,6 +13,7 @@
 //! `O(T log len)` 個である。`len = 0` の木も構築できる。
 
 use super::super::super::algebra::monoid;
+use std::ops::RangeBounds;
 
 /// 子がまだ生成されていないことを表す。
 const NONE: usize = usize::MAX;
@@ -40,7 +41,7 @@ struct Node<S> {
 /// >::new(1_000_000_000);
 /// seg.update(7, 3);
 /// seg.update(999_999_999, 4);
-/// assert_eq!(seg.fold(0, 1_000_000_000), 7);
+/// assert_eq!(seg.fold(0..1_000_000_000), 7);
 /// ```
 pub struct SegmentTreeSparseOnline<M>
 where
@@ -146,7 +147,7 @@ where
     /// >::new(10);
     /// seg.set(3, 7);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 10), 7);
+    /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn set(&mut self, idx: usize, x: M::S) {
         assert!(idx < self.len, "index out of bounds");
@@ -169,7 +170,7 @@ where
     /// seg.set(2, 4);
     /// seg.set(7, 5);
     /// seg.build();
-    /// assert_eq!(seg.fold(0, 10), 9);
+    /// assert_eq!(seg.fold(0..10), 9);
     /// ```
     pub fn build(&mut self) {
         // 子は必ず親より後に追加されるため、逆順に走査すれば底から集約できる。
@@ -199,7 +200,7 @@ where
     ///     monoid::AddMonoid,
     /// >::new(10);
     /// seg.update(3, 7);
-    /// assert_eq!(seg.fold(0, 10), 7);
+    /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn update(&mut self, idx: usize, x: M::S) {
         assert!(idx < self.len, "index out of bounds");
@@ -252,17 +253,16 @@ where
         self.nodes[node].value.clone()
     }
 
-    /// 半開区間 `[l, r)` の値を座標順に集約する。
+    /// 指定した範囲の値を座標順に集約する。
     ///
     /// # Args
-    /// - `l` - 区間の左端。
-    /// - `r` - 区間の右端。
+    /// - `range` - 集約する範囲。`l..r`、`l..=r`、`..` などを指定できる。
     ///
     /// # Returns
     /// 空区間では `M::id()` を返す。
     ///
     /// # Panics
-    /// `l > r` または `r > len` の場合にパニックする。
+    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
     ///
     /// # Complexity
     /// 時間 $O(\log len)$、再帰スタック $O(\log len)$。
@@ -274,11 +274,11 @@ where
     ///     monoid::AddMonoid,
     /// >::new(10);
     /// seg.update(3, 7);
-    /// assert_eq!(seg.fold(0, 3), 0);
-    /// assert_eq!(seg.fold(3, 4), 7);
+    /// assert_eq!(seg.fold(0..3), 0);
+    /// assert_eq!(seg.fold(3..4), 7);
     /// ```
-    pub fn fold(&self, l: usize, r: usize) -> M::S {
-        assert!(l <= r && r <= self.len, "range out of bounds");
+    pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
+        let (l, r) = super::range_bounds::normalize(range, self.len, "index");
         self.fold_node(0, 0, self.len, l, r)
     }
 
@@ -587,9 +587,9 @@ mod tests {
             assert!(!sut.is_empty());
             assert_eq!(2, sut.get(1));
             assert_eq!(0, sut.get(2));
-            assert_eq!(5, sut.fold(0, 17));
+            assert_eq!(5, sut.fold(0..17));
             sut.update(16, 4);
-            assert_eq!(6, sut.fold(0, 17));
+            assert_eq!(6, sut.fold(0..17));
         }
     }
 
@@ -613,7 +613,7 @@ mod tests {
                 // Then
                 for l in 0..=values.len() {
                     for r in l..=values.len() {
-                        assert_eq!(values[l..r].iter().sum::<i64>(), sut.fold(l, r));
+                        assert_eq!(values[l..r].iter().sum::<i64>(), sut.fold(l..r));
                     }
                     for limit in [1, 3, 5, 8, 12] {
                         let mut expected = l;
@@ -652,8 +652,8 @@ mod tests {
             sut.set(7, "c".to_owned());
             sut.build();
             // When
-            let all = sut.fold(0, 10);
-            let suffix = sut.fold(2, 8);
+            let all = sut.fold(0..10);
+            let suffix = sut.fold(2..8);
             let right = sut.max_right(0, |s| "ab".starts_with(s));
             let left = sut.min_left(10, |s| "bc".ends_with(s));
             // Then
@@ -678,7 +678,7 @@ mod tests {
             let mut sut = SegmentTreeSparseOnline::<monoid::AddMonoid>::new(0);
             sut.build();
             // When
-            let fold = sut.fold(0, 0);
+            let fold = sut.fold(0..0);
             let right = sut.max_right(0, |&sum| sum == 0);
             let left = sut.min_left(0, |&sum| sum == 0);
             // Then
@@ -700,7 +700,7 @@ mod tests {
             sut.update(usize::MAX - 1, 1);
             // Then
             assert_eq!(1, sut.get(usize::MAX - 1));
-            assert_eq!(1, sut.fold(usize::MAX - 1, usize::MAX));
+            assert_eq!(1, sut.fold((usize::MAX - 1)..usize::MAX));
             assert_eq!(usize::MAX - 1, sut.max_right(0, |&sum| sum < 1));
             assert_eq!(usize::MAX, sut.min_left(usize::MAX, |&sum| sum < 1));
         }
@@ -734,7 +734,9 @@ mod tests {
             // Given
             let sut = SegmentTreeSparseOnline::<monoid::AddMonoid>::new(3);
             // When
-            sut.fold(2, 1);
+            let left = 2;
+            let right = 1;
+            sut.fold(left..right);
             // Then
         }
     }

@@ -35,15 +35,15 @@ use super::lazy_segment_tree;
 ///         vec![0b1010, 0b1100, 0b0110],
 ///     );
 /// // 区間 [0, 3) に 0b1111 で XOR を適用する。
-/// seg.effect(0, 3, BitwiseAction::xor(0b1111));
-/// let result = seg.fold(0, 3);
+/// seg.effect(0..3, BitwiseAction::xor(0b1111));
+/// let result = seg.fold(0..3);
 /// assert_eq!(0b0101 ^ 0b0011 ^ 0b1001, result.xor);
 /// assert_eq!(0b0001, result.and);
 /// assert_eq!(0b1111, result.or);
 ///
 /// // 区間 [0, 2) に 0b0011 で OR を適用する。
-/// seg.effect(0, 2, BitwiseAction::or(0b0011));
-/// let result = seg.fold(0, 3);
+/// seg.effect(0..2, BitwiseAction::or(0b0011));
+/// let result = seg.fold(0..3);
 /// assert_eq!(0b0111 ^ 0b0011 ^ 0b1001, result.xor);
 /// assert_eq!(0b0001, result.and);
 /// assert_eq!(0b1111, result.or);
@@ -145,14 +145,14 @@ impl monoid::GeneratedMonoid for XorAndOrMonoid {
 ///         vec![1, 2, 3],
 ///     );
 /// // 全区間を 0xFF に代入する。
-/// seg.effect(0, 3, BitwiseAction::assign(0xFF));
-/// let result = seg.fold(0, 3);
+/// seg.effect(0..3, BitwiseAction::assign(0xFF));
+/// let result = seg.fold(0..3);
 /// assert_eq!(0xFF, result.and);
 /// assert_eq!(0xFF, result.or);
 ///
 /// // 区間 [1, 3) に 0x0F で AND を適用する。
-/// seg.effect(1, 3, BitwiseAction::and(0x0F));
-/// let result = seg.fold(0, 3);
+/// seg.effect(1..3, BitwiseAction::and(0x0F));
+/// let result = seg.fold(0..3);
 /// assert_eq!(0x0F, result.and);
 /// assert_eq!(0xFF, result.or);
 /// ```
@@ -730,7 +730,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             let expected_xor = 0b1010;
             let expected_and = 0;
@@ -750,7 +750,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(1, 4);
+            let result = sut.fold(1..4);
             // Then
             assert_eq!(0b1100 ^ 0b0110 ^ 0b0011, result.xor);
             assert_eq!(0b1100 & 0b0110 & 0b0011, result.and);
@@ -767,7 +767,7 @@ mod tests {
             // Given
             let mut sut = create_seg();
             // When
-            let result = sut.fold(2, 2);
+            let result = sut.fold(2..2);
             // Then
             assert_eq!(XorAndOrMonoid::id(), result);
         }
@@ -781,7 +781,7 @@ mod tests {
             // Given
             let mut sut = RangeBitwiseXorAndOr::from_values(vec![0xDEAD]);
             // When
-            let result = sut.fold(0, 1);
+            let result = sut.fold(0..1);
             // Then
             assert_eq!(0xDEAD, result.xor);
             assert_eq!(0xDEAD, result.and);
@@ -798,7 +798,7 @@ mod tests {
             // Given
             let mut sut = RangeBitwiseXorAndOr::from_values(vec![0, 0, 0]);
             // When
-            let result = sut.fold(0, 3);
+            let result = sut.fold(0..3);
             // Then
             assert_eq!(0, result.xor);
             assert_eq!(0, result.and);
@@ -821,9 +821,9 @@ mod tests {
         fn xor_updates_statistics() {
             // Given
             let mut sut = create_seg();
-            sut.effect(1, 4, BitwiseAction::xor(0b1111));
+            sut.effect(1..4, BitwiseAction::xor(0b1111));
             // When
-            let result = sut.fold(1, 4);
+            let result = sut.fold(1..4);
             // Then
             assert_eq!(0b0011 ^ 0b1001 ^ 0b1100, result.xor);
             assert_eq!(0b0011 & 0b1001 & 0b1100, result.and);
@@ -840,9 +840,9 @@ mod tests {
         fn assign_replaces_all_elements() {
             // Given
             let mut sut = create_seg();
-            sut.effect(1, 4, BitwiseAction::assign(0b0101));
+            sut.effect(1..4, BitwiseAction::assign(0b0101));
             // When / Then
-            let part = sut.fold(1, 4);
+            let part = sut.fold(1..4);
             assert_eq!(0b0101, part.xor);
             assert_eq!(0b0101, part.and);
             assert_eq!(0b0101, part.or);
@@ -859,9 +859,9 @@ mod tests {
         fn and_clears_lower_bits() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitwiseAction::and(0b1100));
+            sut.effect(0..5, BitwiseAction::and(0b1100));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             let vals = [
                 0b1010 & 0b1100,
@@ -885,9 +885,9 @@ mod tests {
         fn or_sets_lowest_bit() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitwiseAction::or(0b0001));
+            sut.effect(0..5, BitwiseAction::or(0b0001));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             let vals = [
                 0b1010 | 0b0001,
@@ -910,10 +910,10 @@ mod tests {
         fn assign_then_xor_composes_correctly() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitwiseAction::assign(0xFF));
-            sut.effect(0, 5, BitwiseAction::xor(0x0F));
+            sut.effect(0..5, BitwiseAction::assign(0xFF));
+            sut.effect(0..5, BitwiseAction::xor(0x0F));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(0xF0, result.and);
             assert_eq!(0xF0, result.or);
@@ -929,10 +929,10 @@ mod tests {
         fn xor_then_assign_overwrites() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitwiseAction::xor(0xFF));
-            sut.effect(0, 5, BitwiseAction::assign(0));
+            sut.effect(0..5, BitwiseAction::xor(0xFF));
+            sut.effect(0..5, BitwiseAction::assign(0));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             assert_eq!(0, result.xor);
             assert_eq!(0, result.and);
@@ -948,11 +948,11 @@ mod tests {
         fn double_xor_is_identity() {
             // Given
             let mut sut = create_seg();
-            let before = sut.fold(0, 5);
-            sut.effect(0, 5, BitwiseAction::xor(0b1111));
-            sut.effect(0, 5, BitwiseAction::xor(0b1111));
+            let before = sut.fold(0..5);
+            sut.effect(0..5, BitwiseAction::xor(0b1111));
+            sut.effect(0..5, BitwiseAction::xor(0b1111));
             // When
-            let after = sut.fold(0, 5);
+            let after = sut.fold(0..5);
             // Then
             assert_eq!(before, after);
         }
@@ -966,10 +966,10 @@ mod tests {
         fn and_then_or_composes_correctly() {
             // Given
             let mut sut = create_seg();
-            sut.effect(0, 5, BitwiseAction::and(0b1100));
-            sut.effect(0, 5, BitwiseAction::or(0b0011));
+            sut.effect(0..5, BitwiseAction::and(0b1100));
+            sut.effect(0..5, BitwiseAction::or(0b0011));
             // When
-            let result = sut.fold(0, 5);
+            let result = sut.fold(0..5);
             // Then
             let vals = [
                 (0b1010 & 0b1100) | 0b0011,
@@ -991,14 +991,14 @@ mod tests {
         fn empty_range_effect_is_noop() {
             // Given
             let mut sut = RangeBitwiseXorAndOr::from_values(vec![1, 2, 3]);
-            let before = sut.fold(0, 3);
+            let before = sut.fold(0..3);
             // When
-            sut.effect(1, 1, BitwiseAction::xor(0xFF));
-            sut.effect(1, 1, BitwiseAction::assign(0xFF));
-            sut.effect(1, 1, BitwiseAction::and(0));
-            sut.effect(1, 1, BitwiseAction::or(0xFF));
+            sut.effect(1..1, BitwiseAction::xor(0xFF));
+            sut.effect(1..1, BitwiseAction::assign(0xFF));
+            sut.effect(1..1, BitwiseAction::and(0));
+            sut.effect(1..1, BitwiseAction::or(0xFF));
             // Then
-            assert_eq!(before, sut.fold(0, 3));
+            assert_eq!(before, sut.fold(0..3));
         }
 
         /// Scenario: u64::MAX を含む操作が正しく処理される。
@@ -1010,7 +1010,7 @@ mod tests {
             // Given
             let mut sut = RangeBitwiseXorAndOr::from_values(vec![u64::MAX, 0]);
             // When
-            let result = sut.fold(0, 2);
+            let result = sut.fold(0..2);
             // Then
             assert_eq!(u64::MAX, result.xor);
             assert_eq!(0, result.and);
@@ -1098,25 +1098,25 @@ mod tests {
                         // When: 区間 XOR
                         0 => {
                             let v = rng.random_range(0..=0xFFFF);
-                            sut.effect(l, r, BitwiseAction::xor(v));
+                            sut.effect(l..r, BitwiseAction::xor(v));
                             naive.xor(l, r, v);
                         }
                         // When: 区間代入
                         1 => {
                             let v = rng.random_range(0..=0xFFFF);
-                            sut.effect(l, r, BitwiseAction::assign(v));
+                            sut.effect(l..r, BitwiseAction::assign(v));
                             naive.assign(l, r, v);
                         }
                         // When: 区間 AND
                         2 => {
                             let v = rng.random_range(0..=0xFFFF);
-                            sut.effect(l, r, BitwiseAction::and(v));
+                            sut.effect(l..r, BitwiseAction::and(v));
                             naive.and(l, r, v);
                         }
                         // When: 区間 OR
                         3 => {
                             let v = rng.random_range(0..=0xFFFF);
-                            sut.effect(l, r, BitwiseAction::or(v));
+                            sut.effect(l..r, BitwiseAction::or(v));
                             naive.or(l, r, v);
                         }
                         // When: 区間 fold
@@ -1124,7 +1124,7 @@ mod tests {
                             // Then
                             assert_eq!(
                                 naive.fold(l, r),
-                                sut.fold(l, r),
+                                sut.fold(l..r),
                                 "fold({}, {}) が一致しない",
                                 l,
                                 r,
@@ -1138,7 +1138,7 @@ mod tests {
                     for r in l..=n {
                         assert_eq!(
                             naive.fold(l, r),
-                            sut.fold(l, r),
+                            sut.fold(l..r),
                             "最終 fold({}, {}) が一致しない",
                             l,
                             r,

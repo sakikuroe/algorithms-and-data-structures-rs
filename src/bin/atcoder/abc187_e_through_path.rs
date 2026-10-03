@@ -61,7 +61,7 @@ fn main() {
     }
 
     for v in 0..n {
-        io.writeln(seg.fold(0, hld.vertex_id(v) + 1));
+        io.writeln(seg.fold(0..(hld.vertex_id(v) + 1)));
     }
 
     io.flush();
