@@ -283,7 +283,7 @@ mod tests {
             let mut dense = SegmentTree2dDense::<monoid::AddMonoid>::new(3, 4);
             let mut offline = segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<
                 monoid::AddMonoid,
-            >::new(3, 4, [(0, 1), (2, 3)]);
+            >::new([(0, 1), (2, 3)]);
             let mut online = segment_tree_2d_sparse_online::SegmentTree2dSparseOnline::<
                 monoid::AddMonoid,
             >::new(3, 4);
@@ -320,7 +320,7 @@ mod tests {
             let mut dense = SegmentTree2dDense::<monoid::AddMonoid>::new(3, 4);
             let mut offline = segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<
                 monoid::AddMonoid,
-            >::new(3, 4, points);
+            >::new(points);
             let mut online = segment_tree_2d_sparse_online::SegmentTree2dSparseOnline::<
                 monoid::AddMonoid,
             >::new(3, 4);

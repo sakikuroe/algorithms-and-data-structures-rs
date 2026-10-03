@@ -3,9 +3,6 @@
 
 use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_2d_sparse_offline, io::fastio};
 
-/// 問題で取りうる点座標の上限 10^9 を含む、論理上の各軸の長さ。
-const COORDINATE_LIMIT: usize = 1_000_000_001;
-
 /// 更新点の事前登録後に入力順で処理するクエリ。
 enum Query {
     /// 指定した点へ重みを加える。
@@ -63,8 +60,6 @@ fn main() {
 
     let mut seg =
         segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
-            COORDINATE_LIMIT,
-            COORDINATE_LIMIT,
             registered_points,
         );
     for (point, weight) in initial_points {

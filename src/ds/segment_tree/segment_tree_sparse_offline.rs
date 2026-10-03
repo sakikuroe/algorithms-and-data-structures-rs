@@ -3,8 +3,8 @@
 //! 登録座標を圧縮し、2 の冪へ切り上げた配列木で集約する。
 //! 区間クエリの端点は登録する必要がない。
 //!
-//! 更新する座標をあらかじめ列挙できる場合に使用する。論理上の区間は
-//! `[0, len)` であり、未登録位置はモノイドの単位元を持つ。
+//! 更新する座標をあらかじめ列挙できる場合に使用する。座標は
+//! `[0, usize::MAX)` から指定でき、未登録位置はモノイドの単位元を持つ。
 //! `set` と `update` は登録済み座標だけに使える。`set` の後に
 //! 区間集約や境界探索を行う場合は、先に `build` を呼ぶ。
 //!
@@ -17,7 +17,7 @@ use super::super::super::algebra::monoid;
 
 /// 更新対象の座標を構築時に登録する疎なセグメント木。
 ///
-/// 論理上の区間は `[0, len)` であり、登録されていない位置は
+/// 座標は `[0, usize::MAX)` から指定でき、登録されていない位置は
 /// `M::id()` として扱う。`set` した後は `build` で集約値を更新する。
 ///
 /// # Examples
@@ -26,7 +26,7 @@ use super::super::super::algebra::monoid;
 ///
 /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
 ///     monoid::AddMonoid,
-/// >::new(1_000_000_000, [7, 999_999_999]);
+/// >::new([7, 999_999_999]);
 /// seg.update(7, 3);
 /// seg.update(999_999_999, 4);
 /// assert_eq!(seg.fold(0..1_000_000_000), 7);
@@ -35,7 +35,6 @@ pub struct SegmentTreeSparseOffline<M>
 where
     M: monoid::Monoid,
 {
-    len: usize,
     coordinates: Vec<usize>,
     size: usize,
     data: Vec<M::S>,
@@ -49,14 +48,13 @@ where
     /// 更新対象の座標を登録し、すべて単位元の木を作成する。
     ///
     /// # Args
-    /// - `len` - 扱う座標範囲 `[0, len)` の長さ。
     /// - `points` - 更新する可能性がある座標。順序や重複は問わない。
     ///
     /// # Returns
     /// 登録座標を圧縮した木を返す。
     ///
     /// # Panics
-    /// 登録座標が `len` 以上の場合にパニックする。
+    /// `usize::MAX` を登録しようとした場合にパニックする。
     ///
     /// # Complexity
     /// 登録数を `P`、異なる登録座標数を `K` とすると、時間は
@@ -67,13 +65,13 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [7, 2, 7]);
-    /// assert_eq!(seg.len(), 10);
+    /// >::new([7, 2, 7]);
+    /// assert_eq!(0, seg.fold(8..));
     /// ```
-    pub fn new(len: usize, points: impl IntoIterator<Item = usize>) -> Self {
+    pub fn new(points: impl IntoIterator<Item = usize>) -> Self {
         let mut coordinates = points.into_iter().collect::<Vec<_>>();
         assert!(
-            coordinates.iter().all(|&idx| idx < len),
+            coordinates.iter().all(|&idx| idx < usize::MAX),
             "registered index out of bounds"
         );
         coordinates.sort_unstable();
@@ -83,54 +81,10 @@ where
         let size = coordinates.len().max(1).next_power_of_two();
         let capacity = size.checked_mul(2).expect("segment tree is too large");
         Self {
-            len,
             coordinates,
             size,
             data: vec![M::id(); capacity],
         }
-    }
-
-    /// 論理上の区間長を返す。
-    ///
-    /// # Returns
-    /// 構築時に指定した `len` を返す。
-    ///
-    /// # Complexity
-    /// 時間・空間ともに $O(1)$。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
-    /// let seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
-    ///     monoid::AddMonoid,
-    /// >::new(8, [2]);
-    /// assert_eq!(seg.len(), 8);
-    /// ```
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    /// 論理上の区間が空であるかを返す。
-    ///
-    /// # Returns
-    /// `len == 0` のときに `true` を返す。登録座標が 0 個でも
-    /// `len > 0` なら `false` を返す。
-    ///
-    /// # Complexity
-    /// 時間・空間ともに $O(1)$。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
-    /// let seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
-    ///     monoid::AddMonoid,
-    /// >::new(0, []);
-    /// assert!(seg.is_empty());
-    /// ```
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
     }
 
     /// 登録済み座標の葉を設定し、祖先の集約は `build` に委ねる。
@@ -151,13 +105,13 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3]);
+    /// >::new([3]);
     /// seg.set(3, 7);
     /// seg.build();
     /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn set(&mut self, idx: usize, x: M::S) {
-        assert!(idx < self.len, "index out of bounds");
+        assert!(idx < usize::MAX, "index out of bounds");
         let rank = self
             .coordinates
             .binary_search(&idx)
@@ -176,7 +130,7 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [2, 7]);
+    /// >::new([2, 7]);
     /// seg.set(2, 4);
     /// seg.set(7, 5);
     /// seg.build();
@@ -207,12 +161,12 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3]);
+    /// >::new([3]);
     /// seg.update(3, 7);
     /// assert_eq!(seg.fold(0..10), 7);
     /// ```
     pub fn update(&mut self, idx: usize, x: M::S) {
-        assert!(idx < self.len, "index out of bounds");
+        assert!(idx < usize::MAX, "index out of bounds");
         let rank = self
             .coordinates
             .binary_search(&idx)
@@ -235,7 +189,7 @@ where
     /// 未登録位置では `M::id()`、登録済み位置では葉の値を返す。
     ///
     /// # Panics
-    /// `idx >= len` の場合にパニックする。
+    /// `idx == usize::MAX` の場合にパニックする。
     ///
     /// # Complexity
     /// 異なる登録座標数を `K` とすると、時間 $O(\log K)$、
@@ -246,11 +200,11 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3]);
+    /// >::new([3]);
     /// assert_eq!(seg.get(4), 0);
     /// ```
     pub fn get(&self, idx: usize) -> M::S {
-        assert!(idx < self.len, "index out of bounds");
+        assert!(idx < usize::MAX, "index out of bounds");
         self.coordinates
             .binary_search(&idx)
             .map(|rank| self.data[self.size + rank].clone())
@@ -267,7 +221,7 @@ where
     /// 空区間では `M::id()` を返す。
     ///
     /// # Panics
-    /// 範囲が逆順、または論理長の外に出る場合にパニックする。
+    /// 範囲が逆順、または包含右端が `usize::MAX` の場合にパニックする。
     ///
     /// # Complexity
     /// 異なる登録座標数を `K` とすると、時間 $O(\log K)$、
@@ -278,13 +232,13 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3, 7]);
+    /// >::new([3, 7]);
     /// seg.update(3, 4);
     /// seg.update(7, 5);
     /// assert_eq!(seg.fold(4..8), 5);
     /// ```
     pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
-        let (l, r) = super::range_bounds::normalize(range, self.len, "index");
+        let (l, r) = super::range_bounds::normalize(range, usize::MAX, "index");
         // 未登録座標を含む端点を、最初の登録座標の順位へ写す。
         let mut left = self.coordinates.partition_point(|&point| point < l) + self.size;
         let mut right = self.coordinates.partition_point(|&point| point < r) + self.size;
@@ -313,10 +267,10 @@ where
     ///
     /// # Returns
     /// 最初に条件を満たさなくなる登録座標を返す。最後まで真なら
-    /// 論理上の `len` を返す。
+    /// `usize::MAX` を返す。
     ///
     /// # Panics
-    /// `l > len`、または `f(&M::id())` が偽の場合にパニックする。
+    /// `f(&M::id())` が偽の場合にパニックする。
     ///
     /// # Complexity
     /// 異なる登録座標数を `K` とすると、時間 $O(\log K)$、
@@ -327,7 +281,7 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3, 7]);
+    /// >::new([3, 7]);
     /// seg.update(3, 4);
     /// assert_eq!(seg.max_right(0, |&sum| sum < 4), 3);
     /// ```
@@ -335,11 +289,10 @@ where
     where
         F: Fn(&M::S) -> bool,
     {
-        assert!(l <= self.len, "index out of bounds");
         assert!(f(&M::id()), "predicate must accept the identity");
         let rank = self.coordinates.partition_point(|&point| point < l);
         if rank == self.coordinates.len() {
-            return self.len;
+            return usize::MAX;
         }
         let mut node = rank + self.size;
         let mut sum = M::id();
@@ -365,7 +318,7 @@ where
                 break;
             }
         }
-        self.len
+        usize::MAX
     }
 
     /// `[l, r)` の集約に対して `f` が真である最小の `l` を返す。
@@ -379,7 +332,7 @@ where
     /// 最後まで真なら `0` を返す。
     ///
     /// # Panics
-    /// `r > len`、または `f(&M::id())` が偽の場合にパニックする。
+    /// `f(&M::id())` が偽の場合にパニックする。
     ///
     /// # Complexity
     /// 異なる登録座標数を `K` とすると、時間 $O(\log K)$、
@@ -390,7 +343,7 @@ where
     /// use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline};
     /// let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
     ///     monoid::AddMonoid,
-    /// >::new(10, [3, 7]);
+    /// >::new([3, 7]);
     /// seg.update(3, 4);
     /// assert_eq!(seg.min_left(10, |&sum| sum < 4), 4);
     /// ```
@@ -398,7 +351,6 @@ where
     where
         F: Fn(&M::S) -> bool,
     {
-        assert!(r <= self.len, "index out of bounds");
         assert!(f(&M::id()), "predicate must accept the identity");
         let rank = self.coordinates.partition_point(|&point| point < r);
         if rank == 0 {
@@ -486,14 +438,12 @@ mod tests {
         #[test]
         fn sorts_deduplicates_and_aggregates() {
             // Given
-            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(17, [16, 1, 16]);
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([16, 1, 16]);
             // When
             sut.set(1, 2);
             sut.set(16, 3);
             sut.build();
             // Then
-            assert_eq!(17, sut.len());
-            assert!(!sut.is_empty());
             assert_eq!(2, sut.get(1));
             assert_eq!(0, sut.get(2));
             assert_eq!(5, sut.fold(0..17));
@@ -507,13 +457,13 @@ mod tests {
         use super::*;
 
         /// Scenario: 登録座標の隙間を含むすべての区間と境界が一致する。
-        /// - Given: 長さ 17 の木に 5 座標を登録している。
+        /// - Given: 5 座標を登録した木がある。
         /// - When: 登録済み座標を繰り返し更新する。
         /// - Then: 区間和と単調な境界探索が愚直な配列に一致する。
         #[test]
         fn matches_naive_ranges_and_boundaries() {
             // Given
-            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(17, [16, 1, 9, 4, 7]);
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([16, 1, 9, 4, 7]);
             let mut values = [0_i64; 17];
             // When
             for (idx, value) in [(1, 2), (9, 3), (16, 4), (1, 5), (9, 0)] {
@@ -531,6 +481,11 @@ mod tests {
                             sum += values[expected];
                             expected += 1;
                         }
+                        let expected = if expected == values.len() {
+                            usize::MAX
+                        } else {
+                            expected
+                        };
                         assert_eq!(expected, sut.max_right(l, |&x| x < limit));
                     }
                 }
@@ -555,7 +510,7 @@ mod tests {
         #[test]
         fn preserves_order_for_noncommutative_monoid() {
             // Given
-            let mut sut = SegmentTreeSparseOffline::<ConcatMonoid>::new(10, [7, 1, 4]);
+            let mut sut = SegmentTreeSparseOffline::<ConcatMonoid>::new([7, 1, 4]);
             sut.set(1, "a".to_owned());
             sut.set(4, "b".to_owned());
             sut.set(7, "c".to_owned());
@@ -577,56 +532,52 @@ mod tests {
     mod empty {
         use super::*;
 
-        /// Scenario: 長さ 0 の木でも空区間と境界探索が使える。
-        /// - Given: 長さ 0 で登録座標のない木がある。
-        /// - When: 空区間と両方向の境界を調べる。
-        /// - Then: 単位元と 0 が返る。
-        #[test]
-        fn handles_zero_length() {
-            // Given
-            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(0, []);
-            sut.build();
-            // When
-            let fold = sut.fold(0..0);
-            let right = sut.max_right(0, |&sum| sum == 0);
-            let left = sut.min_left(0, |&sum| sum == 0);
-            // Then
-            assert!(sut.is_empty());
-            assert_eq!(0, fold);
-            assert_eq!(0, right);
-            assert_eq!(0, left);
-        }
-
-        /// Scenario: 登録座標がなくても論理上の長さが維持される。
-        /// - Given: 長さ 10 で登録座標のない木がある。
-        /// - When: 値と境界を調べる。
-        /// - Then: 未登録位置は単位元で、境界は元の区間端になる。
+        /// Scenario: 登録座標がなくても任意の区間と境界を扱える。
+        /// - Given: 登録座標のない木がある。
+        /// - When: 全区間の集約と両方向の境界を調べる。
+        /// - Then: 単位元、上端、下端が返る。
         #[test]
         fn handles_no_registered_points() {
             // Given
-            let sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(10, []);
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([]);
+            sut.build();
             // When
             let point = sut.get(4);
-            let fold = sut.fold(2..9);
-            let right = sut.max_right(2, |&sum| sum == 0);
+            let fold = sut.fold(..);
+            let right = sut.max_right(0, |&sum| sum == 0);
             let left = sut.min_left(9, |&sum| sum == 0);
             // Then
-            assert!(!sut.is_empty());
             assert_eq!(0, point);
             assert_eq!(0, fold);
-            assert_eq!(10, right);
+            assert_eq!(usize::MAX, right);
             assert_eq!(0, left);
         }
 
-        /// Scenario: 最大の `usize` を区間長として扱える。
-        /// - Given: 最後の座標だけを登録した木がある。
+        /// Scenario: 最後の登録座標を超える区間端点も使える。
+        /// - Given: 座標 3 を登録した木がある。
+        /// - When: 登録点を含む広い区間を集約する。
+        /// - Then: 未登録座標を挟んでも設定値を返す。
+        #[test]
+        fn accepts_ranges_beyond_registered_points() {
+            // Given
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([3]);
+            sut.update(3, 5);
+            // When
+            let fold = sut.fold(2..1_000_000);
+            let all = sut.fold(..);
+            // Then
+            assert_eq!(5, fold);
+            assert_eq!(5, all);
+        }
+
+        /// Scenario: `usize::MAX - 1` を登録座標として扱える。
+        /// - Given: 半開区間に収まる最大座標だけを登録した木がある。
         /// - When: その座標を更新する。
         /// - Then: 境界を元の座標で取得できる。
         #[test]
         fn handles_maximum_coordinate_domain() {
             // Given
-            let mut sut =
-                SegmentTreeSparseOffline::<monoid::AddMonoid>::new(usize::MAX, [usize::MAX - 1]);
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([usize::MAX - 1]);
             // When
             sut.update(usize::MAX - 1, 1);
             // Then
@@ -649,35 +600,34 @@ mod tests {
         #[should_panic(expected = "index is not registered")]
         fn rejects_unregistered_update() {
             // Given
-            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(3, [1]);
+            let mut sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([1]);
             // When
             sut.update(2, 1);
             // Then
         }
 
-        /// Scenario: 範囲外の登録座標は拒否される。
-        /// - Given: 長さ 3 を指定する。
-        /// - When: 座標 3 を登録する。
+        /// Scenario: 半開区間で表せない最大値は登録できない。
+        /// - Given: 登録前の木がある。
+        /// - When: 座標 `usize::MAX` を登録する。
         /// - Then: 範囲外としてパニックする。
         #[test]
         #[should_panic(expected = "registered index out of bounds")]
         fn rejects_out_of_bounds_registration() {
             // Given
-            let len = 3;
             // When
-            let _sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(len, [3]);
+            let _sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([usize::MAX]);
             // Then
         }
 
         /// Scenario: 逆向きの区間は拒否される。
-        /// - Given: 長さ 3 の木がある。
+        /// - Given: 座標 1 を登録した木がある。
         /// - When: `[2, 1)` を集約する。
         /// - Then: 範囲外としてパニックする。
         #[test]
         #[should_panic(expected = "range out of bounds")]
         fn rejects_reversed_range() {
             // Given
-            let sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new(3, [1]);
+            let sut = SegmentTreeSparseOffline::<monoid::AddMonoid>::new([1]);
             // When
             let left = 2;
             let right = 1;

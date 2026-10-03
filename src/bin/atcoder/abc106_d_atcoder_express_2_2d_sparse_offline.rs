@@ -20,7 +20,7 @@ fn main() {
 
     let mut seg =
         segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
-            n, n, points,
+            points,
         );
     // 重複した座標をまとめ、登録された葉だけ設定して一度だけ構築する。
     for (row, columns) in counts.iter().enumerate() {

@@ -3,9 +3,6 @@
 
 use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline, io::fastio};
 
-/// 問題の最大値を含めるための半開区間の右端。
-const DOMAIN_END: usize = 1_000_000_000_000_000_001;
-
 /// 入力で現れる挿入座標を圧縮し、順位クエリを処理する。
 fn main() {
     let mut io = fastio::Fastio::new();
@@ -24,9 +21,8 @@ fn main() {
         queries.push((kind, x, k));
     }
 
-    let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<monoid::AddMonoid>::new(
-        DOMAIN_END, points,
-    );
+    let mut seg =
+        segment_tree_sparse_offline::SegmentTreeSparseOffline::<monoid::AddMonoid>::new(points);
 
     for (kind, x, k) in queries {
         match kind {
@@ -44,7 +40,7 @@ fn main() {
             3 => {
                 // 前方へ k 個含めたときに述語が初めて偽になる位置が答えになる。
                 let boundary = seg.max_right(x, |&count| count < k);
-                let answer = if boundary == DOMAIN_END {
+                let answer = if boundary == usize::MAX {
                     -1_i64
                 } else {
                     boundary as i64

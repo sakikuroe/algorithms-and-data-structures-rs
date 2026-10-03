@@ -47,9 +47,8 @@ fn main() {
         queries.push((kind, index, value));
     }
 
-    let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<CountSumMonoid>::new(
-        DOMAIN_END, points,
-    );
+    let mut seg =
+        segment_tree_sparse_offline::SegmentTreeSparseOffline::<CountSumMonoid>::new(points);
     initial.sort_unstable();
     let mut start = 0;
     while start < initial.len() {

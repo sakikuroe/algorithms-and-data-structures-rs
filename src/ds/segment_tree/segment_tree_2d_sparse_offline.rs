@@ -26,7 +26,7 @@ struct InnerLayout {
 
 /// 更新候補点を事前に指定する疎な 2 次元セグメント木。
 ///
-/// 論理上の座標範囲は `[0, height) × [0, width)` である。
+/// 座標は `[0, usize::MAX) × [0, usize::MAX)` から指定できる。
 /// 未登録点の `get` は単位元を返し、`set` と `update` は登録点だけを
 /// 受け付ける。`set` の後は `build` で祖先を再集約する。
 /// 構築後の接頭辞集約が多い場合は `prepare_prefix_folds` を呼ぶ。
@@ -37,7 +37,7 @@ struct InnerLayout {
 ///
 /// let mut seg = segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<
 ///     monoid::AddMonoid,
-/// >::new(100, 100, [(2, 5), (80, 90)]);
+/// >::new([(2, 5), (80, 90)]);
 /// seg.set((2, 5), 3);
 /// seg.build();
 /// seg.update((80, 90), 7);
@@ -48,16 +48,16 @@ pub struct SegmentTree2dSparseOffline<M>
 where
     M: monoid::CommutativeMonoid,
 {
-    height: usize,
-    width: usize,
     x_coordinates: Vec<usize>,
+    /// 登録行が `0..x_coordinates.len()` に隙間なく並ぶかを保持する。
+    dense_rows: bool,
     row_size: usize,
     layouts: Vec<InnerLayout>,
     y_coordinates: Vec<usize>,
     data: Vec<M::S>,
     /// 親順位に対応する左右の子の順位を下位・上位 32 bit に保持する。
     child_ranks: Vec<u64>,
-    /// 論理列幅が小さいときの、列端点から根の圧縮順位への対応表。
+    /// 登録列が小さい座標に集中するときの、列端点から根の圧縮順位への対応表。
     root_ranks: Option<Vec<u32>>,
     /// 構築後に準備した列方向の接頭辞集約。更新時に無効化する。
     prefix_data: Option<Vec<M::S>>,
@@ -71,34 +71,33 @@ where
     /// 更新候補点を登録し、すべて単位元の木を作成する。
     ///
     /// # Args
-    /// - `height` - 行座標の論理上の長さ。
-    /// - `width` - 列座標の論理上の長さ。
     /// - `points` - 更新する可能性のある点。順序と重複を問わない。
     ///
     /// # Returns
     /// 更新候補点に応じた領域だけを確保した木を返す。
     ///
     /// # Panics
-    /// 登録点が範囲外か、配列の長さが `usize` に収まらない場合、
+    /// `usize::MAX` を登録した場合、配列の長さが `usize` に収まらない場合、
     /// または行節点の登録列数が `u32` に収まらない場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(K log(K + 1))`、
     /// 空間 `O(K log(K + 1))`。
-    pub fn new(
-        height: usize,
-        width: usize,
-        points: impl IntoIterator<Item = (usize, usize)>,
-    ) -> Self {
+    pub fn new(points: impl IntoIterator<Item = (usize, usize)>) -> Self {
         let mut points = points.into_iter().collect::<Vec<_>>();
         assert!(
-            points.iter().all(|&(row, col)| row < height && col < width),
+            points
+                .iter()
+                .all(|&(row, col)| row < usize::MAX && col < usize::MAX),
             "registered point out of bounds"
         );
         points.sort_unstable();
         points.dedup();
         let mut x_coordinates = points.iter().map(|&(row, _)| row).collect::<Vec<_>>();
         x_coordinates.dedup();
+        let dense_rows = x_coordinates
+            .last()
+            .is_some_and(|&last| last + 1 == x_coordinates.len());
         let row_size = x_coordinates
             .len()
             .max(1)
@@ -188,9 +187,8 @@ where
         }
 
         Self {
-            height,
-            width,
             x_coordinates,
+            dense_rows,
             row_size,
             layouts,
             y_coordinates,
@@ -201,24 +199,6 @@ where
         }
     }
 
-    /// 論理上の行数を返す。
-    #[must_use]
-    pub fn height(&self) -> usize {
-        self.height
-    }
-
-    /// 論理上の列数を返す。
-    #[must_use]
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    /// いずれかの次元が空であるかを返す。
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.height == 0 || self.width == 0
-    }
-
     /// 登録点の葉を設定し、祖先の集約は `build` に委ねる。
     ///
     /// # Args
@@ -226,15 +206,15 @@ where
     /// - `value` - 点へ置く値。
     ///
     /// # Panics
-    /// 点が範囲外、または未登録の場合にパニックする。
+    /// 点が `usize::MAX` を含む場合、または未登録の場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(log(K + 1))`、追加領域 `O(1)`。
     pub fn set(&mut self, point: (usize, usize), value: M::S) {
         let (row, col) = point;
-        assert!(row < self.height && col < self.width, "point out of bounds");
-        // 全行が登録済みなら、論理座標と圧縮後の順位が一致する。
-        let row_rank = if self.x_coordinates.len() == self.height {
+        assert!(row < usize::MAX && col < usize::MAX, "point out of bounds");
+        // 登録行が 0 から連続する場合は、元の行座標が圧縮順位になる。
+        let row_rank = if self.dense_rows && row < self.x_coordinates.len() {
             row
         } else {
             self.x_coordinates
@@ -312,13 +292,14 @@ where
     pub fn prepare_prefix_folds(&mut self) {
         if self.root_ranks.is_none() {
             let root = self.layouts[1];
-            // 論理列幅が登録列数の 4 倍以下なら、直引き表の追加領域も O(K)。
-            if self.width < usize::MAX && self.width <= root.coord_len.saturating_mul(4) {
-                let coordinates =
-                    &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
-                let mut ranks = Vec::with_capacity(self.width + 1);
+            let coordinates =
+                &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
+            let last_endpoint = coordinates.last().map_or(0, |&col| col + 1);
+            // 登録列が小さい座標に集中する場合だけ、直引き表を O(K) で作る。
+            if last_endpoint < usize::MAX && last_endpoint <= root.coord_len.saturating_mul(4) {
+                let mut ranks = Vec::with_capacity(last_endpoint + 1);
                 let mut rank = 0;
-                for endpoint in 0..=self.width {
+                for endpoint in 0..=last_endpoint {
                     while rank < coordinates.len() && coordinates[rank] < endpoint {
                         rank += 1;
                     }
@@ -348,15 +329,15 @@ where
     /// - `value` - 点の新しい値。
     ///
     /// # Panics
-    /// 点が範囲外、または未登録の場合にパニックする。
+    /// 点が `usize::MAX` を含む場合、または未登録の場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(log²(K + 1))`、追加領域 `O(1)`。
     pub fn update(&mut self, point: (usize, usize), mut value: M::S) {
         let (row, col) = point;
-        assert!(row < self.height && col < self.width, "point out of bounds");
-        // 全行が登録済みなら、論理座標と圧縮後の順位が一致する。
-        let row_rank = if self.x_coordinates.len() == self.height {
+        assert!(row < usize::MAX && col < usize::MAX, "point out of bounds");
+        // 登録行が 0 から連続する場合は、元の行座標が圧縮順位になる。
+        let row_rank = if self.dense_rows && row < self.x_coordinates.len() {
             row
         } else {
             self.x_coordinates
@@ -403,15 +384,19 @@ where
     /// 登録点の現在値、または単位元を返す。
     ///
     /// # Panics
-    /// 点が論理上の範囲外の場合にパニックする。
+    /// 点が `usize::MAX` を含む場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(log(K + 1))`、追加領域 `O(1)`。
     pub fn get(&self, point: (usize, usize)) -> M::S {
         let (row, col) = point;
-        assert!(row < self.height && col < self.width, "point out of bounds");
-        if self.x_coordinates.len() == self.height {
-            return self.inner_get(self.row_size + row, col);
+        assert!(row < usize::MAX && col < usize::MAX, "point out of bounds");
+        if self.dense_rows {
+            return if row < self.x_coordinates.len() {
+                self.inner_get(self.row_size + row, col)
+            } else {
+                M::id()
+            };
         }
         match self.x_coordinates.binary_search(&row) {
             Ok(rank) => self.inner_get(self.row_size + rank, col),
@@ -429,20 +414,23 @@ where
     /// 矩形内の値の集約結果を返す。空矩形では単位元を返す。
     ///
     /// # Panics
-    /// 端点が範囲外か、両端の順序が逆の場合にパニックする。
+    /// 包含右端が `usize::MAX` の場合、または範囲が逆順の場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、時間 `O(log²(K + 1))`、追加領域 `O(1)`。
     pub fn fold(&self, rows: impl RangeBounds<usize>, columns: impl RangeBounds<usize>) -> M::S {
-        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
-        let (left, right) = super::range_bounds::normalize(columns, self.width, "column");
+        let (top, bottom) = super::range_bounds::normalize(rows, usize::MAX, "row");
+        let (left, right) = super::range_bounds::normalize(columns, usize::MAX, "column");
         if top == bottom || left == right {
             return M::id();
         }
 
-        // 全行が登録済みなら、行端点の座標探索を省ける。
-        let (top_rank, bottom_rank) = if self.x_coordinates.len() == self.height {
-            (top, bottom)
+        // 登録行が 0 から連続する場合は、行端点を葉数で切り詰めるだけでよい。
+        let (top_rank, bottom_rank) = if self.dense_rows {
+            (
+                top.min(self.x_coordinates.len()),
+                bottom.min(self.x_coordinates.len()),
+            )
         } else {
             (
                 self.x_coordinates.partition_point(|&x| x < top),
@@ -456,11 +444,14 @@ where
         let root_coordinates =
             &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
         let (left_rank, right_rank) = if let Some(ranks) = &self.root_ranks {
-            (ranks[left] as usize, ranks[right] as usize)
+            (
+                *ranks.get(left).unwrap_or_else(|| ranks.last().unwrap()) as usize,
+                *ranks.get(right).unwrap_or_else(|| ranks.last().unwrap()) as usize,
+            )
         } else {
             (
                 root_coordinates.partition_point(|&col| col < left),
-                if right == self.width {
+                if root_coordinates.last().is_none_or(|&col| col < right) {
                     root.coord_len
                 } else {
                     root_coordinates.partition_point(|&col| col < right)
@@ -491,7 +482,7 @@ where
     /// 指定順に二つの接頭辞矩形の集約値を返す。
     ///
     /// # Panics
-    /// 行範囲または列の右端が論理上の範囲外の場合にパニックする。
+    /// 行範囲が逆順、または包含端点が `usize::MAX` の場合にパニックする。
     ///
     /// # Complexity
     /// 登録点数を `K` とすると、事前計算済みの場合は `O(log(K + 1))`、
@@ -502,11 +493,7 @@ where
         first_right: usize,
         second_right: usize,
     ) -> (M::S, M::S) {
-        let (top, bottom) = super::range_bounds::normalize(rows, self.height, "row");
-        assert!(
-            first_right <= self.width && second_right <= self.width,
-            "column range out of bounds"
-        );
+        let (top, bottom) = super::range_bounds::normalize(rows, usize::MAX, "row");
         let Some(prefix_data) = &self.prefix_data else {
             return (
                 self.fold(top..bottom, 0..first_right),
@@ -516,8 +503,11 @@ where
         if top == bottom {
             return (M::id(), M::id());
         }
-        let (top_rank, bottom_rank) = if self.x_coordinates.len() == self.height {
-            (top, bottom)
+        let (top_rank, bottom_rank) = if self.dense_rows {
+            (
+                top.min(self.x_coordinates.len()),
+                bottom.min(self.x_coordinates.len()),
+            )
         } else {
             (
                 self.x_coordinates.partition_point(|&x| x < top),
@@ -530,7 +520,14 @@ where
         let root = self.layouts[1];
         let coordinates = &self.y_coordinates[root.coord_start..root.coord_start + root.coord_len];
         let (first_rank, second_rank) = if let Some(ranks) = &self.root_ranks {
-            (ranks[first_right] as usize, ranks[second_right] as usize)
+            (
+                *ranks
+                    .get(first_right)
+                    .unwrap_or_else(|| ranks.last().unwrap()) as usize,
+                *ranks
+                    .get(second_right)
+                    .unwrap_or_else(|| ranks.last().unwrap()) as usize,
+            )
         } else {
             (
                 coordinates.partition_point(|&col| col < first_right),
@@ -739,26 +736,47 @@ mod tests {
         use super::*;
 
         /// Scenario: 重複登録した点が 1 個の葉として集約される。
-        /// - Given: 3 × 5 の木に順序と重複のある点を登録する。
+        /// - Given: 順序と重複のある点を登録する。
         /// - When: 登録点を設定して構築する。
         /// - Then: 設定値と未登録点の単位元を取得できる。
         #[test]
         fn sorts_deduplicates_and_aggregates() {
             // Given
-            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
-                3,
-                5,
-                [(2, 4), (0, 1), (2, 4), (2, 0)],
-            );
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([
+                (2, 4),
+                (0, 1),
+                (2, 4),
+                (2, 0),
+            ]);
             sut.set((2, 4), 7);
             sut.set((0, 1), 3);
             // When
             sut.build();
             // Then
             assert_eq!(10, sut.fold(0..3, 0..5));
+            assert_eq!(10, sut.fold(.., ..));
+            assert_eq!(10, sut.fold(0..1_000_000, 0..1_000_000));
             assert_eq!(7, sut.fold(1..3, 2..5));
             assert_eq!(0, sut.get((1, 4)));
             assert_eq!(0, sut.get((2, 0)));
+        }
+
+        /// Scenario: 登録行が連続していても、その外側の座標を集約できる。
+        /// - Given: 行 0 と 1 に点を登録した木がある。
+        /// - When: 登録行より先まで含む矩形を集約する。
+        /// - Then: 登録点の和と未登録点の単位元を返す。
+        #[test]
+        fn handles_ranges_beyond_dense_registered_rows() {
+            // Given
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([(0, 3), (1, 5)]);
+            sut.update((0, 3), 2);
+            sut.update((1, 5), 7);
+            // When
+            let all = sut.fold(0..1_000_000, 0..1_000_000);
+            let missing = sut.get((2, 5));
+            // Then
+            assert_eq!(9, all);
+            assert_eq!(0, missing);
         }
     }
 
@@ -773,11 +791,12 @@ mod tests {
         #[test]
         fn propagates_across_different_column_sets() {
             // Given
-            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
-                10,
-                10,
-                [(1, 1), (1, 8), (4, 3), (9, 8)],
-            );
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([
+                (1, 1),
+                (1, 8),
+                (4, 3),
+                (9, 8),
+            ]);
             // When
             sut.update((1, 8), 5);
             sut.update((9, 8), 7);
@@ -802,7 +821,7 @@ mod tests {
                 .filter(|&(row, col)| (row + col) % 3 == 0)
                 .collect::<Vec<_>>();
             let mut sut =
-                SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(5, 6, points.iter().copied());
+                SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(points.iter().copied());
             let mut values = [[0_i64; 6]; 5];
             // When
             for step in 0..24 {
@@ -841,7 +860,7 @@ mod tests {
         fn matches_naive_prefix_pairs_and_rectangles() {
             // Given
             let points = [(0, 1), (0, 5), (2, 0), (2, 4), (3, 5), (4, 2)];
-            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(5, 7, points);
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(points);
             let mut values = [[0_i64; 7]; 5];
             for (index, (row, col)) in points.into_iter().enumerate() {
                 let value = index as i64 - 2;
@@ -893,11 +912,8 @@ mod tests {
         #[test]
         fn invalidates_after_update() {
             // Given
-            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(
-                4,
-                8,
-                [(0, 1), (2, 3), (3, 6)],
-            );
+            let mut sut =
+                SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([(0, 1), (2, 3), (3, 6)]);
             sut.set((0, 1), 2);
             sut.set((2, 3), 5);
             sut.build();
@@ -920,19 +936,19 @@ mod tests {
         use super::*;
 
         /// Scenario: 登録点がなくても任意の矩形を集約できる。
-        /// - Given: 登録点のない広い論理範囲がある。
+        /// - Given: 登録点のない木がある。
         /// - When: 全範囲を集約する。
         /// - Then: 単位元を返す。
         #[test]
         fn folds_without_registered_points() {
             // Given
-            let sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(100, 200, []);
+            let sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([]);
             // When
             let result = sut.fold(0..100, 0..200);
             // Then
             assert_eq!(0, result);
             assert_eq!(0, sut.get((50, 150)));
-            assert!(!sut.is_empty());
+            assert_eq!(0, sut.fold(.., ..));
         }
     }
 
@@ -940,7 +956,20 @@ mod tests {
     mod bounds {
         use super::*;
 
-        /// Scenario: 論理範囲内でも未登録の点は更新できない。
+        /// Scenario: 半開区間で表せない最大座標は登録できない。
+        /// - Given: 登録前の木がある。
+        /// - When: 行座標 `usize::MAX` の点を登録する。
+        /// - Then: 範囲外としてパニックする。
+        #[test]
+        #[should_panic(expected = "registered point out of bounds")]
+        fn rejects_maximum_coordinate() {
+            // Given
+            // When
+            let _sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([(usize::MAX, 0)]);
+            // Then
+        }
+
+        /// Scenario: 未登録の点は更新できない。
         /// - Given: 点 (1, 1) だけを登録した木がある。
         /// - When: 未登録の点 (1, 2) を更新する。
         /// - Then: 未登録点としてパニックする。
@@ -948,7 +977,7 @@ mod tests {
         #[should_panic(expected = "point is not registered")]
         fn rejects_unregistered_point() {
             // Given
-            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new(4, 4, [(1, 1)]);
+            let mut sut = SegmentTree2dSparseOffline::<monoid::AddMonoid>::new([(1, 1)]);
             // When
             sut.update((1, 2), 9);
         }
