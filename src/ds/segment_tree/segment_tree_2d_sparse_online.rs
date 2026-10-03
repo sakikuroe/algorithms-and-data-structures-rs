@@ -345,8 +345,9 @@ where
     }
 
     /// 行方向の部分木をたどり、完全に含まれる節点で列方向を集約する。
+    /// 呼び出す節点の行区間は矩形と交わっている。
     fn fold_rows(&self, node: usize, lower: usize, upper: usize, rectangle: &Rectangle) -> M::S {
-        if node == NONE || rectangle.bottom <= lower || upper <= rectangle.top {
+        if node == NONE {
             return M::id();
         }
         if rectangle.top <= lower && upper <= rectangle.bottom {
@@ -359,12 +360,19 @@ where
             );
         }
         let middle = lower + (upper - lower) / 2;
+        if rectangle.bottom <= middle {
+            return self.fold_rows(self.rows[node].children[0], lower, middle, rectangle);
+        }
+        if rectangle.top >= middle {
+            return self.fold_rows(self.rows[node].children[1], middle, upper, rectangle);
+        }
         let left_value = self.fold_rows(self.rows[node].children[0], lower, middle, rectangle);
         let right_value = self.fold_rows(self.rows[node].children[1], middle, upper, rectangle);
         M::op(&left_value, &right_value)
     }
 
     /// 列方向の部分木で半開区間を集約する。
+    /// 呼び出す節点の列区間は問い合わせ区間と交わっている。
     fn fold_columns(
         &self,
         node: usize,
@@ -373,13 +381,19 @@ where
         left: usize,
         right: usize,
     ) -> M::S {
-        if node == NONE || right <= lower || upper <= left {
+        if node == NONE {
             return M::id();
         }
         if left <= lower && upper <= right {
             return self.columns[node].value.clone();
         }
         let middle = lower + (upper - lower) / 2;
+        if right <= middle {
+            return self.fold_columns(self.columns[node].children[0], lower, middle, left, right);
+        }
+        if left >= middle {
+            return self.fold_columns(self.columns[node].children[1], middle, upper, left, right);
+        }
         let left_value =
             self.fold_columns(self.columns[node].children[0], lower, middle, left, right);
         let right_value =
