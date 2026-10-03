@@ -373,32 +373,83 @@ where
 
     /// 列方向の部分木で半開区間を集約する。
     /// 呼び出す節点の列区間は問い合わせ区間と交わっている。
+    /// 両端が分かれる節点まで降り、左右の境界経路から完全に含まれる節点を拾う。
+    /// モノイドは可換なので、左右の境界で拾う順序は結果に影響しない。
     fn fold_columns(
         &self,
-        node: usize,
-        lower: usize,
-        upper: usize,
+        root: usize,
+        root_lower: usize,
+        root_upper: usize,
         left: usize,
         right: usize,
     ) -> M::S {
-        if node == NONE {
-            return M::id();
+        let mut result = M::id();
+        let mut node = root;
+        let mut lower = root_lower;
+        let mut upper = root_upper;
+        while node != NONE {
+            if left <= lower && upper <= right {
+                return M::op(&result, &self.columns[node].value);
+            }
+            let middle = lower + (upper - lower) / 2;
+            if right <= middle {
+                node = self.columns[node].children[0];
+                upper = middle;
+                continue;
+            }
+            if left >= middle {
+                node = self.columns[node].children[1];
+                lower = middle;
+                continue;
+            }
+
+            // 境界が分かれたら、左側の接尾区間と右側の接頭区間をたどる。
+            let mut left_node = self.columns[node].children[0];
+            let mut left_lower = lower;
+            let mut left_upper = middle;
+            while left_node != NONE {
+                if left <= left_lower {
+                    result = M::op(&result, &self.columns[left_node].value);
+                    break;
+                }
+                let split = left_lower + (left_upper - left_lower) / 2;
+                let [first, second] = self.columns[left_node].children;
+                if left < split {
+                    if second != NONE {
+                        result = M::op(&result, &self.columns[second].value);
+                    }
+                    left_node = first;
+                    left_upper = split;
+                } else {
+                    left_node = second;
+                    left_lower = split;
+                }
+            }
+
+            let mut right_node = self.columns[node].children[1];
+            let mut right_lower = middle;
+            let mut right_upper = upper;
+            while right_node != NONE {
+                if right_upper <= right {
+                    result = M::op(&result, &self.columns[right_node].value);
+                    break;
+                }
+                let split = right_lower + (right_upper - right_lower) / 2;
+                let [first, second] = self.columns[right_node].children;
+                if right <= split {
+                    right_node = first;
+                    right_upper = split;
+                } else {
+                    if first != NONE {
+                        result = M::op(&result, &self.columns[first].value);
+                    }
+                    right_node = second;
+                    right_lower = split;
+                }
+            }
+            return result;
         }
-        if left <= lower && upper <= right {
-            return self.columns[node].value.clone();
-        }
-        let middle = lower + (upper - lower) / 2;
-        if right <= middle {
-            return self.fold_columns(self.columns[node].children[0], lower, middle, left, right);
-        }
-        if left >= middle {
-            return self.fold_columns(self.columns[node].children[1], middle, upper, left, right);
-        }
-        let left_value =
-            self.fold_columns(self.columns[node].children[0], lower, middle, left, right);
-        let right_value =
-            self.fold_columns(self.columns[node].children[1], middle, upper, left, right);
-        M::op(&left_value, &right_value)
+        result
     }
 }
 
