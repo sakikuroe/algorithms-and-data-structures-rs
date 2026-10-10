@@ -3,9 +3,6 @@
 
 use anmitsu::{algebra::monoid, ds::segment_tree::segment_tree_sparse_offline, io::fastio};
 
-/// 禁止数をすべて含む半開区間の右端。
-const DOMAIN_END: usize = 1_000_000_001;
-
 /// 禁止数の間にある許可数の個数を管理し、各質問の答えを探す。
 fn main() {
     let mut io = fastio::Fastio::new();
@@ -16,7 +13,6 @@ fn main() {
 
     // 座標 a_i には、直前の禁止数と a_i の間にある許可数の個数を置く。
     let mut seg = segment_tree_sparse_offline::SegmentTreeSparseOffline::<monoid::AddMonoid>::new(
-        DOMAIN_END,
         forbidden.iter().copied(),
     );
     let mut previous = 0;
@@ -46,7 +42,7 @@ fn main() {
         let start = forbidden[first] + 1;
         let boundary = seg.max_right(start, |&count| count < remaining as i64);
         let passed = seg.fold(start..boundary) as usize;
-        let left = if boundary == DOMAIN_END {
+        let left = if boundary == usize::MAX {
             forbidden[n - 1]
         } else {
             let rank = forbidden.binary_search(&boundary).unwrap();
