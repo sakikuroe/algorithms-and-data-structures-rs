@@ -5,21 +5,21 @@
 //! 更新で生成した節点だけを保持する。
 
 use super::super::super::algebra::monoid;
-use std::ops::RangeBounds;
+use std::{mem, ops::RangeBounds};
 
 pub use super::lazy_segment_tree::RangeAction;
 
 /// 子の節点がまだ生成されていないことを表す。
-const NONE: usize = usize::MAX;
+const NONE: usize = u32::MAX as usize;
 
 /// 節点の集約値、未伝播の作用、子の位置を保持する。
 struct Node<S, F> {
     /// この節点の区間全体に対する現在の集約値。
     value: S,
-    /// 子にはまだ適用していない作用。
-    lazy: Option<F>,
+    /// 対応する `lazy_present` のビットが立つ場合のみ初期化済みの作用。
+    lazy: mem::MaybeUninit<F>,
     /// 左右の子。未生成なら `NONE`。
-    children: [usize; 2],
+    children: [u32; 2],
 }
 
 /// 再帰探索中の節点と、その節点が担当する半開区間。
@@ -36,6 +36,8 @@ struct Traversal {
 ///
 /// 区間作用は直ちに対象節点の集約値へ反映され、必要になるまで
 /// 子には伝播しない。区間集約と境界探索は節点を生成せずに読める。
+/// 座標は `usize` のまま保持し、生成できる節点数は `u32::MAX` 個まで。
+/// 遅延作用の有無は節点ごとに 1 ビットで保持する。
 ///
 /// # Examples
 /// ```
@@ -65,6 +67,23 @@ where
 {
     len: usize,
     nodes: Vec<Node<M::S, F>>,
+    /// 各節点の作用が初期化済みかを表す。取り出す前にビットを落とす。
+    lazy_present: Vec<u64>,
+}
+
+impl<M, F> Drop for SegmentTreeLazySparseOnline<M, F>
+where
+    M: monoid::Monoid,
+{
+    /// 初期化済みで、まだ取り出していない作用だけを破棄する。
+    fn drop(&mut self) {
+        for (node, entry) in self.nodes.iter_mut().enumerate() {
+            if self.lazy_present[node / 64] & (1_u64 << (node % 64)) != 0 {
+                // ビットが立つ間だけ有効な F を所有し、他では破棄しない。
+                unsafe { entry.lazy.assume_init_drop() };
+            }
+        }
+    }
 }
 
 impl<M, F> SegmentTreeLazySparseOnline<M, F>
@@ -88,9 +107,10 @@ where
             len,
             nodes: vec![Node {
                 value: M::id(),
-                lazy: None,
-                children: [NONE; 2],
+                lazy: mem::MaybeUninit::uninit(),
+                children: [u32::MAX; 2],
             }],
+            lazy_present: vec![0],
         }
     }
 
@@ -120,6 +140,7 @@ where
     ///
     /// # Panics
     /// 端点が範囲外か、順序が逆の場合にパニックする。
+    /// 新しい節点が必要なとき、節点数が `u32::MAX` 個ならパニックする。
     ///
     /// # Complexity
     /// 時間・追加領域ともに `O(log(len + 1))`。空区間では `O(1)`。
@@ -230,30 +251,91 @@ where
         .unwrap_or(0)
     }
 
+    /// 未生成の子として参照できる節点を追加する。
+    ///
+    /// # Returns
+    /// 追加した節点の添字を返す。
+    ///
+    /// # Panics
+    /// 節点数が `u32::MAX` 個ならパニックする。
+    fn add_node(&mut self) -> usize {
+        let node = self.nodes.len();
+        assert!(node < NONE, "too many sparse segment tree nodes");
+        // 節点を追加する前にビットを確保し、破棄時の参照先を保証する。
+        if node / 64 == self.lazy_present.len() {
+            self.lazy_present.push(0);
+        }
+        self.nodes.push(Node {
+            value: M::id(),
+            lazy: mem::MaybeUninit::uninit(),
+            children: [u32::MAX; 2],
+        });
+        node
+    }
+
+    /// 初期化済みの未伝播作用だけを参照する。
+    ///
+    /// # Args
+    /// - `node` - 節点の添字。未生成を表す `NONE` も指定できる。
+    ///
+    /// # Returns
+    /// 有効な作用があればその参照を返す。
+    #[inline]
+    fn lazy(&self, node: usize) -> Option<&F> {
+        if node == NONE || self.lazy_present[node / 64] & (1_u64 << (node % 64)) == 0 {
+            return None;
+        }
+        // ビットは F を書き込んだ後にだけ立ち、共有参照中は変更されない。
+        Some(unsafe { self.nodes[node].lazy.assume_init_ref() })
+    }
+
+    /// 所有中の作用を取り出し、節点には未初期化領域だけを残す。
+    ///
+    /// # Args
+    /// - `node` - 生成済みの節点の添字。
+    ///
+    /// # Returns
+    /// 有効な作用があれば所有権を移して返す。
+    #[inline]
+    fn take_lazy(&mut self, node: usize) -> Option<F> {
+        let mask = 1_u64 << (node % 64);
+        if self.lazy_present[node / 64] & mask == 0 {
+            return None;
+        }
+        // 先に無効化し、後続の合成や clone がパニックしても二重破棄しない。
+        self.lazy_present[node / 64] &= !mask;
+        Some(unsafe { self.nodes[node].lazy.assume_init_read() })
+    }
+
     /// 節点の集約値を更新し、子への未伝播作用を時系列順に合成する。
+    #[inline]
     fn apply_node(&mut self, node: usize, length: usize, effect: &F) {
         self.nodes[node].value = effect.apply(&self.nodes[node].value, length);
-        self.nodes[node].lazy = Some(match self.nodes[node].lazy.take() {
-            Some(old) => old.composition(effect),
-            None => effect.clone(),
-        });
+        let mask = 1_u64 << (node % 64);
+        let present = &mut self.lazy_present[node / 64];
+        let entry = &mut self.nodes[node];
+        if *present & mask == 0 {
+            entry.lazy.write(effect.clone());
+            *present |= mask;
+        } else {
+            // 有効な作用を置き換えるだけなら、ビット列への書き込みを省く。
+            let old = unsafe { entry.lazy.assume_init_mut() };
+            let next = old.composition(effect);
+            // 古い作用の破棄がパニックしても、節点には新しい作用を残す。
+            drop(mem::replace(old, next));
+        }
     }
 
     /// 未伝播作用を左右の子へ適用する。未生成の子は単位元で作る。
     fn push(&mut self, node: usize, left_length: usize, right_length: usize) {
-        let Some(effect) = self.nodes[node].lazy.take() else {
+        let Some(effect) = self.take_lazy(node) else {
             return;
         };
         for (side, length) in [left_length, right_length].into_iter().enumerate() {
-            let mut child = self.nodes[node].children[side];
+            let mut child = self.nodes[node].children[side] as usize;
             if child == NONE {
-                child = self.nodes.len();
-                self.nodes.push(Node {
-                    value: M::id(),
-                    lazy: None,
-                    children: [NONE; 2],
-                });
-                self.nodes[node].children[side] = child;
+                child = self.add_node();
+                self.nodes[node].children[side] = child as u32;
             }
             self.apply_node(child, length, &effect);
         }
@@ -276,32 +358,22 @@ where
         let middle = lower + (upper - lower) / 2;
         self.push(node, middle - lower, upper - middle);
         if left < middle {
-            let mut child = self.nodes[node].children[0];
+            let mut child = self.nodes[node].children[0] as usize;
             if child == NONE {
-                child = self.nodes.len();
-                self.nodes.push(Node {
-                    value: M::id(),
-                    lazy: None,
-                    children: [NONE; 2],
-                });
-                self.nodes[node].children[0] = child;
+                child = self.add_node();
+                self.nodes[node].children[0] = child as u32;
             }
             self.effect_node(child, lower, middle, left, right, effect);
         }
         if middle < right {
-            let mut child = self.nodes[node].children[1];
+            let mut child = self.nodes[node].children[1] as usize;
             if child == NONE {
-                child = self.nodes.len();
-                self.nodes.push(Node {
-                    value: M::id(),
-                    lazy: None,
-                    children: [NONE; 2],
-                });
-                self.nodes[node].children[1] = child;
+                child = self.add_node();
+                self.nodes[node].children[1] = child as u32;
             }
             self.effect_node(child, middle, upper, left, right, effect);
         }
-        let [left_child, right_child] = self.nodes[node].children;
+        let [left_child, right_child] = self.nodes[node].children.map(|child| child as usize);
         self.nodes[node].value = match (left_child, right_child) {
             (NONE, NONE) => M::id(),
             (NONE, right_child) => self.nodes[right_child].value.clone(),
@@ -315,11 +387,7 @@ where
 
     /// 祖先からの新しい作用を節点の古い未伝播作用の後に合成する。
     fn descend_effect(&self, node: usize, ancestor: Option<F>) -> Option<F> {
-        let local = if node == NONE {
-            None
-        } else {
-            self.nodes[node].lazy.as_ref()
-        };
+        let local = self.lazy(node);
         match (local, ancestor) {
             (Some(old), Some(new)) => Some(old.composition(&new)),
             (Some(old), None) => Some(old.clone()),
@@ -355,7 +423,7 @@ where
         let children = if node == NONE {
             [NONE; 2]
         } else {
-            self.nodes[node].children
+            self.nodes[node].children.map(|child| child as usize)
         };
         let inherited = self.descend_effect(node, ancestor);
         if right <= middle {
@@ -408,7 +476,7 @@ where
         let children = if node == NONE {
             [NONE; 2]
         } else {
-            self.nodes[node].children
+            self.nodes[node].children.map(|child| child as usize)
         };
         let inherited = self.descend_effect(node, ancestor);
         self.max_right_node(
@@ -476,7 +544,7 @@ where
         let children = if node == NONE {
             [NONE; 2]
         } else {
-            self.nodes[node].children
+            self.nodes[node].children.map(|child| child as usize)
         };
         let inherited = self.descend_effect(node, ancestor);
         self.min_left_node(
