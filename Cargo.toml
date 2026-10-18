@@ -402,5 +402,13 @@ path = "src/bin/library_checker/point_add_rectangle_sum_sparse_online.rs"
 name = "lc-point-add-rectangle-sum-sparse-offline"
 path = "src/bin/library_checker/point_add_rectangle_sum_sparse_offline.rs"
 
+[[bin]]
+name = "ac-abc255-h-range-harvest-query-sparse-lazy-online"
+path = "src/bin/atcoder/abc255_h_range_harvest_query_sparse_lazy_online.rs"
+
+[[bin]]
+name = "ac-abc255-h-range-harvest-query-sparse-lazy-offline"
+path = "src/bin/atcoder/abc255_h_range_harvest_query_sparse_lazy_offline.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
