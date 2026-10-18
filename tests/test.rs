@@ -32,6 +32,7 @@ pub mod bin {
         pub mod abc405_f_chord_crossing;
         pub mod abc406_f_compare_tree_weights;
         pub mod abc422_g_balls_and_boxes;
+        pub mod abc435_e_cover_query;
         pub mod abc440_d_forbidden_list_2_sparse_offline;
         pub mod abc441_g_takoyaki;
         pub mod abc473_f_valid_string;

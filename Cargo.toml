@@ -402,5 +402,9 @@ path = "src/bin/library_checker/point_add_rectangle_sum_sparse_online.rs"
 name = "lc-point-add-rectangle-sum-sparse-offline"
 path = "src/bin/library_checker/point_add_rectangle_sum_sparse_offline.rs"
 
+[[bin]]
+name = "ac-abc435-e-cover-query"
+path = "src/bin/atcoder/abc435_e_cover_query.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
