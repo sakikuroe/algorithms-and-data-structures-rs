@@ -108,6 +108,7 @@ pub mod bin {
         pub mod log_of_formal_power_series_sparse;
         pub mod minimum_spanning_tree;
         pub mod partition_function;
+        pub mod point_add_rectangle_sum;
         pub mod pow_of_formal_power_series;
         pub mod pow_of_formal_power_series_sparse;
         pub mod primality_test;

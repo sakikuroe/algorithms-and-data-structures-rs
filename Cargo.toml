@@ -394,5 +394,13 @@ path = "src/bin/library_checker/range_affine_range_sum.rs"
 name = "lc-range-kth-smallest"
 path = "src/bin/library_checker/range_kth_smallest.rs"
 
+[[bin]]
+name = "lc-point-add-rectangle-sum-sparse-online"
+path = "src/bin/library_checker/point_add_rectangle_sum_sparse_online.rs"
+
+[[bin]]
+name = "lc-point-add-rectangle-sum-sparse-offline"
+path = "src/bin/library_checker/point_add_rectangle_sum_sparse_offline.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"

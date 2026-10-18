@@ -32,7 +32,7 @@ impl monoid::CommutativeMonoid for DifferenceMonoid {}
 fn main() {
     let mut io = fastio::Fastio::new();
     let n = io.u32() as usize;
-    let m = io.u32() as usize;
+    let _m = io.u32();
     let q = io.u32() as usize;
     let mut intervals = Vec::with_capacity(n);
     let mut points = Vec::with_capacity(n * 2);
@@ -45,13 +45,9 @@ fn main() {
     }
 
     // 黒区間 [left, right) は left で +1、right で -1 の差分になる。
-    // 列 M の差分も登録するため、論理上の列数は M + 1 とする。
+    // 列 M の差分も更新候補点として登録する。
     let mut seg =
-        segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<DifferenceMonoid>::new(
-            n,
-            m + 1,
-            points,
-        );
+        segment_tree_2d_sparse_offline::SegmentTree2dSparseOffline::<DifferenceMonoid>::new(points);
     for (row, &(left, right)) in intervals.iter().enumerate() {
         seg.set((row, left), (1, left as i64));
         seg.set((row, right), (-1, -(right as i64)));
