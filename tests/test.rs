@@ -29,6 +29,7 @@ pub mod bin {
         pub mod abc241_d_sequence_query_sparse_offline;
         pub mod abc241_d_sequence_query_sparse_online;
         pub mod abc256_d_union_of_interval;
+        pub mod abc294_e_2xn_grid;
         pub mod abc294_g_distance_queries_on_a_tree;
         pub mod abc326_g_unlock_achievement;
         pub mod abc330_e_mex_and_update;

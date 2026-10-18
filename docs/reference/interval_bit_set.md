@@ -39,6 +39,34 @@ assert_eq!(vec![8..=9],
 assert!(bits.find(2..8, false).is_none());
 ```
 
+## 列どうしの論理演算
+
+2 個の `IntervalBitSet` の共通部分は `&`、和集合は `|`、片方だけが 1 の位置からなる対称差は `^` で求めます。各演算は新しい `IntervalBitSet` を返し、借用した入力を変更しません。結果も区間が結合された状態になり、そのまま `set`、`find`、`count`、`ranges` を利用できます。
+
+```rust
+use anmitsu::ds::interval_bit_set;
+
+let mut a = interval_bit_set::IntervalBitSet::new();
+let mut b = interval_bit_set::IntervalBitSet::new();
+a.set(2..8, true);
+b.set(5..10, true);
+
+let both = &a & &b;
+let either = &a | &b;
+let exactly_one = &a ^ &b;
+assert_eq!(3, both.count(.., true));
+assert_eq!(8, either.count(.., true));
+assert_eq!(vec![2..=4, 8..=9],
+    exactly_one.ranges(.., true).collect::<Vec<_>>());
+
+a &= &b;
+assert_eq!(vec![5..=7], a.ranges(.., true).collect::<Vec<_>>());
+```
+
+左右のオペランドは所有値・参照のどちらでも指定でき、`a & b`、`a & &b`、`&a & b`、`&a & &b` に対応します。OR・XOR も同様です。`(&a & &b) | &c` のように演算結果を続けて渡せます。左辺を更新する `&=`、`|=`、`^=` は、右辺に所有値と参照のどちらも受け付けます。
+
+演算は `0..=usize::MAX` の同じ添字位置どうしに適用します。XOR では、両方が 1 の位置は 0 に、片方だけが 1 の位置は 1 になります。したがって、同じ列どうしの XOR は全体が 0 になります。
+
 ## 範囲の境界
 
 範囲引数は `RangeBounds<usize>` で指定します。`l..r`、`l..=r`、`..r`、`..=r`、`l..`、`..` に加え、`Bound` の組で排他的下限も指定できます。下端の省略は `0`、上端の省略は `usize::MAX` を含む指定です。
@@ -53,6 +81,8 @@ assert!(bits.find(2..8, false).is_none());
 
 `count(.., value)` は全体の 1 の個数を利用して `O(1)` 時間で返します。部分範囲では、触れる 1 の区間数を `A` として `O(log(K + 1) + A)` 時間です。
 
+列どうしの論理演算では、入力の区間数を `K, L`、結果の区間数を `R` とすると、境界の走査は `O(K + L)` 時間です。結果を保持する木の構築を含む時間計算量の上限は `O(K + L + R log(R + 1))`、追加空間は `O(R)` です。代入演算も同じです。添字の幅に比例する処理や、位置ごとの展開は行いません。
+
 ## 操作の組み合わせによる利用例
 
 [ABC480 C - Self-Stopping Shower](https://atcoder.jp/contests/abc480/tasks/abc480_c) では、時刻 `a` の操作による給湯を `set(a..a + k, true)` で登録できます。添字 `x` は時間帯 `[x, x + 1)` を表します。`ranges(0..t, false)` で対象時間内の未給湯区間を列挙し、それぞれの長さを `k` で割って切り上げた回数を合計します。時刻 `t` より後の操作も、列挙範囲を指定することで自然に除外できます。
@@ -63,4 +93,6 @@ assert!(bits.find(2..8, false).is_none());
 
 [ABC256 D - Union of Interval](https://atcoder.jp/contests/abc256/tasks/abc256_d) では、各入力区間に `set(left..right, true)` を適用し、`ranges(.., true)` で和集合の最大の連続区間を列挙します。この問題の右端は `usize::MAX` より小さいため、返された閉区間の右端に 1 を加えて、要求される半開区間の形に戻せます。
 
-これらの利用では、区間の和集合と補集合、値の削除と mex、点を含む区間の取得を、共通の API の組み合わせで記述できます。
+[ABC294 E - 2xN Grid](https://atcoder.jp/contests/abc294/tasks/abc294_e) では、上下それぞれの行について、値ごとの位置集合を作ります。同じ値の位置集合を `&upper_positions & &lower_positions` で AND し、結果の `count(.., true)` を全値について合計すると、上下の値が一致する列数が求まります。連長を区間として登録するため、最大 `10^12` 列の入力をマスごとに展開する必要はありません。
+
+これらの利用では、区間の和集合と補集合、値の削除と mex、点を含む区間の取得、列どうしの論理演算を、共通の API の組み合わせで記述できます。

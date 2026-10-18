@@ -10,6 +10,23 @@ use std::{collections, iter, ops};
 ///
 /// 初期値はすべて `false` です。隣接する同じ値の区間は結合します。
 /// 保持する `true` の区間数を `K` とすると、記憶領域は `O(K)` です。
+///
+/// 列どうしの AND (`&`)、OR (`|`)、XOR (`^`) と、対応する代入演算に
+/// 対応します。値と参照のどちらも演算の左右に指定できます。
+///
+/// # Examples
+/// ```rust
+/// use anmitsu::ds::interval_bit_set;
+/// let mut a = interval_bit_set::IntervalBitSet::new();
+/// let mut b = interval_bit_set::IntervalBitSet::new();
+/// a.set(2..8, true);
+/// b.set(5..10, true);
+/// assert_eq!(3, (&a & &b).count(.., true));
+/// assert_eq!(8, (&a | &b).count(.., true));
+/// assert_eq!(5, (&a ^ &b).count(.., true));
+/// a ^= &b;
+/// assert_eq!(vec![2..=4, 8..=9], a.ranges(.., true).collect::<Vec<_>>());
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct IntervalBitSet {
     /// 始点から終点への対応です。閉区間は重ならず、互いに隣接しません。
@@ -296,7 +313,142 @@ impl IntervalBitSet {
             value,
         }
     }
+
+    /// 2 列の値が変わる境界を同時に走査し、論理演算の結果を構築します。
+    ///
+    /// # Args
+    /// - `other`: 右辺の列です。
+    /// - `operation`: 2 個の真偽値を結合します。両方が `false` なら
+    ///   `false` を返す AND・OR・XOR に使用します。
+    ///
+    /// # Returns
+    /// 同じ値が連続する区間を結合した、新しいビット列を返します。
+    ///
+    /// # Complexity
+    /// 入力の区間数を `K, L`、出力の区間数を `R` とすると、境界走査は
+    /// `O(K + L)`、木の構築を含む上限は `O(K + L + R log(R + 1))` です。
+    /// 追加空間は `O(R)` です。
+    fn combine<F>(&self, other: &Self, operation: F) -> Self
+    where
+        F: Fn(bool, bool) -> bool,
+    {
+        // 終端を u128 に広げ、usize::MAX の直後も通常の境界として扱います。
+        let mut left = self
+            .ones
+            .iter()
+            .flat_map(|(&start, &end)| [start as u128, end as u128 + 1])
+            .peekable();
+        let mut right = other
+            .ones
+            .iter()
+            .flat_map(|(&start, &end)| [start as u128, end as u128 + 1])
+            .peekable();
+        let mut left_value = false;
+        let mut right_value = false;
+        let mut start = 0;
+        let mut runs = Vec::new();
+        let mut count_ones = 0;
+
+        // 両方の境界が同じ位置にあれば、同時に反映して不要な区切りを防ぎます。
+        loop {
+            let position = match (left.peek(), right.peek()) {
+                (Some(&a), Some(&b)) => a.min(b),
+                (Some(&a), None) => a,
+                (None, Some(&b)) => b,
+                (None, None) => break,
+            };
+            let before = operation(left_value, right_value);
+            if left.peek() == Some(&position) {
+                left.next();
+                left_value = !left_value;
+            }
+            if right.peek() == Some(&position) {
+                right.next();
+                right_value = !right_value;
+            }
+            let after = operation(left_value, right_value);
+
+            // 結果の値が変わったときだけ、新たな 1 の区間を開始・終了します。
+            if !before && after {
+                start = position;
+            } else if before && !after {
+                runs.push((start as usize, (position - 1) as usize));
+                count_ones += position - start;
+            }
+        }
+
+        // 昇順で重複のない端点列から木をまとめて構築します。
+        Self {
+            ones: runs.into_iter().collect(),
+            count_ones,
+        }
+    }
 }
+
+/// 同じ論理演算について、所有値・借用値と代入演算の入口を揃えます。
+///
+/// 区間を走査する処理は `combine` に集約し、所有権の違いで複製しません。
+macro_rules! impl_bitwise_operation {
+    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident, $operator:tt) => {
+        impl ops::$trait<&IntervalBitSet> for &IntervalBitSet {
+            /// 演算結果を保持するビット列です。
+            type Output = IntervalBitSet;
+
+            /// 両方の列を借用し、論理演算した新しい列を返します。
+            fn $method(self, rhs: &IntervalBitSet) -> Self::Output {
+                self.combine(rhs, |left, right| left $operator right)
+            }
+        }
+
+        impl ops::$trait<&IntervalBitSet> for IntervalBitSet {
+            /// 演算結果を保持するビット列です。
+            type Output = Self;
+
+            /// 左辺を消費し、借用した右辺との論理演算結果を返します。
+            fn $method(self, rhs: &IntervalBitSet) -> Self::Output {
+                ops::$trait::$method(&self, rhs)
+            }
+        }
+
+        impl ops::$trait<IntervalBitSet> for &IntervalBitSet {
+            /// 演算結果を保持するビット列です。
+            type Output = IntervalBitSet;
+
+            /// 左辺を借用し、所有する右辺との論理演算結果を返します。
+            fn $method(self, rhs: IntervalBitSet) -> Self::Output {
+                ops::$trait::$method(self, &rhs)
+            }
+        }
+
+        impl ops::$trait for IntervalBitSet {
+            /// 演算結果を保持するビット列です。
+            type Output = Self;
+
+            /// 両方の列を消費して論理演算した新しい列を返します。
+            fn $method(self, rhs: Self) -> Self::Output {
+                ops::$trait::$method(&self, &rhs)
+            }
+        }
+
+        impl ops::$assign_trait<&IntervalBitSet> for IntervalBitSet {
+            /// 借用した右辺との論理演算結果で左辺を置き換えます。
+            fn $assign_method(&mut self, rhs: &IntervalBitSet) {
+                *self = ops::$trait::$method(&*self, rhs);
+            }
+        }
+
+        impl ops::$assign_trait for IntervalBitSet {
+            /// 所有する右辺との論理演算結果で左辺を置き換えます。
+            fn $assign_method(&mut self, rhs: Self) {
+                ops::$assign_trait::$assign_method(self, &rhs);
+            }
+        }
+    };
+}
+
+impl_bitwise_operation!(BitAnd, bitand, BitAndAssign, bitand_assign, &);
+impl_bitwise_operation!(BitOr, bitor, BitOrAssign, bitor_assign, |);
+impl_bitwise_operation!(BitXor, bitxor, BitXorAssign, bitxor_assign, ^);
 
 /// 包含・排他・無制限の境界を閉区間に直し、空範囲を除外します。
 ///
@@ -683,6 +835,273 @@ mod tests {
                 assert_eq!(vec![0..=usize::MAX], matching);
                 assert!(opposite.is_empty());
                 assert!(empty.is_empty());
+            }
+        }
+    }
+
+    // 論理演算のテスト: 全値域、所有権、正規化と素朴なビット演算を検証します。
+    mod bitwise_operations {
+        use super::*;
+
+        /// Background: 既存の 2 区間と部分的に重なる、右辺の列を作ります。
+        fn create_other() -> IntervalBitSet {
+            let mut other = IntervalBitSet::new();
+            other.set(5..12, true);
+            other
+        }
+
+        /// Scenario: AND・OR・XOR は、入力を変更せず正規化した区間を返します。
+        /// - Given: 部分的に重なる複数の 1 の区間があります。
+        /// - When: 借用した 2 列を AND・OR・XOR します。
+        /// - Then: 共通部分・和集合・対称差の区間と個数が一致し、元の列は変わりません。
+        #[test]
+        fn combines_borrowed_sets_into_maximal_runs() {
+            // Given
+            let sut = create_bits();
+            let other = create_other();
+            let before = sut.clone();
+            let other_before = other.clone();
+            // When
+            let intersection = &sut & &other;
+            let union = &sut | &other;
+            let exclusive = &sut ^ &other;
+            // Then
+            assert_eq!(
+                vec![5..=7, 10..=11],
+                intersection.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(vec![2..=14], union.ranges(.., true).collect::<Vec<_>>());
+            assert_eq!(
+                vec![2..=4, 8..=9, 12..=14],
+                exclusive.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(5, intersection.count(.., true));
+            assert_eq!(13, union.count(.., true));
+            assert_eq!(8, exclusive.count(.., true));
+            assert_eq!(before, sut);
+            assert_eq!(other_before, other);
+        }
+
+        /// Scenario: 所有値と参照のすべての組み合わせで演算できます。
+        /// - Given: 部分的に重なる 2 列があります。
+        /// - When: 借用・所有の組み合わせを変えて演算し、結果を次の演算へ渡します。
+        /// - Then: 所有権の渡し方によらず同じ区間列が得られます。
+        #[test]
+        fn accepts_owned_and_borrowed_operands_and_chains_results() {
+            // Given
+            let sut = create_bits();
+            let other = create_other();
+            // When
+            let intersections = [
+                &sut & &other,
+                sut.clone() & &other,
+                &sut & other.clone(),
+                sut.clone() & other.clone(),
+            ];
+            let unions = [
+                &sut | &other,
+                sut.clone() | &other,
+                &sut | other.clone(),
+                sut.clone() | other.clone(),
+            ];
+            let exclusives = [
+                &sut ^ &other,
+                sut.clone() ^ &other,
+                &sut ^ other.clone(),
+                sut.clone() ^ other.clone(),
+            ];
+            let chained = (&sut & &other) ^ (&sut | &other);
+            // Then
+            for result in intersections {
+                assert_eq!(
+                    vec![5..=7, 10..=11],
+                    result.ranges(.., true).collect::<Vec<_>>()
+                );
+            }
+            for result in unions {
+                assert_eq!(vec![2..=14], result.ranges(.., true).collect::<Vec<_>>());
+            }
+            for result in exclusives.into_iter().chain([chained]) {
+                assert_eq!(
+                    vec![2..=4, 8..=9, 12..=14],
+                    result.ranges(.., true).collect::<Vec<_>>()
+                );
+            }
+        }
+
+        /// Scenario: 代入演算は借用・所有どちらの右辺でも左辺を更新します。
+        /// - Given: 部分的に重なる 2 列があります。
+        /// - When: AND・OR・XOR の代入演算を適用します。
+        /// - Then: 左辺の区間と個数が更新され、借用した右辺は変わりません。
+        #[test]
+        fn assigns_results_with_owned_or_borrowed_rhs() {
+            // Given
+            let other = create_other();
+            let other_before = other.clone();
+            for owned in [false, true] {
+                let mut intersection = create_bits();
+                let mut union = create_bits();
+                let mut exclusive = create_bits();
+                // When
+                if owned {
+                    intersection &= other.clone();
+                    union |= other.clone();
+                    exclusive ^= other.clone();
+                } else {
+                    intersection &= &other;
+                    union |= &other;
+                    exclusive ^= &other;
+                }
+                // Then
+                assert_eq!(
+                    vec![5..=7, 10..=11],
+                    intersection.ranges(.., true).collect::<Vec<_>>()
+                );
+                assert_eq!(vec![2..=14], union.ranges(.., true).collect::<Vec<_>>());
+                assert_eq!(
+                    vec![2..=4, 8..=9, 12..=14],
+                    exclusive.ranges(.., true).collect::<Vec<_>>()
+                );
+                assert_eq!(5, intersection.count(.., true));
+                assert_eq!(13, union.count(.., true));
+                assert_eq!(8, exclusive.count(.., true));
+            }
+            assert_eq!(other_before, other);
+        }
+
+        /// Scenario: 全値域の演算でも両端と要素数を正しく扱います。
+        /// - Given: 全体、空集合、両端だけ、両端以外が 1 の列があります。
+        /// - When: これらの列を AND・OR・XOR します。
+        /// - Then: 0 と usize::MAX を含む区間も正しく結合・相殺されます。
+        #[test]
+        fn handles_empty_full_and_extreme_positions() {
+            // Given
+            let empty = IntervalBitSet::new();
+            let mut full = IntervalBitSet::new();
+            full.set(.., true);
+            let mut edges = IntervalBitSet::new();
+            edges.set(..=0, true);
+            edges.set(usize::MAX.., true);
+            let mut middle = IntervalBitSet::new();
+            middle.set(1..usize::MAX, true);
+            // When
+            let results = [
+                (&edges | &middle),
+                (&edges ^ &middle),
+                (&full | &empty),
+                (&full & &full),
+            ];
+            let complement = &full ^ &edges;
+            let cancelled = &full ^ &full;
+            let disjoint = &edges & &middle;
+            // Then
+            for result in results {
+                assert_eq!(
+                    vec![0..=usize::MAX],
+                    result.ranges(.., true).collect::<Vec<_>>()
+                );
+                assert_eq!(usize::MAX as u128 + 1, result.count(.., true));
+            }
+            assert_eq!(middle, complement);
+            assert_eq!(empty, cancelled);
+            assert_eq!(empty, disjoint);
+            assert_eq!(edges, &full & &edges);
+            assert_eq!(edges, &edges ^ &empty);
+            assert_eq!(empty, &edges & &empty);
+        }
+
+        /// Scenario: 同じ境界での切り替えと 1 点だけの交差を扱います。
+        /// - Given: 端で接する半開区間と、端を共有する閉区間があります。
+        /// - When: AND・OR・XOR を適用します。
+        /// - Then: 空の区間を生成せず、同じ値の隣接区間を結合します。
+        #[test]
+        fn handles_coincident_boundaries_and_singleton_intersections() {
+            // Given
+            let mut sut = IntervalBitSet::new();
+            let mut other = IntervalBitSet::new();
+            sut.set(1..5, true);
+            other.set(5..9, true);
+            // When
+            let adjacent_intersection = &sut & &other;
+            let adjacent_xor = &sut ^ &other;
+            sut.set(5..=5, true);
+            let singleton_intersection = &sut & &other;
+            let exclusive = &sut ^ &other;
+            // Then
+            assert_eq!(0, adjacent_intersection.count(.., true));
+            assert_eq!(
+                vec![1..=8],
+                adjacent_xor.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                vec![5..=5],
+                singleton_intersection.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                vec![1..=4, 6..=8],
+                exclusive.ranges(.., true).collect::<Vec<_>>()
+            );
+        }
+
+        /// Scenario: 演算で作った列にも既存の更新・検索 API を適用できます。
+        /// - Given: 2 列の XOR によって 3 個の区間ができています。
+        /// - When: その間を埋める範囲更新を行い、連続区間と mex を取得します。
+        /// - Then: 変更個数、総数、連続区間と mex が一致します。
+        #[test]
+        fn supports_updates_and_queries_on_operator_results() {
+            // Given
+            let mut sut = create_bits() ^ create_other();
+            // When
+            let changed = sut.set(3..13, true);
+            let run = sut.run_at(4);
+            let mex = sut.find(2.., false);
+            // Then
+            assert_eq!(5, changed);
+            assert_eq!(13, sut.count(.., true));
+            assert_eq!(2..=14, run);
+            assert_eq!(Some(15), mex);
+        }
+
+        /// Scenario: 小さな全組み合わせで通常の整数ビット演算と一致します。
+        /// - Given: 5 ビットのすべての状態を持つ 2 列があります。
+        /// - When: 各組み合わせを AND・OR・XOR します。
+        /// - Then: 点、区間、要素数、mex が整数のビット演算と一致します。
+        #[test]
+        fn matches_dense_bitwise_operations_for_all_small_pairs() {
+            // Given
+            let size = 5;
+            for left_mask in 0..1_u32 << size {
+                for right_mask in 0..1_u32 << size {
+                    let mut left = IntervalBitSet::new();
+                    let mut right = IntervalBitSet::new();
+                    for x in 0..size {
+                        left.set(x..=x, left_mask & (1 << x) != 0);
+                        right.set(x..=x, right_mask & (1 << x) != 0);
+                    }
+                    // When
+                    let results = [
+                        (&left & &right, left_mask & right_mask),
+                        (&left | &right, left_mask | right_mask),
+                        (&left ^ &right, left_mask ^ right_mask),
+                    ];
+                    // Then
+                    for (sut, mask) in results {
+                        let expected = (0..size)
+                            .filter(|&x| mask & (1 << x) != 0)
+                            .collect::<Vec<_>>();
+                        assert_eq!(expected.len() as u128, sut.count(.., true));
+                        assert_eq!(expected, sut.ranges(.., true).flatten().collect::<Vec<_>>());
+                        for x in 0..=size {
+                            assert_eq!(mask & (1 << x) != 0, sut.get(x));
+                        }
+                        let expected_mex = (0..=size).find(|&x| mask & (1 << x) == 0);
+                        assert_eq!(expected_mex, sut.find(.., false));
+                        let runs = sut.ranges(.., true).collect::<Vec<_>>();
+                        for adjacent in runs.windows(2) {
+                            assert!(adjacent[0].end() + 1 < *adjacent[1].start());
+                        }
+                    }
+                }
             }
         }
     }
