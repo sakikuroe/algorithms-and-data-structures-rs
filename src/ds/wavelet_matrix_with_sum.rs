@@ -311,70 +311,6 @@ impl WaveletMatrixWithSum {
             .get_kth_largest(index_range, value_range, k)
     }
 
-    /// `index_range` 内の `upper` 未満の要素の和を返す。
-    ///
-    /// # Args
-    /// - `index_range`: 調べるインデックス範囲。境界の包含・排他を指定でき、範囲外の端点は
-    ///   シーケンス長に丸められる。逆転した範囲は空として扱う。
-    /// - `upper`: 排他的な上限値。
-    ///
-    /// # Returns
-    /// 範囲内で値が `upper` 未満となる要素の和を返す。
-    ///
-    /// # Panics
-    /// オーバーフローチェックが有効な場合、中間計算が `usize` の範囲を超えるとパニックする。
-    /// チェックが無効な場合、オーバーフローした演算はラップする。
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
-    /// - 空間計算量: O(1) である。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::wavelet_matrix_with_sum::WaveletMatrixWithSum;
-    ///
-    /// let matrix = WaveletMatrixWithSum::new(&[5, 2, 7, 3]);
-    /// assert_eq!(5, matrix.get_sum_less_than(1..4, 5));
-    /// ```
-    pub fn get_sum_less_than<I>(&self, index_range: I, upper: usize) -> usize
-    where
-        I: RangeBounds<usize>,
-    {
-        self.get_sum(index_range, ..upper)
-    }
-
-    /// `index_range` 内の `lower` 以上の要素の和を返す。
-    ///
-    /// # Args
-    /// - `index_range`: 調べるインデックス範囲。境界の包含・排他を指定でき、範囲外の端点は
-    ///   シーケンス長に丸められる。逆転した範囲は空として扱う。
-    /// - `lower`: 包含的な下限値。
-    ///
-    /// # Returns
-    /// 範囲内で値が `lower` 以上となる要素の和を返す。
-    ///
-    /// # Panics
-    /// オーバーフローチェックが有効な場合、中間計算が `usize` の範囲を超えるとパニックする。
-    /// チェックが無効な場合、オーバーフローした演算はラップする。
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
-    /// - 空間計算量: O(1) である。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::wavelet_matrix_with_sum::WaveletMatrixWithSum;
-    ///
-    /// let matrix = WaveletMatrixWithSum::new(&[5, 2, 7, 3]);
-    /// assert_eq!(12, matrix.get_sum_more_than(.., 5));
-    /// ```
-    pub fn get_sum_more_than<I>(&self, index_range: I, lower: usize) -> usize
-    where
-        I: RangeBounds<usize>,
-    {
-        self.get_sum(index_range, lower..)
-    }
-
     /// `index_range` と `value_range` の両方に含まれる要素の和を返す。
     ///
     /// # Args
@@ -556,8 +492,7 @@ impl WaveletMatrixWithSum {
         I: RangeBounds<usize> + Clone,
     {
         // x 以上の値はすべて x に切り詰め、x 未満の値は元の値のまま合計する。
-        self.get_sum_less_than(index_range.clone(), x)
-            + x * self.wavelet_matrix.count_more_than(index_range, x)
+        self.get_sum(index_range.clone(), ..x) + x * self.wavelet_matrix.count(index_range, x..)
     }
 
     /// `index_range` 内の各値 `y` に対する `max(y, x)` の和を返す。
@@ -590,8 +525,7 @@ impl WaveletMatrixWithSum {
         I: RangeBounds<usize> + Clone,
     {
         // x 未満の値を x に引き上げ、x 以上の値は元の値のまま合計する。
-        x * self.wavelet_matrix.count_less_than(index_range.clone(), x)
-            + self.get_sum_more_than(index_range, x)
+        x * self.wavelet_matrix.count(index_range.clone(), ..x) + self.get_sum(index_range, x..)
     }
 
     /// `index_range` 内の各値 `y` と `x` の絶対差の和を返す。
@@ -624,10 +558,10 @@ impl WaveletMatrixWithSum {
         I: RangeBounds<usize> + Clone,
     {
         // x 未満と x より大きい値を分け、それぞれの差の総和を計算する。
-        let less_count = self.wavelet_matrix.count_less_than(index_range.clone(), x);
-        let more_count = self.wavelet_matrix.count_more_than(index_range.clone(), x);
-        let less_sum = self.get_sum_less_than(index_range.clone(), x);
-        let more_sum = self.get_sum_more_than(index_range, x);
+        let less_count = self.wavelet_matrix.count(index_range.clone(), ..x);
+        let more_count = self.wavelet_matrix.count(index_range.clone(), x..);
+        let less_sum = self.get_sum(index_range.clone(), ..x);
+        let more_sum = self.get_sum(index_range, x..);
         (x * less_count - less_sum) + (more_sum - x * more_count)
     }
 
@@ -689,8 +623,8 @@ impl WaveletMatrixWithSum {
 
         // 下限未満と上限超過の要素だけを取り出し、範囲端までの距離を合計する。
         let (l, r) = wavelet_matrix_range::normalize_index_range(index_range.clone(), self.len());
-        let below_count = self.wavelet_matrix.count_less_than(l..r, lower);
-        let below_sum = self.get_sum_less_than(l..r, lower);
+        let below_count = self.wavelet_matrix.count(l..r, ..lower);
+        let below_sum = self.get_sum(l..r, ..lower);
         let total_sum = self.total_sum(l, r);
         let within_sum = self.get_sum(l..r, ..=upper);
         let above_count = r - l - self.wavelet_matrix.count(l..r, ..=upper);
@@ -742,7 +676,7 @@ impl WaveletMatrixWithSum {
     /// use anmitsu::ds::wavelet_matrix_with_sum::WaveletMatrixWithSum;
     ///
     /// let matrix = WaveletMatrixWithSum::new(&[2, 5, 3]);
-    /// assert_eq!(5, matrix.get_sum_less_than(0..3, 5));
+    /// assert_eq!(5, matrix.get_sum(0..3, ..5));
     /// ```
     fn get_sum_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         if r <= l {
@@ -826,6 +760,8 @@ mod tests {
             let sut = create_wavelet_matrix();
             // When and Then
             assert_eq!(20, sut.get_sum(.., 4..7));
+            assert_eq!(6, sut.get_sum(.., ..5));
+            assert_eq!(31, sut.get_sum(.., 5..));
             assert_eq!(6, sut.get_sum_k_smallest(.., 3).unwrap());
             assert_eq!(21, sut.get_sum_k_largest(.., 3).unwrap());
             assert_eq!(34, sut.get_sum_min(.., 6));
@@ -856,6 +792,49 @@ mod tests {
             // When and Then
             assert_eq!(None, sut.get_sum_k_smallest(.., 9));
             assert_eq!(None, sut.get_sum_k_largest(.., 9));
+        }
+
+        /// Scenario: 境界の包含と排他を値範囲の記法で区別する。
+        /// - Given: 重複値を含む `WaveletMatrixWithSum` がある。
+        /// - When: 同じ閾値に対して包含・排他の異なる値範囲で和を求める。
+        /// - Then: 境界値を含むかどうかに応じた和を返す。
+        #[test]
+        fn distinguishes_inclusive_and_exclusive_bounds() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When and Then
+            assert_eq!(6, sut.get_sum(.., ..5));
+            assert_eq!(16, sut.get_sum(.., ..=5));
+            assert_eq!(31, sut.get_sum(.., 5..));
+            assert_eq!(
+                21,
+                sut.get_sum(
+                    ..,
+                    (std::ops::Bound::Excluded(5), std::ops::Bound::Unbounded,),
+                )
+            );
+        }
+
+        /// Scenario: 空の値範囲や最小値・最大値付近の境界を扱う。
+        /// - Given: 最小値と最大値を含む `WaveletMatrixWithSum` がある。
+        /// - When: 空の値範囲と端点を含む値範囲で和を求める。
+        /// - Then: オーバーフローせず正しい和を返す。
+        #[test]
+        fn handles_empty_and_extreme_value_ranges() {
+            // Given
+            let max_value = usize::MAX - 1_000;
+            let sut = WaveletMatrixWithSum::new(&[0, max_value, 1, 100]);
+            // When and Then
+            assert_eq!(0, sut.get_sum(.., 0..0));
+            let lower = 5;
+            let upper = 4;
+            assert_eq!(0, sut.get_sum(.., lower..upper));
+            assert_eq!(0, sut.get_sum(.., ..=0));
+            assert_eq!(0, sut.get_sum(.., max_value..max_value));
+            assert_eq!(0, sut.get_sum(.., usize::MAX..));
+            assert_eq!(0, sut.get_sum(.., ..1));
+            assert_eq!(1, sut.get_sum(.., 1..=1));
+            assert_eq!(max_value, sut.get_sum(.., max_value..=usize::MAX));
         }
 
         /// Scenario: 要素数が十分に大きい入力を構築して和クエリを実行する。

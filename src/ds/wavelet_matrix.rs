@@ -41,8 +41,8 @@ impl WaveletMatrix {
     ///
     /// let values = [10, 5, 20, 15, 5, 10, 25];
     /// let matrix = WaveletMatrix::new(&values);
-    /// assert_eq!(4, matrix.count_less_than(0..7, 15));
-    /// assert_eq!(3, matrix.count_more_than(0..4, 10));
+    /// assert_eq!(4, matrix.count(0..7, ..15));
+    /// assert_eq!(3, matrix.count(0..4, 10..));
     /// assert_eq!(3, matrix.count(1..6, 5..15));
     /// ```
     pub fn new(v: &[usize]) -> Self {
@@ -233,7 +233,7 @@ impl WaveletMatrix {
     /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
     ///
     /// let matrix = WaveletMatrix::new(&[2, 5, 3]);
-    /// assert_eq!(2, matrix.count_less_than(0..3, 5));
+    /// assert_eq!(2, matrix.count(0..3, ..5));
     /// ```
     fn count_less_than_compressed(&self, mut l: usize, mut r: usize, upper: usize) -> usize {
         // 空区間や圧縮順位 0 未満には該当要素がない。
@@ -377,66 +377,6 @@ impl WaveletMatrix {
 
         // 上限未満の個数から下限未満の個数を引き、半開値範囲内の個数を得る。
         upper_result - lower_result
-    }
-
-    /// `index_range` に含まれる `upper` 未満の要素数を返す。
-    ///
-    /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。`RangeBounds` の包含・排他境界を
-    ///   使用でき、範囲外の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
-    /// - `upper`: 比較に用いる排他的な上限値。
-    ///
-    /// # Returns
-    /// 範囲内で値が `upper` 未満となる要素の個数を返す。
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
-    /// - 空間計算量: O(1) である。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
-    ///
-    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
-    /// assert_eq!(2, matrix.count_less_than(1..4, 5));
-    /// ```
-    pub fn count_less_than<I>(&self, index_range: I, upper: usize) -> usize
-    where
-        I: RangeBounds<usize>,
-    {
-        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
-        let upper = self.sorted_v.partition_point(|&x| x < upper);
-        self.count_less_than_compressed(l, r, upper)
-    }
-
-    /// `index_range` に含まれる `lower` 以上の要素数を返す。
-    ///
-    /// # Args
-    /// - `index_range`: 要素を調べるインデックス範囲。境界の包含・排他を指定でき、範囲外
-    ///   の端点はシーケンス長に丸められる。逆転した範囲は空として扱う。
-    /// - `lower`: 比較に用いる包含的な下限値。
-    ///
-    /// # Returns
-    /// 範囲内で値が `lower` 以上となる要素の個数を返す。
-    ///
-    /// # Complexity
-    /// - 時間計算量: O(log U) である。$U$ は異なる値の個数である。
-    /// - 空間計算量: O(1) である。
-    ///
-    /// # Examples
-    /// ```rust
-    /// use anmitsu::ds::wavelet_matrix::WaveletMatrix;
-    ///
-    /// let matrix = WaveletMatrix::new(&[5, 2, 7, 3]);
-    /// assert_eq!(1, matrix.count_more_than(1..4, 5));
-    /// ```
-    pub fn count_more_than<I>(&self, index_range: I, lower: usize) -> usize
-    where
-        I: RangeBounds<usize>,
-    {
-        let (l, r) = wavelet_matrix_range::normalize_index_range(index_range, self.len);
-        let lower = self.sorted_v.partition_point(|&x| x < lower);
-        (r - l) - self.count_less_than_compressed(l, r, lower)
     }
 
     /// インデックス範囲と値範囲の両方に含まれる要素数を返す。
@@ -779,24 +719,63 @@ mod tests {
         }
     }
 
-    // count_less_than と count_more_than のテスト: 戻り値を検証する。
-    mod threshold_count {
+    // 値範囲の閾値表現のテスト: 旧来の閾値指定と同じ個数になることを検証する。
+    mod threshold_through_value_range {
         use super::*;
 
-        /// Scenario: 閾値に対する個数を返す。
+        /// Scenario: 片側を無制限にした値範囲で閾値に対する個数を返す。
         /// - Given: 値を格納した `WaveletMatrix` がある。
-        /// - When: 閾値未満と閾値以上の個数を求める。
+        /// - When: `..x` と `x..` で閾値未満と閾値以上の個数を求める。
         /// - Then: 条件を満たす要素数を返す。
         #[test]
         fn counts_values_on_each_side_of_threshold() {
             // Given
             let sut = create_wavelet_matrix();
             // When and Then
-            assert_eq!(3, sut.count_less_than(0..8, 5));
-            assert_eq!(5, sut.count_more_than(0..8, 5));
+            assert_eq!(3, sut.count(0..8, ..5));
+            assert_eq!(5, sut.count(0..8, 5..));
             let start = 8;
             let end = 3;
-            assert_eq!(0, sut.count_more_than(start..end, 5));
+            assert_eq!(0, sut.count(start..end, 5..));
+        }
+
+        /// Scenario: 境界の包含と排他を値範囲の記法で区別する。
+        /// - Given: 重複値を含む `WaveletMatrix` がある。
+        /// - When: 同じ閾値に対して包含・排他の異なる値範囲で個数を求める。
+        /// - Then: 境界値を含むかどうかに応じた個数を返す。
+        #[test]
+        fn distinguishes_inclusive_and_exclusive_bounds() {
+            // Given
+            let sut = create_wavelet_matrix();
+            // When and Then
+            assert_eq!(3, sut.count(0..8, ..5));
+            assert_eq!(5, sut.count(0..8, ..=5));
+            assert_eq!(5, sut.count(0..8, 5..));
+            assert_eq!(
+                3,
+                sut.count(
+                    0..8,
+                    (std::ops::Bound::Excluded(5), std::ops::Bound::Unbounded,),
+                )
+            );
+        }
+
+        /// Scenario: 空の値範囲や最小値・最大値付近の境界を扱う。
+        /// - Given: 最小値と最大値を含む `WaveletMatrix` がある。
+        /// - When: 空の値範囲と端点を含む値範囲で個数を求める。
+        /// - Then: オーバーフローせず正しい個数を返す。
+        #[test]
+        fn handles_empty_and_extreme_value_ranges() {
+            // Given
+            let sut = create_wavelet_matrix_with_max_value();
+            // When and Then
+            assert_eq!(0, sut.count(.., 0..0));
+            let lower = 5;
+            let upper = 4;
+            assert_eq!(0, sut.count(.., lower..upper));
+            assert_eq!(1, sut.count(.., ..=0));
+            assert_eq!(2, sut.count(.., usize::MAX..));
+            assert_eq!(3, sut.count(.., ..usize::MAX));
         }
     }
 
