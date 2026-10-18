@@ -1,31 +1,35 @@
-//! 必要な節点だけを生成する 1 次元の遅延セグメント木を提供する。
+//! 更新端点で区間を分割するオンライン版の疎な遅延セグメント木。
 //!
 //! 論理上の区間 `[0, len)` の各点は初めモノイドの単位元を持つ。
-//! 区間への作用・集約・境界探索は `O(log(len + 1))` 時間で行い、
-//! 更新で生成した節点だけを保持する。
+//! 一様な区間を葉とする AVL 木を使い、座標幅に依存する長い経路を保持しない。
+//! 更新回数を `Q` とすると節点数は `O(Q)`。読み取りでは節点を生成しない。
 
 use super::super::super::algebra::monoid;
-use std::{mem, ops::RangeBounds};
+use std::{cmp, ops::RangeBounds};
 
 pub use super::lazy_segment_tree::RangeAction;
 
-/// 子の節点がまだ生成されていないことを表す。
-const NONE: usize = u32::MAX as usize;
+/// 子がないこと、または空の部分木を表す。
+const NONE: u32 = u32::MAX;
 
-/// 節点の集約値、未伝播の作用、子の位置を保持する。
+/// 区間全体の集約値と、葉の一様な作用または内部節点の未伝播作用。
 struct Node<S, F> {
-    /// この節点の区間全体に対する現在の集約値。
+    /// この部分木の区間全体に対する現在の集約値。
     value: S,
-    /// 対応する `lazy_present` のビットが立つ場合のみ初期化済みの作用。
-    lazy: mem::MaybeUninit<F>,
-    /// 左右の子。未生成なら `NONE`。
+    /// 葉では初期値からの作用、内部節点では子へ未伝播の作用。
+    lazy: Option<F>,
+    /// 元の座標系における区間長。要素数を座標圧縮しない。
+    len: usize,
+    /// 左右の子。葉ではともに `NONE`。未使用節点では先頭が空きリスト。
     children: [u32; 2],
+    /// 葉を 1 とする部分木の高さ。未使用節点では 0。
+    height: u8,
 }
 
-/// 再帰探索中の節点と、その節点が担当する半開区間。
+/// 境界探索中の節点と、その節点が担当する半開区間。
 struct Traversal {
-    /// 節点の配列内の位置。未生成なら `NONE`。
-    node: usize,
+    /// 節点配列内の位置。
+    node: u32,
     /// 区間の左端。
     lower: usize,
     /// 区間の右端。
@@ -34,10 +38,10 @@ struct Traversal {
 
 /// 論理範囲に比例する領域を確保しない遅延セグメント木。
 ///
-/// 区間作用は直ちに対象節点の集約値へ反映され、必要になるまで
-/// 子には伝播しない。区間集約と境界探索は節点を生成せずに読める。
-/// 座標は `usize` のまま保持し、生成できる節点数は `u32::MAX` 個まで。
-/// 遅延作用の有無は節点ごとに 1 ビットで保持する。
+/// 更新の端点で一様な区間を分割し、AVL 木の高さを維持する。
+/// 一様な区間の一部は、その長さに初期値からの作用を適用して集約する。
+/// 座標は `usize` のままで、確保できる節点数は `u32::MAX` 個まで。
+/// 作用型に `Default` や `Copy` は要求しない。
 ///
 /// # Examples
 /// ```
@@ -65,25 +69,14 @@ pub struct SegmentTreeLazySparseOnline<M, F>
 where
     M: monoid::Monoid,
 {
+    /// 論理上の区間長。
     len: usize,
+    /// 現在の根。
+    root: u32,
+    /// 再利用できる節点の先頭。
+    free: u32,
+    /// 葉と内部節点を同じ配列で保持する。
     nodes: Vec<Node<M::S, F>>,
-    /// 各節点の作用が初期化済みかを表す。取り出す前にビットを落とす。
-    lazy_present: Vec<u64>,
-}
-
-impl<M, F> Drop for SegmentTreeLazySparseOnline<M, F>
-where
-    M: monoid::Monoid,
-{
-    /// 初期化済みで、まだ取り出していない作用だけを破棄する。
-    fn drop(&mut self) {
-        for (node, entry) in self.nodes.iter_mut().enumerate() {
-            if self.lazy_present[node / 64] & (1_u64 << (node % 64)) != 0 {
-                // ビットが立つ間だけ有効な F を所有し、他では破棄しない。
-                unsafe { entry.lazy.assume_init_drop() };
-            }
-        }
-    }
 }
 
 impl<M, F> SegmentTreeLazySparseOnline<M, F>
@@ -105,12 +98,15 @@ where
     pub fn new(len: usize) -> Self {
         Self {
             len,
+            root: 0,
+            free: NONE,
             nodes: vec![Node {
                 value: M::id(),
-                lazy: mem::MaybeUninit::uninit(),
-                children: [u32::MAX; 2],
+                lazy: None,
+                len,
+                children: [NONE; 2],
+                height: 1,
             }],
-            lazy_present: vec![0],
         }
     }
 
@@ -143,11 +139,12 @@ where
     /// 新しい節点が必要なとき、節点数が `u32::MAX` 個ならパニックする。
     ///
     /// # Complexity
-    /// 時間・追加領域ともに `O(log(len + 1))`。空区間では `O(1)`。
+    /// 時間 `O(log(K + 1))`、追加節点数は高々 4 個。空区間では `O(1)`。
+    /// `K` は現在保持している区間数。
     pub fn effect(&mut self, range: impl RangeBounds<usize>, effect: F) {
         let (left, right) = super::range_bounds::normalize(range, self.len, "index");
         if left < right {
-            self.effect_node(0, 0, self.len, left, right, &effect);
+            self.root = self.effect_node(self.root, left, right, &effect);
         }
     }
 
@@ -163,13 +160,14 @@ where
     /// 端点が範囲外か、順序が逆の場合にパニックする。
     ///
     /// # Complexity
-    /// 時間 `O(log(len + 1))`、再帰スタック `O(log(len + 1))`。
+    /// 時間・再帰スタックともに `O(log(K + 1))`。
+    /// `K` は現在保持している区間数。
     pub fn fold(&self, range: impl RangeBounds<usize>) -> M::S {
         let (left, right) = super::range_bounds::normalize(range, self.len, "index");
         if left == right {
             return M::id();
         }
-        self.fold_node(0, 0, self.len, left, right, None)
+        self.fold_node(self.root, 0, left, right, None)
     }
 
     /// 点の現在値を返す。
@@ -207,7 +205,7 @@ where
         let mut sum = M::id();
         self.max_right_node(
             Traversal {
-                node: 0,
+                node: self.root,
                 lower: 0,
                 upper: self.len,
             },
@@ -239,7 +237,7 @@ where
         let mut sum = M::id();
         self.min_left_node(
             Traversal {
-                node: 0,
+                node: self.root,
                 lower: 0,
                 upper: self.len,
             },
@@ -251,193 +249,314 @@ where
         .unwrap_or(0)
     }
 
-    /// 未生成の子として参照できる節点を追加する。
-    ///
-    /// # Returns
-    /// 追加した節点の添字を返す。
-    ///
-    /// # Panics
-    /// 節点数が `u32::MAX` 個ならパニックする。
-    fn add_node(&mut self) -> usize {
-        let node = self.nodes.len();
-        assert!(node < NONE, "too many sparse segment tree nodes");
-        // 節点を追加する前にビットを確保し、破棄時の参照先を保証する。
-        if node / 64 == self.lazy_present.len() {
-            self.lazy_present.push(0);
-        }
-        self.nodes.push(Node {
-            value: M::id(),
-            lazy: mem::MaybeUninit::uninit(),
-            children: [u32::MAX; 2],
-        });
-        node
-    }
-
-    /// 初期化済みの未伝播作用だけを参照する。
-    ///
-    /// # Args
-    /// - `node` - 節点の添字。未生成を表す `NONE` も指定できる。
-    ///
-    /// # Returns
-    /// 有効な作用があればその参照を返す。
+    /// 空の部分木を 0 として高さを返す。
     #[inline]
-    fn lazy(&self, node: usize) -> Option<&F> {
-        if node == NONE || self.lazy_present[node / 64] & (1_u64 << (node % 64)) == 0 {
-            return None;
-        }
-        // ビットは F を書き込んだ後にだけ立ち、共有参照中は変更されない。
-        Some(unsafe { self.nodes[node].lazy.assume_init_ref() })
-    }
-
-    /// 所有中の作用を取り出し、節点には未初期化領域だけを残す。
-    ///
-    /// # Args
-    /// - `node` - 生成済みの節点の添字。
-    ///
-    /// # Returns
-    /// 有効な作用があれば所有権を移して返す。
-    #[inline]
-    fn take_lazy(&mut self, node: usize) -> Option<F> {
-        let mask = 1_u64 << (node % 64);
-        if self.lazy_present[node / 64] & mask == 0 {
-            return None;
-        }
-        // 先に無効化し、後続の合成や clone がパニックしても二重破棄しない。
-        self.lazy_present[node / 64] &= !mask;
-        Some(unsafe { self.nodes[node].lazy.assume_init_read() })
-    }
-
-    /// 節点の集約値を更新し、子への未伝播作用を時系列順に合成する。
-    #[inline]
-    fn apply_node(&mut self, node: usize, length: usize, effect: &F) {
-        self.nodes[node].value = effect.apply(&self.nodes[node].value, length);
-        let mask = 1_u64 << (node % 64);
-        let present = &mut self.lazy_present[node / 64];
-        let entry = &mut self.nodes[node];
-        if *present & mask == 0 {
-            entry.lazy.write(effect.clone());
-            *present |= mask;
+    fn height(&self, node: u32) -> u8 {
+        if node == NONE {
+            0
         } else {
-            // 有効な作用を置き換えるだけなら、ビット列への書き込みを省く。
-            let old = unsafe { entry.lazy.assume_init_mut() };
-            let next = old.composition(effect);
-            // 古い作用の破棄がパニックしても、節点には新しい作用を残す。
-            drop(mem::replace(old, next));
+            self.nodes[node as usize].height
         }
     }
 
-    /// 未伝播作用を左右の子へ適用する。未生成の子は単位元で作る。
-    fn push(&mut self, node: usize, left_length: usize, right_length: usize) {
-        let Some(effect) = self.take_lazy(node) else {
-            return;
+    /// 空き節点を再利用し、なければ配列の末尾に追加する。
+    ///
+    /// # Args
+    /// - `entry` - 新しい葉または内部節点。
+    ///
+    /// # Returns
+    /// 格納した節点の添字を返す。
+    fn allocate(&mut self, entry: Node<M::S, F>) -> u32 {
+        if self.free != NONE {
+            let node = self.free;
+            self.free = self.nodes[node as usize].children[0];
+            self.nodes[node as usize] = entry;
+            node
+        } else {
+            assert!(
+                self.nodes.len() < NONE as usize,
+                "too many sparse segment tree nodes"
+            );
+            let node = self.nodes.len() as u32;
+            self.nodes.push(entry);
+            node
+        }
+    }
+
+    /// 分割で不要になった内部節点を空きリストへ戻す。
+    fn release(&mut self, node: u32) {
+        self.nodes[node as usize] = Node {
+            value: M::id(),
+            lazy: None,
+            len: 0,
+            children: [self.free, NONE],
+            height: 0,
         };
-        for (side, length) in [left_length, right_length].into_iter().enumerate() {
-            let mut child = self.nodes[node].children[side] as usize;
-            if child == NONE {
-                child = self.add_node();
-                self.nodes[node].children[side] = child as u32;
-            }
-            self.apply_node(child, length, &effect);
+        self.free = node;
+    }
+
+    /// 左右の集約値、区間長、高さから内部節点を更新する。
+    #[inline]
+    fn pull(&mut self, node: u32) {
+        let [left, right] = self.nodes[node as usize].children;
+        let value = M::op(
+            &self.nodes[left as usize].value,
+            &self.nodes[right as usize].value,
+        );
+        let len = self.nodes[left as usize].len + self.nodes[right as usize].len;
+        let height = 1 + cmp::max(self.height(left), self.height(right));
+        let entry = &mut self.nodes[node as usize];
+        entry.value = value;
+        entry.len = len;
+        entry.height = height;
+    }
+
+    /// 部分木全体の集約値と、葉または子への作用を更新する。
+    #[inline]
+    fn apply_node(&mut self, node: u32, effect: &F) {
+        let entry = &mut self.nodes[node as usize];
+        entry.value = effect.apply(&entry.value, entry.len);
+        let lazy = match entry.lazy.as_ref() {
+            Some(old) => old.composition(effect),
+            None => effect.clone(),
+        };
+        // 古い作用の破棄がパニックしても、新しい作用の所有権を木に残す。
+        drop(entry.lazy.replace(lazy));
+    }
+
+    /// 内部節点の未伝播作用を、すでに存在する二つの子へ渡す。
+    #[inline]
+    fn push(&mut self, node: u32) {
+        if self.nodes[node as usize].children[0] == NONE {
+            return;
+        }
+        if let Some(effect) = self.nodes[node as usize].lazy.take() {
+            let children = self.nodes[node as usize].children;
+            self.apply_node(children[0], &effect);
+            self.apply_node(children[1], &effect);
         }
     }
 
-    /// 区間更新に必要な経路を生成し、帰りがけに親を再集約する。
-    fn effect_node(
-        &mut self,
-        node: usize,
-        lower: usize,
-        upper: usize,
-        left: usize,
-        right: usize,
-        effect: &F,
-    ) {
-        if left <= lower && upper <= right {
-            self.apply_node(node, upper - lower, effect);
-            return;
-        }
-        let middle = lower + (upper - lower) / 2;
-        self.push(node, middle - lower, upper - middle);
-        if left < middle {
-            let mut child = self.nodes[node].children[0] as usize;
-            if child == NONE {
-                child = self.add_node();
-                self.nodes[node].children[0] = child as u32;
+    /// 左右の部分木をまとめる内部節点を作る。
+    fn branch(&mut self, left: u32, right: u32) -> u32 {
+        let value = M::op(
+            &self.nodes[left as usize].value,
+            &self.nodes[right as usize].value,
+        );
+        let len = self.nodes[left as usize].len + self.nodes[right as usize].len;
+        let height = 1 + cmp::max(self.height(left), self.height(right));
+        self.allocate(Node {
+            value,
+            lazy: None,
+            len,
+            children: [left, right],
+            height,
+        })
+    }
+
+    /// 作用を伝播してから左回転し、新しい根を返す。
+    fn rotate_left(&mut self, node: u32) -> u32 {
+        self.push(node);
+        let pivot = self.nodes[node as usize].children[1];
+        self.push(pivot);
+        self.nodes[node as usize].children[1] = self.nodes[pivot as usize].children[0];
+        self.nodes[pivot as usize].children[0] = node;
+        self.pull(node);
+        self.pull(pivot);
+        pivot
+    }
+
+    /// 作用を伝播してから右回転し、新しい根を返す。
+    fn rotate_right(&mut self, node: u32) -> u32 {
+        self.push(node);
+        let pivot = self.nodes[node as usize].children[0];
+        self.push(pivot);
+        self.nodes[node as usize].children[0] = self.nodes[pivot as usize].children[1];
+        self.nodes[pivot as usize].children[1] = node;
+        self.pull(node);
+        self.pull(pivot);
+        pivot
+    }
+
+    /// 子の高さの差を高々 1 に戻す。
+    fn balance(&mut self, node: u32) -> u32 {
+        self.pull(node);
+        let [left, right] = self.nodes[node as usize].children;
+        if self.height(left) > self.height(right) + 1 {
+            self.push(left);
+            let [a, b] = self.nodes[left as usize].children;
+            if self.height(a) < self.height(b) {
+                self.nodes[node as usize].children[0] = self.rotate_left(left);
             }
-            self.effect_node(child, lower, middle, left, right, effect);
+            self.rotate_right(node)
+        } else if self.height(right) > self.height(left) + 1 {
+            self.push(right);
+            let [a, b] = self.nodes[right as usize].children;
+            if self.height(b) < self.height(a) {
+                self.nodes[node as usize].children[1] = self.rotate_right(right);
+            }
+            self.rotate_left(node)
+        } else {
+            node
+        }
+    }
+
+    /// 順序を保って二つの AVL 木を連結する。
+    fn join(&mut self, left: u32, right: u32) -> u32 {
+        if left == NONE {
+            return right;
+        }
+        if right == NONE {
+            return left;
+        }
+        if self.height(left) > self.height(right) + 1 {
+            self.push(left);
+            let tail = self.nodes[left as usize].children[1];
+            let joined = self.join(tail, right);
+            self.nodes[left as usize].children[1] = joined;
+            self.balance(left)
+        } else if self.height(right) > self.height(left) + 1 {
+            self.push(right);
+            let head = self.nodes[right as usize].children[0];
+            let joined = self.join(left, head);
+            self.nodes[right as usize].children[0] = joined;
+            self.balance(right)
+        } else {
+            self.branch(left, right)
+        }
+    }
+
+    /// 更新端点を含む葉だけを分割し、帰りがけに高さを整える。
+    ///
+    /// # Args
+    /// - `node` - 更新対象の根。
+    /// - `left`、`right` - 部分木の先頭を 0 とする更新範囲。
+    /// - `effect` - 対象区間へ後から適用する作用。
+    ///
+    /// # Returns
+    /// 更新後の部分木の根を返す。
+    fn effect_node(&mut self, node: u32, left: usize, right: usize, effect: &F) -> u32 {
+        let len = self.nodes[node as usize].len;
+        if left == 0 && right == len {
+            self.apply_node(node, effect);
+            return node;
+        }
+        let [mut a, mut b] = self.nodes[node as usize].children;
+        if a == NONE {
+            // 一様な葉だけを最大 3 区間へ分け、中央には元の節点を使う。
+            let lazy = self.nodes[node as usize].lazy.clone();
+            let prefix = if left == 0 {
+                NONE
+            } else {
+                self.allocate(Node {
+                    value: Self::uniform_value(lazy.as_ref(), left),
+                    lazy: lazy.clone(),
+                    len: left,
+                    children: [NONE; 2],
+                    height: 1,
+                })
+            };
+            let suffix = if right == len {
+                NONE
+            } else {
+                self.allocate(Node {
+                    value: Self::uniform_value(lazy.as_ref(), len - right),
+                    lazy: lazy.clone(),
+                    len: len - right,
+                    children: [NONE; 2],
+                    height: 1,
+                })
+            };
+            self.nodes[node as usize].len = right - left;
+            self.nodes[node as usize].value = Self::uniform_value(lazy.as_ref(), right - left);
+            self.apply_node(node, effect);
+            let head = self.join(prefix, node);
+            return self.join(head, suffix);
+        }
+        self.push(node);
+        let middle = self.nodes[a as usize].len;
+        if left < middle {
+            a = self.effect_node(a, left, cmp::min(right, middle), effect);
         }
         if middle < right {
-            let mut child = self.nodes[node].children[1] as usize;
-            if child == NONE {
-                child = self.add_node();
-                self.nodes[node].children[1] = child as u32;
-            }
-            self.effect_node(child, middle, upper, left, right, effect);
+            b = self.effect_node(b, left.saturating_sub(middle), right - middle, effect);
         }
-        let [left_child, right_child] = self.nodes[node].children.map(|child| child as usize);
-        self.nodes[node].value = match (left_child, right_child) {
-            (NONE, NONE) => M::id(),
-            (NONE, right_child) => self.nodes[right_child].value.clone(),
-            (left_child, NONE) => self.nodes[left_child].value.clone(),
-            (left_child, right_child) => M::op(
-                &self.nodes[left_child].value,
-                &self.nodes[right_child].value,
-            ),
-        };
+        if self.height(a).abs_diff(self.height(b)) <= 1 {
+            // 高さが保たれる大半の更新では、連結や節点の再確保を省く。
+            self.nodes[node as usize].children = [a, b];
+            self.pull(node);
+            node
+        } else {
+            self.release(node);
+            self.join(a, b)
+        }
     }
 
-    /// 祖先からの新しい作用を節点の古い未伝播作用の後に合成する。
-    fn descend_effect(&self, node: usize, ancestor: Option<F>) -> Option<F> {
-        let local = self.lazy(node);
-        match (local, ancestor) {
+    /// 一様な区間に初期値からの作用を適用する。
+    #[inline]
+    fn uniform_value(effect: Option<&F>, len: usize) -> M::S {
+        match effect {
+            Some(effect) => effect.apply(&M::id(), len),
+            None => M::id(),
+        }
+    }
+
+    /// 節点の古い作用の後に、祖先からの新しい作用を合成する。
+    #[inline]
+    fn descend_effect(&self, node: u32, ancestor: Option<F>) -> Option<F> {
+        match (self.nodes[node as usize].lazy.as_ref(), ancestor) {
             (Some(old), Some(new)) => Some(old.composition(&new)),
             (Some(old), None) => Some(old.clone()),
             (None, inherited) => inherited,
         }
     }
 
-    /// 未生成部分木と祖先の未伝播作用を含めて区間を集約する。
+    /// 読み取り専用の祖先作用を反映した区間全体の値を返す。
+    #[inline]
+    fn inherited_value(&self, node: u32, ancestor: Option<&F>) -> M::S {
+        let entry = &self.nodes[node as usize];
+        match ancestor {
+            Some(effect) => effect.apply(&entry.value, entry.len),
+            None => entry.value.clone(),
+        }
+    }
+
+    /// 一様な葉の一部を含め、節点を作らずに区間を集約する。
     fn fold_node(
         &self,
-        node: usize,
+        node: u32,
         lower: usize,
-        upper: usize,
         left: usize,
         right: usize,
         ancestor: Option<F>,
     ) -> M::S {
+        let entry = &self.nodes[node as usize];
+        let upper = lower + entry.len;
         if right <= lower || upper <= left {
             return M::id();
         }
         if left <= lower && upper <= right {
-            let value = if node == NONE {
-                M::id()
-            } else {
-                self.nodes[node].value.clone()
-            };
-            return match ancestor {
-                Some(effect) => effect.apply(&value, upper - lower),
-                None => value,
-            };
+            return self.inherited_value(node, ancestor.as_ref());
         }
-        let middle = lower + (upper - lower) / 2;
-        let children = if node == NONE {
-            [NONE; 2]
-        } else {
-            self.nodes[node].children.map(|child| child as usize)
-        };
         let inherited = self.descend_effect(node, ancestor);
+        let [a, b] = entry.children;
+        if a == NONE {
+            let len = cmp::min(upper, right) - cmp::max(lower, left);
+            return Self::uniform_value(inherited.as_ref(), len);
+        }
+        let middle = lower + self.nodes[a as usize].len;
         if right <= middle {
-            return self.fold_node(children[0], lower, middle, left, right, inherited);
+            return self.fold_node(a, lower, left, right, inherited);
         }
-        if left >= middle {
-            return self.fold_node(children[1], middle, upper, left, right, inherited);
+        if middle <= left {
+            return self.fold_node(b, middle, left, right, inherited);
         }
-        let left_value = self.fold_node(children[0], lower, middle, left, right, inherited.clone());
-        let right_value = self.fold_node(children[1], middle, upper, left, right, inherited);
-        M::op(&left_value, &right_value)
+        let a = self.fold_node(a, lower, left, right, inherited.clone());
+        let b = self.fold_node(b, middle, left, right, inherited);
+        M::op(&a, &b)
     }
 
-    /// 左から集約し、述語が初めて偽になる点を探す。
+    /// 左から走査し、失敗する一様な葉の中だけを二分探索する。
     fn max_right_node<P>(
         &self,
         range: Traversal,
@@ -454,34 +573,44 @@ where
             return None;
         }
         if left <= lower {
-            let value = if node == NONE {
-                M::id()
-            } else {
-                self.nodes[node].value.clone()
-            };
-            let value = match &ancestor {
-                Some(effect) => effect.apply(&value, upper - lower),
-                None => value,
-            };
+            let value = self.inherited_value(node, ancestor.as_ref());
             let next = M::op(sum, &value);
             if predicate(&next) {
                 *sum = next;
                 return None;
             }
-            if upper - lower == 1 {
-                return Some(lower);
-            }
         }
-        let middle = lower + (upper - lower) / 2;
-        let children = if node == NONE {
-            [NONE; 2]
-        } else {
-            self.nodes[node].children.map(|child| child as usize)
-        };
         let inherited = self.descend_effect(node, ancestor);
+        let [a, b] = self.nodes[node as usize].children;
+        if a == NONE {
+            let start = cmp::max(lower, left);
+            let len = upper - start;
+            // 左端が葉の途中なら、その残り全体を受理するかを先に確認する。
+            if lower < left {
+                let value = Self::uniform_value(inherited.as_ref(), len);
+                let next = M::op(sum, &value);
+                if predicate(&next) {
+                    *sum = next;
+                    return None;
+                }
+            }
+            let mut accepted = 0;
+            let mut rejected = len;
+            while rejected - accepted > 1 {
+                let middle = accepted + (rejected - accepted) / 2;
+                let value = Self::uniform_value(inherited.as_ref(), middle);
+                if predicate(&M::op(sum, &value)) {
+                    accepted = middle;
+                } else {
+                    rejected = middle;
+                }
+            }
+            return Some(start + accepted);
+        }
+        let middle = lower + self.nodes[a as usize].len;
         self.max_right_node(
             Traversal {
-                node: children[0],
+                node: a,
                 lower,
                 upper: middle,
             },
@@ -493,7 +622,7 @@ where
         .or_else(|| {
             self.max_right_node(
                 Traversal {
-                    node: children[1],
+                    node: b,
                     lower: middle,
                     upper,
                 },
@@ -505,7 +634,7 @@ where
         })
     }
 
-    /// 右から集約し、述語が初めて偽になる点の直後を探す。
+    /// 右から走査し、失敗する一様な葉の中だけを二分探索する。
     fn min_left_node<P>(
         &self,
         range: Traversal,
@@ -522,34 +651,43 @@ where
             return None;
         }
         if upper <= right {
-            let value = if node == NONE {
-                M::id()
-            } else {
-                self.nodes[node].value.clone()
-            };
-            let value = match &ancestor {
-                Some(effect) => effect.apply(&value, upper - lower),
-                None => value,
-            };
+            let value = self.inherited_value(node, ancestor.as_ref());
             let next = M::op(&value, sum);
             if predicate(&next) {
                 *sum = next;
                 return None;
             }
-            if upper - lower == 1 {
-                return Some(upper);
-            }
         }
-        let middle = lower + (upper - lower) / 2;
-        let children = if node == NONE {
-            [NONE; 2]
-        } else {
-            self.nodes[node].children.map(|child| child as usize)
-        };
         let inherited = self.descend_effect(node, ancestor);
+        let [a, b] = self.nodes[node as usize].children;
+        if a == NONE {
+            let end = cmp::min(upper, right);
+            let len = end - lower;
+            if right < upper {
+                let value = Self::uniform_value(inherited.as_ref(), len);
+                let next = M::op(&value, sum);
+                if predicate(&next) {
+                    *sum = next;
+                    return None;
+                }
+            }
+            let mut accepted = 0;
+            let mut rejected = len;
+            while rejected - accepted > 1 {
+                let middle = accepted + (rejected - accepted) / 2;
+                let value = Self::uniform_value(inherited.as_ref(), middle);
+                if predicate(&M::op(&value, sum)) {
+                    accepted = middle;
+                } else {
+                    rejected = middle;
+                }
+            }
+            return Some(end - accepted);
+        }
+        let middle = lower + self.nodes[a as usize].len;
         self.min_left_node(
             Traversal {
-                node: children[1],
+                node: b,
                 lower: middle,
                 upper,
             },
@@ -561,7 +699,7 @@ where
         .or_else(|| {
             self.min_left_node(
                 Traversal {
-                    node: children[0],
+                    node: a,
                     lower,
                     upper: middle,
                 },
