@@ -4,7 +4,7 @@
 //! 範囲の端の省略は `0` または `usize::MAX` を意味します。
 //! 空範囲と逆転した範囲は、いずれも空として扱います。
 
-use std::{collections, iter, ops};
+use std::{cmp, collections, iter, ops};
 
 /// `0..=usize::MAX` の各位置に真偽値を保持する、区間で圧縮したビット列です。
 ///
@@ -13,6 +13,8 @@ use std::{collections, iter, ops};
 ///
 /// 列どうしの AND (`&`)、OR (`|`)、XOR (`^`) と、対応する代入演算に
 /// 対応します。値と参照のどちらも演算の左右に指定できます。
+/// 補集合 `!` と、値域外を切り捨てる `usize` 幅のシフト `<<`・`>>` にも
+/// 対応します。区間列は `collect` で和集合として構築できます。
 ///
 /// # Examples
 /// ```rust
@@ -27,10 +29,12 @@ use std::{collections, iter, ops};
 /// a ^= &b;
 /// assert_eq!(vec![2..=4, 8..=9], a.ranges(.., true).collect::<Vec<_>>());
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default)]
 pub struct IntervalBitSet {
     /// 始点から終点への対応です。閉区間は重ならず、互いに隣接しません。
     ones: collections::BTreeMap<usize, usize>,
+    /// 順序検索と部分範囲の集計に使う、部分木の個数を持つ AVL 木です。
+    index: Option<Box<RunIndex>>,
     /// 全範囲の集計で走査しないよう、`true` の総数を保持します。
     count_ones: u128,
 }
@@ -66,7 +70,7 @@ impl IntervalBitSet {
     ///
     /// # Complexity
     /// 触れる区間数を `A` とすると、時間は `O((A + 1) log(K + 2))`、
-    /// 一時的な追加空間は `O(1)` です。
+    /// 一時的な追加空間は `O(log(K + 2))` です。
     ///
     /// # Examples
     /// ```rust
@@ -96,11 +100,11 @@ impl IntervalBitSet {
                 if left > end.saturating_add(1) {
                     break;
                 }
-                self.ones.remove(&left);
+                self.remove_run(left);
                 previous += width(left, right);
                 end = end.max(right);
             }
-            self.ones.insert(start, end);
+            self.insert_run(start, end);
             let changed = width(start, end) - previous;
             self.count_ones += changed;
             changed
@@ -114,15 +118,15 @@ impl IntervalBitSet {
                 .map_or(start, |(&left, _)| left);
             let mut changed = 0;
             while let Some((&left, &right)) = self.ones.range(lower..=end).next() {
-                self.ones.remove(&left);
+                self.remove_run(left);
                 changed += width(left.max(start), right.min(end));
 
                 // 更新範囲の外に残る部分だけを戻し、内側を 0 にします。
                 if left < start {
-                    self.ones.insert(left, start - 1);
+                    self.insert_run(left, start - 1);
                 }
                 if right > end {
-                    self.ones.insert(end + 1, right);
+                    self.insert_run(end + 1, right);
                     break;
                 }
                 // 左の残存区間を再び選ばないよう、検索下限を更新します。
@@ -234,8 +238,8 @@ impl IntervalBitSet {
     /// 該当個数を `u128` で返します。全範囲の個数も正確に表せます。
     ///
     /// # Complexity
-    /// 全範囲では時間は `O(1)` です。それ以外は、触れる 1 の区間数を
-    /// `A` として `O(log(K + 1) + A)` です。追加空間は `O(1)` です。
+    /// 全範囲では時間は `O(1)`、それ以外は `O(log(K + 1))` です。
+    /// 追加空間は `O(1)` です。
     ///
     /// # Examples
     /// ```rust
@@ -253,14 +257,117 @@ impl IntervalBitSet {
         let ones = if start == 0 && end == usize::MAX {
             self.count_ones
         } else {
-            self.ranges(start..=end, true)
-                .map(|run| width(*run.start(), *run.end()))
-                .sum()
+            RunIndex::prefix(&self.index, end as u128 + 1).0
+                - RunIndex::prefix(&self.index, start as u128).0
         };
         if value {
             ones
         } else {
             width(start, end) - ones
+        }
+    }
+
+    /// 指定範囲の 0 と 1 を反転します。
+    ///
+    /// # Args
+    /// - `range`: 反転する範囲です。空範囲では何もしません。
+    ///
+    /// # Complexity
+    /// 触れる区間数を `A` として `O((A + 1) log(K + A + 2))` 時間、
+    /// 一時的な追加空間は `O(A + log(K + A + 2))` です。
+    /// 範囲外の区間は走査しません。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::interval_bit_set;
+    /// let mut bits = interval_bit_set::IntervalBitSet::new();
+    /// bits.set(2..8, true);
+    /// bits.flip(4..10);
+    /// assert_eq!(vec![2..=3, 8..=9], bits.ranges(.., true).collect::<Vec<_>>());
+    /// ```
+    pub fn flip<R: ops::RangeBounds<usize>>(&mut self, range: R) {
+        let Some((start, end)) = normalize(range) else {
+            return;
+        };
+        // 更新前の 0 の区間だけを保存し、借用中の列を変更しないようにします。
+        let runs = self.ranges(start..=end, false).collect::<Vec<_>>();
+        self.set(start..=end, false);
+        for run in runs {
+            self.set(run, true);
+        }
+    }
+
+    /// 指定範囲内で、指定値を持つ k 番目の位置を返します。
+    ///
+    /// # Args
+    /// - `range`: 検索する範囲です。
+    /// - `value`: 検索する値です。
+    /// - `k`: 範囲内での 0 始まりの順序です。
+    ///
+    /// # Returns
+    /// 個数が足りない場合や空範囲では `None`、それ以外は該当添字です。
+    ///
+    /// # Complexity
+    /// 時間は `O(log(K + 1))`、追加空間は `O(1)` です。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::interval_bit_set;
+    /// let mut bits = interval_bit_set::IntervalBitSet::new();
+    /// bits.set(2..8, true);
+    /// assert_eq!(Some(9), bits.select(4..12, false, 1));
+    /// assert_eq!(None, bits.select(4..12, true, 4));
+    /// ```
+    pub fn select<R: ops::RangeBounds<usize>>(
+        &self,
+        range: R,
+        value: bool,
+        k: u128,
+    ) -> Option<usize> {
+        let (start, end) = normalize(range)?;
+        // 先に範囲内の個数を確認し、巨大な k の加算も安全にします。
+        if k >= self.count(start..=end, value) {
+            return None;
+        }
+        let before = self.count(..start, value);
+        Some(RunIndex::select(&self.index, value, before + k))
+    }
+
+    /// 指定範囲で切り取った、指定値の最大連続区間の個数を返します。
+    ///
+    /// # Args
+    /// - `range`: 集計する範囲です。
+    /// - `value`: 数える区間の値です。
+    ///
+    /// # Returns
+    /// 一致区間の個数です。空範囲では `0` です。
+    ///
+    /// # Complexity
+    /// 時間は `O(log(K + 1))`、追加空間は `O(1)` です。
+    ///
+    /// # Examples
+    /// ```rust
+    /// use anmitsu::ds::interval_bit_set;
+    /// let mut bits = interval_bit_set::IntervalBitSet::new();
+    /// bits.set(2..8, true);
+    /// bits.set(10..15, true);
+    /// assert_eq!(2, bits.count_ranges(4..12, true));
+    /// assert_eq!(1, bits.count_ranges(4..12, false));
+    /// ```
+    pub fn count_ranges<R: ops::RangeBounds<usize>>(&self, range: R, value: bool) -> usize {
+        let Some((start, end)) = normalize(range) else {
+            return 0;
+        };
+        let first = self.get(start);
+        // 始点が範囲より前でも、左端を覆う 1 の区間は 1 個として数えます。
+        let ones = RunIndex::prefix(&self.index, end as u128 + 1).1
+            - RunIndex::prefix(&self.index, start as u128 + 1).1
+            + usize::from(first);
+        if value {
+            ones
+        } else {
+            // 0 と 1 は交互に現れるため、両端の値だけで補集合の数が決まります。
+            ones + 1 - usize::from(first) - usize::from(self.get(end))
         }
     }
 
@@ -378,10 +485,300 @@ impl IntervalBitSet {
         }
 
         // 昇順で重複のない端点列から木をまとめて構築します。
+        let result = Self::from_sorted_runs(runs);
+        debug_assert_eq!(count_ones, result.count_ones);
+        result
+    }
+
+    /// 走査用の木と集計用の木に、同じ区間を登録します。
+    ///
+    /// # Args
+    /// - `start`, `end`: 登録する閉区間の両端です。
+    fn insert_run(&mut self, start: usize, end: usize) {
+        self.ones.insert(start, end);
+        self.index = Some(RunIndex::insert(self.index.take(), start, end));
+    }
+
+    /// 走査用の木と集計用の木から、同じ区間を削除します。
+    ///
+    /// # Args
+    /// - `start`: 削除する区間の始点です。
+    fn remove_run(&mut self, start: usize) {
+        self.ones.remove(&start);
+        self.index = RunIndex::remove(self.index.take(), start);
+    }
+
+    /// 結合済みで昇順の区間列から、両方の木と総数を構築します。
+    ///
+    /// # Args
+    /// - `runs`: 重複も隣接もない閉区間列です。
+    ///
+    /// # Returns
+    /// 指定区間だけが 1 の列を返します。
+    fn from_sorted_runs(runs: Vec<(usize, usize)>) -> Self {
         Self {
+            count_ones: runs.iter().map(|&(start, end)| width(start, end)).sum(),
+            index: RunIndex::build(&runs),
             ones: runs.into_iter().collect(),
-            count_ones,
         }
+    }
+}
+
+/// 区間の内容だけを比較し、更新履歴による AVL 木の形の違いを無視します。
+impl PartialEq for IntervalBitSet {
+    /// 最大の連続区間が一致するか調べます。
+    fn eq(&self, other: &Self) -> bool {
+        self.ones == other.ones
+    }
+}
+
+impl Eq for IntervalBitSet {}
+
+/// 1 の区間を始点順に保持し、部分木の区間数と位置数を集計する AVL 木です。
+#[derive(Clone, Debug)]
+struct RunIndex {
+    /// この節点の閉区間の始点です。
+    start: usize,
+    /// この節点の閉区間の終点です。
+    end: usize,
+    /// 高さの差を 1 以下に保つための、葉を 1 とする高さです。
+    height: usize,
+    /// 部分木内の 1 の区間数です。
+    runs: usize,
+    /// 部分木内の 1 の位置数です。
+    ones: u128,
+    /// 始点が小さい区間の部分木です。
+    left: Option<Box<Self>>,
+    /// 始点が大きい区間の部分木です。
+    right: Option<Box<Self>>,
+}
+
+impl RunIndex {
+    /// 1 区間だけを持つ節点を作ります。
+    ///
+    /// # Args
+    /// - `start`, `end`: 閉区間の両端です。
+    ///
+    /// # Returns
+    /// 集計値を初期化した葉を返します。
+    fn new(start: usize, end: usize) -> Box<Self> {
+        Box::new(Self {
+            start,
+            end,
+            height: 1,
+            runs: 1,
+            ones: width(start, end),
+            left: None,
+            right: None,
+        })
+    }
+
+    /// 左右の部分木の集計値から、この節点の集計値を復元します。
+    fn pull(&mut self) {
+        self.height = 1 + self
+            .left
+            .as_ref()
+            .map_or(0, |n| n.height)
+            .max(self.right.as_ref().map_or(0, |n| n.height));
+        self.runs = 1
+            + self.left.as_ref().map_or(0, |n| n.runs)
+            + self.right.as_ref().map_or(0, |n| n.runs);
+        self.ones = width(self.start, self.end)
+            + self.left.as_ref().map_or(0, |n| n.ones)
+            + self.right.as_ref().map_or(0, |n| n.ones);
+    }
+
+    /// 左部分木が右部分木より何段高いか返します。
+    fn balance_factor(&self) -> isize {
+        self.left.as_ref().map_or(0, |n| n.height) as isize
+            - self.right.as_ref().map_or(0, |n| n.height) as isize
+    }
+
+    /// 右の子を親にする回転を行い、集計値を修復します。
+    fn rotate_left(mut self: Box<Self>) -> Box<Self> {
+        let mut root = self.right.take().unwrap();
+        self.right = root.left.take();
+        self.pull();
+        root.left = Some(self);
+        root.pull();
+        root
+    }
+
+    /// 左の子を親にする回転を行い、集計値を修復します。
+    fn rotate_right(mut self: Box<Self>) -> Box<Self> {
+        let mut root = self.left.take().unwrap();
+        self.left = root.right.take();
+        self.pull();
+        root.right = Some(self);
+        root.pull();
+        root
+    }
+
+    /// 挿入・削除後の高さの差を回転で解消します。
+    fn rebalance(mut self: Box<Self>) -> Box<Self> {
+        self.pull();
+        if self.balance_factor() > 1 {
+            // 内側に偏った子は先に逆向きへ回転し、二重回転にします。
+            if self.left.as_ref().unwrap().balance_factor() < 0 {
+                self.left = self.left.take().map(Self::rotate_left);
+            }
+            self.rotate_right()
+        } else if self.balance_factor() < -1 {
+            if self.right.as_ref().unwrap().balance_factor() > 0 {
+                self.right = self.right.take().map(Self::rotate_right);
+            }
+            self.rotate_left()
+        } else {
+            self
+        }
+    }
+
+    /// 指定始点を挿入または更新し、経路上の集計と平衡を修復します。
+    ///
+    /// # Args
+    /// - `root`: 更新前の部分木です。
+    /// - `start`, `end`: 登録する閉区間です。
+    ///
+    /// # Returns
+    /// 更新後の部分木を返します。
+    fn insert(root: Option<Box<Self>>, start: usize, end: usize) -> Box<Self> {
+        let Some(mut root) = root else {
+            return Self::new(start, end);
+        };
+        match start.cmp(&root.start) {
+            cmp::Ordering::Less => {
+                root.left = Some(Self::insert(root.left.take(), start, end));
+            }
+            cmp::Ordering::Greater => {
+                root.right = Some(Self::insert(root.right.take(), start, end));
+            }
+            cmp::Ordering::Equal => root.end = end,
+        }
+        root.rebalance()
+    }
+
+    /// 指定始点を削除し、経路上の集計と平衡を修復します。
+    ///
+    /// # Args
+    /// - `root`: 更新前の部分木です。
+    /// - `start`: 削除する始点です。
+    ///
+    /// # Returns
+    /// 更新後の部分木を返します。
+    fn remove(root: Option<Box<Self>>, start: usize) -> Option<Box<Self>> {
+        let mut root = root?;
+        if start < root.start {
+            root.left = Self::remove(root.left.take(), start);
+        } else if start > root.start {
+            root.right = Self::remove(root.right.take(), start);
+        } else {
+            // 子が 1 個以下なら、その子を親へ繰り上げられます。
+            if root.left.is_none() {
+                return root.right;
+            }
+            if root.right.is_none() {
+                return root.left;
+            }
+            // 子が両方あれば、右部分木の最小キーで置き換えます。
+            let mut next = root.right.as_deref().unwrap();
+            while let Some(left) = next.left.as_deref() {
+                next = left;
+            }
+            root.start = next.start;
+            root.end = next.end;
+            root.right = Self::remove(root.right.take(), root.start);
+        }
+        Some(root.rebalance())
+    }
+
+    /// 昇順の区間列の中央を親に選び、対数の高さの木を線形時間で作ります。
+    ///
+    /// # Args
+    /// - `runs`: 昇順で重複しない閉区間列です。
+    ///
+    /// # Returns
+    /// 構築した部分木を返します。
+    fn build(runs: &[(usize, usize)]) -> Option<Box<Self>> {
+        if runs.is_empty() {
+            return None;
+        }
+        let middle = runs.len() / 2;
+        let (start, end) = runs[middle];
+        let mut root = Self::new(start, end);
+        root.left = Self::build(&runs[..middle]);
+        root.right = Self::build(&runs[middle + 1..]);
+        root.pull();
+        Some(root)
+    }
+
+    /// 指定位置より前にある 1 の個数と、区間の始点数を集計します。
+    ///
+    /// # Args
+    /// - `root`: 検索対象の木です。
+    /// - `end`: 排他的終端です。`usize::MAX + 1` まで指定できます。
+    ///
+    /// # Returns
+    /// `(位置数, 始点数)` を返します。
+    fn prefix(root: &Option<Box<Self>>, end: u128) -> (u128, usize) {
+        let mut node = root.as_deref();
+        let mut ones = 0;
+        let mut runs = 0;
+        while let Some(current) = node {
+            if end <= current.start as u128 {
+                node = current.left.as_deref();
+            } else {
+                // 始点を越えれば、左部分木を集計値だけで飛び越えられます。
+                ones += current.left.as_ref().map_or(0, |n| n.ones)
+                    + end.min(current.end as u128 + 1)
+                    - current.start as u128;
+                runs += current.left.as_ref().map_or(0, |n| n.runs) + 1;
+                if end <= current.end as u128 + 1 {
+                    break;
+                }
+                node = current.right.as_deref();
+            }
+        }
+        (ones, runs)
+    }
+
+    /// 全値域で k 番目の指定値を、部分木の位置数を使って探します。
+    ///
+    /// # Args
+    /// - `root`: 検索対象の木です。
+    /// - `value`: 検索する値です。
+    /// - `k`: 存在することを呼び出し側で確認済みの、0 始まりの順序です。
+    ///
+    /// # Returns
+    /// 該当する添字を返します。
+    fn select(root: &Option<Box<Self>>, value: bool, mut k: u128) -> usize {
+        let mut node = root.as_deref();
+        // lower は、祖先ですでに飛ばした領域の直後です。
+        let mut lower = 0;
+        while let Some(current) = node {
+            let left_ones = current.left.as_ref().map_or(0, |n| n.ones);
+            let left_count = if value {
+                left_ones
+            } else {
+                current.start as u128 - lower - left_ones
+            };
+            if k < left_count {
+                node = current.left.as_deref();
+                continue;
+            }
+            k -= left_count;
+            if value {
+                let length = width(current.start, current.end);
+                if k < length {
+                    return (current.start as u128 + k) as usize;
+                }
+                k -= length;
+            }
+            lower = current.end as u128 + 1;
+            node = current.right.as_deref();
+        }
+        // 0 の検索だけが、節点のない隙間または最後の区間の先へ到達します。
+        debug_assert!(!value);
+        (lower + k) as usize
     }
 }
 
@@ -449,6 +846,109 @@ macro_rules! impl_bitwise_operation {
 impl_bitwise_operation!(BitAnd, bitand, BitAndAssign, bitand_assign, &);
 impl_bitwise_operation!(BitOr, bitor, BitOrAssign, bitor_assign, |);
 impl_bitwise_operation!(BitXor, bitxor, BitXorAssign, bitxor_assign, ^);
+
+impl ops::Not for &IntervalBitSet {
+    /// 全値域で反転した列です。
+    type Output = IntervalBitSet;
+
+    /// 0 の区間を新しい 1 の区間として、補集合を構築します。
+    fn not(self) -> Self::Output {
+        IntervalBitSet::from_sorted_runs(
+            self.ranges(.., false)
+                .map(|run| (*run.start(), *run.end()))
+                .collect(),
+        )
+    }
+}
+
+impl ops::Not for IntervalBitSet {
+    /// 全値域で反転した列です。
+    type Output = Self;
+
+    /// 所有する列を消費し、補集合を返します。
+    fn not(self) -> Self::Output {
+        !&self
+    }
+}
+
+/// 所有値・借用値と代入に対応するシフト演算を定義します。
+macro_rules! impl_shift_operation {
+    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident, $left:expr) => {
+        impl ops::$trait<usize> for &IntervalBitSet {
+            /// 値域外を切り捨てた移動後の列です。
+            type Output = IntervalBitSet;
+
+            /// 全区間を同じ距離だけ移動し、値域内に残る部分を構築します。
+            fn $method(self, distance: usize) -> Self::Output {
+                let runs = self
+                    .ones
+                    .iter()
+                    .filter_map(|(&start, &end)| {
+                        if $left {
+                            // 左端まで桁あふれする区間は、全体が値域外です。
+                            Some((start.checked_add(distance)?, end.saturating_add(distance)))
+                        } else {
+                            // 右端まで負になる区間は、全体が値域外です。
+                            Some((start.saturating_sub(distance), end.checked_sub(distance)?))
+                        }
+                    })
+                    .collect();
+                IntervalBitSet::from_sorted_runs(runs)
+            }
+        }
+
+        impl ops::$trait<usize> for IntervalBitSet {
+            /// 値域外を切り捨てた移動後の列です。
+            type Output = Self;
+
+            /// 所有する列を消費してシフトします。
+            fn $method(self, distance: usize) -> Self::Output {
+                ops::$trait::$method(&self, distance)
+            }
+        }
+
+        impl ops::$assign_trait<usize> for IntervalBitSet {
+            /// シフト後の列で自分自身を置き換えます。
+            fn $assign_method(&mut self, distance: usize) {
+                *self = ops::$trait::$method(&*self, distance);
+            }
+        }
+    };
+}
+
+impl_shift_operation!(Shl, shl, ShlAssign, shl_assign, true);
+impl_shift_operation!(Shr, shr, ShrAssign, shr_assign, false);
+
+impl<R: ops::RangeBounds<usize>> FromIterator<R> for IntervalBitSet {
+    /// 区間列の和集合を作ります。重複・隣接・入力順を問いません。
+    fn from_iter<T: IntoIterator<Item = R>>(ranges: T) -> Self {
+        let mut ranges = ranges.into_iter().filter_map(normalize).collect::<Vec<_>>();
+        ranges.sort_unstable();
+        let mut runs = Vec::new();
+        let mut remaining = ranges.into_iter();
+        if let Some((mut start, mut end)) = remaining.next() {
+            for (left, right) in remaining {
+                if left <= end.saturating_add(1) {
+                    end = end.max(right);
+                } else {
+                    runs.push((start, end));
+                    (start, end) = (left, right);
+                }
+            }
+            runs.push((start, end));
+        }
+        Self::from_sorted_runs(runs)
+    }
+}
+
+impl<R: ops::RangeBounds<usize>> Extend<R> for IntervalBitSet {
+    /// 渡された各区間を 1 に設定し、既存の区間へ追加します。
+    fn extend<T: IntoIterator<Item = R>>(&mut self, ranges: T) {
+        for range in ranges {
+            self.set(range, true);
+        }
+    }
+}
 
 /// 包含・排他・無制限の境界を閉区間に直し、空範囲を除外します。
 ///
@@ -564,6 +1064,215 @@ mod tests {
         sut.set(2..8, true);
         sut.set(10..15, true);
         sut
+    }
+
+    // 追加 API のテスト: 全値域、空範囲、所有権、更新履歴を検証します。
+    mod extended_operations {
+        use super::*;
+
+        /// Scenario: 全値域の反転と順序検索が最大添字を正確に扱います。
+        /// - Given: 全体が 0 の列があります。
+        /// - When: 全体、両端、内部を反転して順序検索します。
+        /// - Then: 巨大な k と値域の両端を正確に処理します。
+        #[test]
+        fn flips_and_selects_across_the_entire_domain() {
+            // Given
+            let mut sut = IntervalBitSet::new();
+            let last = usize::MAX;
+            let total = last as u128 + 1;
+            // When
+            sut.flip(..);
+            let full = [sut.select(.., true, last as u128), sut.select(.., false, 0)];
+            sut.flip(1..last);
+            // Then
+            assert_eq!([Some(last), None], full);
+            assert_eq!(2, sut.count(.., true));
+            assert_eq!(Some(last), sut.select(.., true, 1));
+            assert_eq!(Some(last - 1), sut.select(.., false, total - 3));
+            assert_eq!(None, sut.select(.., false, total - 2));
+            assert_eq!(None, sut.select(.., false, u128::MAX));
+            assert_eq!(2, sut.count_ranges(.., true));
+            assert_eq!(1, sut.count_ranges(.., false));
+            sut.flip(..);
+            assert_eq!(total - 2, sut.count(.., true));
+            assert_eq!(Some(last), sut.select(.., false, 1));
+        }
+
+        /// Scenario: 空や逆転した範囲では追加操作も何も選びません。
+        /// - Given: 離れた 1 の区間がある列と空範囲があります。
+        /// - When: 各空範囲を反転、集計、順序検索します。
+        /// - Then: 状態が変わらず、個数は 0、検索結果は None です。
+        #[test]
+        fn treats_empty_bounds_consistently() {
+            // Given
+            let mut sut = create_bits();
+            let before = sut.clone();
+            let cases = [
+                (ops::Bound::Excluded(usize::MAX), ops::Bound::Unbounded),
+                (ops::Bound::Unbounded, ops::Bound::Excluded(0)),
+                (ops::Bound::Included(9), ops::Bound::Included(2)),
+            ];
+            for range in cases {
+                // When
+                sut.flip(range);
+                // Then
+                assert_eq!(before, sut);
+                for value in [false, true] {
+                    assert_eq!(0, sut.count_ranges(range, value));
+                    assert_eq!(None, sut.select(range, value, 0));
+                }
+            }
+        }
+
+        /// Scenario: 補集合を取ると各値の位置と連続区間が入れ替わります。
+        /// - Given: 両端が 0 で内部に 1 がある列があります。
+        /// - When: 参照と所有値で補集合を求めます。
+        /// - Then: 元の列を変更せず、二重反転で元に戻ります。
+        #[test]
+        fn complements_owned_and_borrowed_sets() {
+            // Given
+            let sut = create_bits();
+            let before = sut.clone();
+            // When
+            let complement = !&sut;
+            let owned = !sut.clone();
+            // Then
+            assert_eq!(before, sut);
+            assert_eq!(complement, owned);
+            assert_eq!(sut, !complement.clone());
+            assert_eq!(
+                sut.ranges(.., false).collect::<Vec<_>>(),
+                complement.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(usize::MAX as u128 - 10, complement.count(.., true));
+            assert_eq!(IntervalBitSet::new(), &sut & &complement);
+            assert_eq!(0, (!IntervalBitSet::from_iter([..])).count(.., true));
+        }
+
+        /// Scenario: シフトは最大幅でも剰余を取らず、値域外だけを落とします。
+        /// - Given: 両端に 1 を含む列があります。
+        /// - When: 0、通常の距離、最大距離で左右にシフトします。
+        /// - Then: 所有値、参照、代入とも同じ結果になり、空いた位置は 0 です。
+        #[test]
+        fn shifts_and_clips_at_both_extremes() {
+            // Given
+            let last = usize::MAX;
+            let sut = IntervalBitSet::from_iter([0..=2, last - 2..=last]);
+            // When
+            let left = &sut << 2_usize;
+            let right = &sut >> 2_usize;
+            let mut assigned = sut.clone();
+            assigned <<= last;
+            let shifted_left = assigned.clone();
+            assigned >>= last;
+            // Then
+            assert_eq!(sut, &sut << 0_usize);
+            assert_eq!(sut, sut.clone() >> 0_usize);
+            assert_eq!(left, sut.clone() << 2_usize);
+            assert_eq!(right, sut.clone() >> 2_usize);
+            assert_eq!(
+                vec![2..=4, last..=last],
+                left.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                vec![0..=0, last - 4..=last - 2],
+                right.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                vec![last..=last],
+                shifted_left.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(vec![0..=0], assigned.ranges(.., true).collect::<Vec<_>>());
+            let mut missing = IntervalBitSet::from_iter([1..=1]);
+            missing <<= last;
+            assert_eq!(IntervalBitSet::new(), missing);
+        }
+
+        /// Scenario: 区間列の構築と追加は重複と隣接を結合します。
+        /// - Given: 順不同で重複する区間と空範囲があります。
+        /// - When: collect で構築し、extend で区間を追加します。
+        /// - Then: 和集合の最大連続区間が得られます。
+        #[test]
+        fn collects_and_extends_ranges_as_a_union() {
+            // Given
+            let input = [10..15, 4..8, 5..5, 2..5];
+            // When
+            let mut sut = input.into_iter().collect::<IntervalBitSet>();
+            let collected = sut.clone();
+            sut.extend([8..10, 20..21]);
+            // Then
+            assert_eq!(create_bits(), collected);
+            assert_eq!(
+                vec![2..=14, 20..=20],
+                sut.ranges(.., true).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                IntervalBitSet::new(),
+                iter::empty::<ops::Range<usize>>().collect()
+            );
+            assert_eq!(
+                usize::MAX as u128 + 1,
+                IntervalBitSet::from_iter([..]).count(.., true)
+            );
+        }
+
+        /// 木の高さ、部分木の集計、キーの順序を再帰的に検証します。
+        ///
+        /// # Args
+        /// - `root`: 公開 API の操作で作られた木です。
+        ///
+        /// # Returns
+        /// `(高さ, 区間数, 位置数, 最小始点, 最大始点)` を返します。
+        fn assert_index(root: &Option<Box<RunIndex>>) -> (usize, usize, u128, usize, usize) {
+            let Some(root) = root else {
+                return (0, 0, 0, usize::MAX, 0);
+            };
+            let left = assert_index(&root.left);
+            let right = assert_index(&root.right);
+            assert!(left.0.abs_diff(right.0) <= 1);
+            assert_eq!(1 + left.0.max(right.0), root.height);
+            assert_eq!(1 + left.1 + right.1, root.runs);
+            assert_eq!(width(root.start, root.end) + left.2 + right.2, root.ones);
+            assert!(root.left.is_none() || left.4 < root.start);
+            assert!(root.right.is_none() || root.start < right.3);
+            (
+                root.height,
+                root.runs,
+                root.ones,
+                left.3.min(root.start),
+                right.4.max(root.start),
+            )
+        }
+
+        /// Scenario: 挿入、削除、結合、分割の後も集計用の木が平衡を保ちます。
+        /// - Given: 昇順に追加する多数の離れた区間があります。
+        /// - When: 順序を入れ替えて削除し、広い範囲の更新を繰り返します。
+        /// - Then: 集計値と平衡条件が正しく、内容が同じ列は等しくなります。
+        #[test]
+        fn keeps_the_index_balanced_through_update_histories() {
+            // Given
+            let mut sut = IntervalBitSet::new();
+            // When
+            for x in 0..2048 {
+                sut.set(3 * x..=3 * x, true);
+            }
+            for x in 0..2048 {
+                let x = (x * 1237) % 2048;
+                sut.set(3 * x..=3 * x, false);
+                // Then
+                let (_, runs, ones, _, _) = assert_index(&sut.index);
+                assert_eq!(sut.ones.len(), runs);
+                assert_eq!(sut.count(.., true), ones);
+            }
+            // When
+            sut.extend([1..1000, 2000..3000, 4000..5000]);
+            sut.flip(100..4500);
+            let copied = sut.ranges(.., true).collect::<IntervalBitSet>();
+            // Then
+            assert_index(&sut.index);
+            assert_eq!(copied, sut);
+            assert_eq!(copied.count(500..4600, true), sut.count(500..4600, true));
+        }
     }
 
     // set のテスト: 結合、分割、全値域の更新と境界を検証します。
