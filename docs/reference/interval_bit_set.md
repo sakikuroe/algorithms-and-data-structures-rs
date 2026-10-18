@@ -52,3 +52,15 @@ assert!(bits.find(2..8, false).is_none());
 `get`、`run_at`、`find` は `O(log(K + 1))` 時間です。`ranges` は構築に `O(log(K + 1))`、`A` 区間の列挙に償却 `O(A + 1)` 時間を使い、列挙結果の配列を事前に確保しません。
 
 `count(.., value)` は全体の 1 の個数を利用して `O(1)` 時間で返します。部分範囲では、触れる 1 の区間数を `A` として `O(log(K + 1) + A)` 時間です。
+
+## 操作の組み合わせによる利用例
+
+[ABC480 C - Self-Stopping Shower](https://atcoder.jp/contests/abc480/tasks/abc480_c) では、時刻 `a` の操作による給湯を `set(a..a + k, true)` で登録できます。添字 `x` は時間帯 `[x, x + 1)` を表します。`ranges(0..t, false)` で対象時間内の未給湯区間を列挙し、それぞれの長さを `k` で割って切り上げた回数を合計します。時刻 `t` より後の操作も、列挙範囲を指定することで自然に除外できます。
+
+[ABC330 E - Mex and Update](https://atcoder.jp/contests/abc330/tasks/abc330_e) では、数列中に存在する値を `true` として登録します。出現回数は数列側で管理し、最後の出現を削除したときだけ `set(value..=value, false)`、初めて追加したときだけ `set(value..=value, true)` を呼びます。`find(.., false)` が更新後の mex です。同じ値が複数回現れることと、集合への所属を分けて管理できます。
+
+[ABC217 D - Cutting Woods](https://atcoder.jp/contests/abc217/tasks/abc217_d) では、切断点と木材の外側を `true` とします。未切断の位置 `x` に対する `run_at(x)` は、左右の切断点に挟まれた目印の区間を返します。切断点が `a` と `b` なら返る区間は `[a + 1, b - 1]` なので、その要素数に 1 を加えると木材の長さ `b - a` が求まります。
+
+[ABC256 D - Union of Interval](https://atcoder.jp/contests/abc256/tasks/abc256_d) では、各入力区間に `set(left..right, true)` を適用し、`ranges(.., true)` で和集合の最大の連続区間を列挙します。この問題の右端は `usize::MAX` より小さいため、返された閉区間の右端に 1 を加えて、要求される半開区間の形に戻せます。
+
+これらの利用では、区間の和集合と補集合、値の削除と mex、点を含む区間の取得を、共通の API の組み合わせで記述できます。

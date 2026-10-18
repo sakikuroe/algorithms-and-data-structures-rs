@@ -414,5 +414,21 @@ path = "src/bin/atcoder/abc255_h_range_harvest_query_sparse_lazy_offline.rs"
 name = "ac-abc435-e-cover-query"
 path = "src/bin/atcoder/abc435_e_cover_query.rs"
 
+[[bin]]
+name = "ac-abc480-c-self-stopping-shower"
+path = "src/bin/atcoder/abc480_c_self_stopping_shower.rs"
+
+[[bin]]
+name = "ac-abc330-e-mex-and-update"
+path = "src/bin/atcoder/abc330_e_mex_and_update.rs"
+
+[[bin]]
+name = "ac-abc217-d-cutting-woods"
+path = "src/bin/atcoder/abc217_d_cutting_woods.rs"
+
+[[bin]]
+name = "ac-abc256-d-union-of-interval"
+path = "src/bin/atcoder/abc256_d_union_of_interval.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
