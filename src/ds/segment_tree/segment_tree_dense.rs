@@ -692,7 +692,7 @@ mod tests {
             let dense = create_dense_tree::<monoid::AddMonoid>(&[2, 0, 3, 0, 5]);
             let mut offline = segment_tree_sparse_offline::SegmentTreeSparseOffline::<
                 monoid::AddMonoid,
-            >::new(5, [0, 2, 4]);
+            >::new([0, 2, 4]);
             let mut online =
                 segment_tree_sparse_online::SegmentTreeSparseOnline::<monoid::AddMonoid>::new(5);
             for (index, value) in [(0, 2), (2, 3), (4, 5)] {
