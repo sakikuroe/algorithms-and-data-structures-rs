@@ -16,6 +16,47 @@ use std::{cmp, collections, iter, ops};
 /// 補集合 `!` と、値域外を切り捨てる `usize` 幅のシフト `<<`・`>>` にも
 /// 対応します。区間列は `collect` で和集合として構築できます。
 ///
+/// # 範囲の境界
+/// 範囲引数は [`ops::RangeBounds<usize>`] を受け付けます。`l..r`、`l..=r`、
+/// `..r`、`..=r`、`l..`、`..`、[`ops::Bound`] の組を指定できます。
+/// 下端の省略は `0`、上端の省略は `usize::MAX` を含む指定です。
+/// [`Self::run_at`] と [`Self::ranges`] は最大添字も表せる閉区間を返します。
+/// 全値域の位置数は `usize::MAX + 1` なので、位置数と順序には `u128` を使います。
+/// 空範囲や逆転範囲は空として扱い、更新は何もしません。
+///
+/// # 論理演算とシフト
+/// `&` は共通部分、`|` は和集合、`^` は対称差を返します。
+/// 左右に所有値・参照のどちらも指定でき、`&=`・`|=`・`^=` にも対応します。
+/// 各演算の結果も最大連続区間へ結合され、借用した入力を変更しません。
+/// `!bits` と `!&bits` は全値域での補集合であり、`&a & !&b` で差集合を作れます。
+///
+/// `bits << distance` は添字を増加させ、`bits >> distance` は減少させます。
+/// `distance` は `usize` で、剰余を取らずにその距離だけ移動します。
+/// 値域外へ移る部分を切り捨て、空いた位置には `false` を入れます。
+/// 所有値・参照でのシフトと `<<=`・`>>=` に対応します。
+///
+/// # 区間列からの構築
+/// `collect::<IntervalBitSet>()` と `IntervalBitSet::from_iter(ranges)` は、
+/// 各区間の和集合を構築します。入力順・重複・隣接を問いません。
+/// `extend(ranges)` は既存の列に各区間を 1 として追加します。
+/// これらは区間を受け付けるため、点の列は `points.map(|x| x..=x)` として渡します。
+/// `Default` は [`Self::new`] と同じ初期状態です。
+/// 等値比較は更新履歴によらず、全位置の値が同じかを判定します。
+///
+/// # Complexity
+/// 各メソッドの計算量は、それぞれの説明を参照してください。
+/// 論理演算では、入力の区間数を `K, L`、結果の区間数を `R` とすると、
+/// 境界走査は `O(K + L)`、木の構築を含む上限は
+/// `O(K + L + R log(R + 1))` 時間、追加空間は `O(R)` です。
+/// 補集合とシフトは、木の構築を含めて `O((K + 1) log(K + 2))` 時間、
+/// 追加空間は `O(K + 1)` です。代入演算も同じです。
+/// `N` 個の区間からの構築は `O(N log(N + 1))` 時間、追加空間は `O(N)`、
+/// `extend` は各入力区間への [`Self::set`] と同じ計算量です。
+///
+/// 多数の位置を少数の区間へ圧縮できる入力に向きます。
+/// 長さの条件による空き区間の検索は [`Self::ranges`] を走査するため、
+/// 多数の連続ブロック検索を対数時間で処理する用途には対応していません。
+///
 /// # Examples
 /// ```rust
 /// use anmitsu::ds::interval_bit_set;
@@ -28,6 +69,21 @@ use std::{cmp, collections, iter, ops};
 /// assert_eq!(5, (&a ^ &b).count(.., true));
 /// a ^= &b;
 /// assert_eq!(vec![2..=4, 8..=9], a.ranges(.., true).collect::<Vec<_>>());
+/// ```
+///
+/// 区間列から構築し、移動後の差集合を指定範囲で切り出せます。
+///
+/// ```rust
+/// use anmitsu::ds::interval_bit_set;
+/// let a = [2..8, 10..15].into_iter()
+///     .collect::<interval_bit_set::IntervalBitSet>();
+/// let b = [4..6, 12..20].into_iter()
+///     .collect::<interval_bit_set::IntervalBitSet>();
+/// let shifted = (&a & !&b) << 3_usize;
+/// let window = shifted.ranges(5..16, true)
+///     .collect::<interval_bit_set::IntervalBitSet>();
+/// assert_eq!(vec![5..=6, 9..=10, 13..=14],
+///     window.ranges(.., true).collect::<Vec<_>>());
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct IntervalBitSet {
