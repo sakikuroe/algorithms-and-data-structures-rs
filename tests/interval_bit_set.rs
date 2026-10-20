@@ -1,7 +1,49 @@
 //! 想定問題を公開 API だけで解き、区間列としての組み合わせを検証します。
 
 use anmitsu::ds::interval_bit_set;
-use std::iter;
+use rand::{self, Rng, SeedableRng};
+use std::{collections, iter, ops};
+
+/// 点を一つずつ保持する素朴な集合から、指定値の連続区間を求めます。
+///
+/// # Args
+/// - `points`: 1 の各位置です。
+/// - `range`: 調べる非空の閉区間です。
+/// - `value`: 列挙する値です。
+///
+/// # Returns
+/// 指定範囲で切り取った最大連続区間を昇順で返します。
+fn model_ranges(
+    points: &collections::BTreeSet<usize>,
+    range: ops::RangeInclusive<usize>,
+    value: bool,
+) -> Vec<ops::RangeInclusive<usize>> {
+    let mut runs = Vec::<(usize, usize)>::new();
+    for &point in points.range(range.clone()) {
+        if let Some((_, end)) = runs.last_mut()
+            && end.checked_add(1) == Some(point)
+        {
+            *end = point;
+        } else {
+            runs.push((point, point));
+        }
+    }
+    if value {
+        return runs.into_iter().map(|(start, end)| start..=end).collect();
+    }
+    let mut gaps = Vec::new();
+    let mut cursor = *range.start() as u128;
+    for (start, end) in runs {
+        if cursor < start as u128 {
+            gaps.push(cursor as usize..=start - 1);
+        }
+        cursor = end as u128 + 1;
+    }
+    if cursor <= *range.end() as u128 {
+        gaps.push(cursor as usize..=*range.end());
+    }
+    gaps
+}
 
 /// Scenario: 時間帯内の k 番目の空き番号を選び、その番号を予約します。
 /// - Given: 巨大な番号空間の一部が予約済みです。
@@ -242,6 +284,250 @@ fn matches_dense_models_at_both_domain_edges() {
                     expected_right,
                     right.ranges(.., true).flatten().collect::<Vec<_>>()
                 );
+            }
+        }
+    }
+}
+
+/// Scenario: 多数の区間を繰り返し移動しても、切り捨てがなければ全走査しません。
+/// - Given: 値域の両端から離れた 20,000 個の区間があります。
+/// - When: 代入と所有値のシフトで、左右への移動を 20,000 回繰り返します。
+/// - Then: 元の列へ戻り、各時点の総数と端の位置も一致します。
+#[test]
+fn shifts_many_runs_without_rebuilding_them() {
+    // Given
+    let size = 20_000;
+    let mut sut = (0..size)
+        .map(|x| 10 + 4 * x..12 + 4 * x)
+        .collect::<interval_bit_set::IntervalBitSet>();
+    let before = sut.clone();
+    for _ in 0..20_000 {
+        // When
+        sut >>= 7_usize;
+        let shifted = sut << 5_usize;
+        sut = shifted;
+        // Then
+        assert_eq!(2 * size as u128, sut.count(.., true));
+        assert_eq!(Some(8), sut.find(.., true));
+        // When
+        sut <<= 7_usize;
+        let shifted = sut >> 5_usize;
+        sut = shifted;
+        // Then
+        assert_eq!(2 * size as u128, sut.count(.., true));
+        assert_eq!(Some(10), sut.find(.., true));
+    }
+    assert_eq!(before, sut);
+}
+
+/// Scenario: 全値域の移動後も切り捨てたビットは復活しません。
+/// - Given: 全値域が 1 の列があります。
+/// - When: 左右への移動、最大距離の移動、全体更新を繰り返します。
+/// - Then: 切り捨て後の総数と境界が正しく、消えた位置は逆向きでも戻りません。
+#[test]
+fn clips_uniform_domains_and_never_revives_discarded_bits() {
+    // Given
+    let last = usize::MAX;
+    let total = last as u128 + 1;
+    let mut sut = interval_bit_set::IntervalBitSet::from_iter([..]);
+    // When
+    sut <<= 5_usize;
+    // Then
+    assert_eq!(total - 5, sut.count(.., true));
+    assert_eq!(vec![5..=last], sut.ranges(.., true).collect::<Vec<_>>());
+    // When
+    sut >>= 7_usize;
+    // Then
+    assert_eq!(total - 7, sut.count(.., true));
+    assert_eq!(vec![0..=last - 7], sut.ranges(.., true).collect::<Vec<_>>());
+    // When
+    sut.set(.., true);
+    sut <<= last;
+    sut >>= last;
+    // Then
+    assert_eq!(1, sut.count(.., true));
+    assert_eq!(vec![0..=0], sut.ranges(.., true).collect::<Vec<_>>());
+    // When
+    sut >>= 1_usize;
+    sut <<= 1_usize;
+    // Then
+    assert_eq!(interval_bit_set::IntervalBitSet::new(), sut);
+    // When
+    sut.set(last.., true);
+    sut <<= 1_usize;
+    sut >>= 1_usize;
+    // Then
+    assert_eq!(interval_bit_set::IntervalBitSet::new(), sut);
+}
+
+/// Scenario: 移動後の全 API を、各位置を保持する独立した素朴解と照合します。
+/// - Given: 固定 seed の操作列と、0 および最大添字付近の小さな範囲があります。
+/// - When: 大小のシフト、更新、反転、論理演算を混在させます。
+/// - Then: 点、最大区間、順序、集計、双方向列挙、補集合と等値比較が一致します。
+#[test]
+fn matches_a_point_set_through_mixed_shift_histories() {
+    // Given
+    let last = usize::MAX;
+    let distances = [0, 1, 3, 17, last / 2, last - 4, last];
+    for seed in 0..8 {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut sut = interval_bit_set::IntervalBitSet::new();
+        let mut points = collections::BTreeSet::new();
+        for step in 0..300 {
+            // When
+            match rng.random_range(0..9) {
+                operation @ 0..=2 => {
+                    let base = if rng.random::<bool>() { 0 } else { last - 16 };
+                    let start = base + rng.random_range(0..12);
+                    let end = start + rng.random_range(0..=4);
+                    if operation == 2 {
+                        sut.flip(start..=end);
+                    } else {
+                        sut.set(start..=end, operation == 1);
+                    }
+                    for x in start..=end {
+                        let value = if operation == 2 {
+                            !points.contains(&x)
+                        } else {
+                            operation == 1
+                        };
+                        if value {
+                            points.insert(x);
+                        } else {
+                            points.remove(&x);
+                        }
+                    }
+                }
+                operation @ 3..=4 => {
+                    let distance = distances[rng.random_range(0..distances.len())];
+                    if operation == 3 {
+                        if step % 2 == 0 {
+                            sut <<= distance;
+                        } else {
+                            let shifted = sut << distance;
+                            sut = shifted;
+                        }
+                        points = points
+                            .into_iter()
+                            .filter_map(|x| x.checked_add(distance))
+                            .collect();
+                    } else {
+                        if step % 2 == 0 {
+                            sut >>= distance;
+                        } else {
+                            let shifted = sut >> distance;
+                            sut = shifted;
+                        }
+                        points = points
+                            .into_iter()
+                            .filter_map(|x| x.checked_sub(distance))
+                            .collect();
+                    }
+                }
+                operation @ 5..=7 => {
+                    let mut other =
+                        interval_bit_set::IntervalBitSet::from_iter([0..=2, last - 2..=last]);
+                    other >>= 1_usize;
+                    let other_points = [0, 1, last - 3, last - 2, last - 1]
+                        .into_iter()
+                        .collect::<collections::BTreeSet<_>>();
+                    if operation == 5 {
+                        sut |= &other;
+                        points.extend(other_points);
+                    } else if operation == 6 {
+                        sut ^= other;
+                        points = points
+                            .symmetric_difference(&other_points)
+                            .copied()
+                            .collect();
+                    } else {
+                        sut &= other;
+                        points.retain(|x| other_points.contains(x));
+                    }
+                }
+                _ => {
+                    let before = sut.clone();
+                    let distance = distances[rng.random_range(0..distances.len())];
+                    let shifted = if step % 2 == 0 {
+                        &sut << distance
+                    } else {
+                        &sut >> distance
+                    };
+                    let expected = points
+                        .iter()
+                        .filter_map(|&x| {
+                            if step % 2 == 0 {
+                                x.checked_add(distance)
+                            } else {
+                                x.checked_sub(distance)
+                            }
+                        })
+                        .map(|x| x..=x)
+                        .collect::<interval_bit_set::IntervalBitSet>();
+                    // Then
+                    assert_eq!(before, sut);
+                    assert_eq!(expected, shifted);
+                }
+            }
+            // Then
+            let canonical = points
+                .iter()
+                .map(|&x| x..=x)
+                .collect::<interval_bit_set::IntervalBitSet>();
+            assert_eq!(canonical, sut);
+            assert_eq!(points.len() as u128, sut.count(.., true));
+            assert_eq!(canonical, !(!&sut));
+            for range in [0..=last, 0..=16, last - 16..=last] {
+                for value in [false, true] {
+                    let expected = model_ranges(&points, range.clone(), value);
+                    let count = expected
+                        .iter()
+                        .map(|run| *run.end() as u128 - *run.start() as u128 + 1)
+                        .sum::<u128>();
+                    assert_eq!(count, sut.count(range.clone(), value));
+                    assert_eq!(expected.len(), sut.count_ranges(range.clone(), value));
+                    assert_eq!(
+                        expected.first().map(|run| *run.start()),
+                        sut.find(range.clone(), value)
+                    );
+                    assert_eq!(
+                        expected,
+                        sut.ranges(range.clone(), value).collect::<Vec<_>>()
+                    );
+                    for k in [0, 1, count.saturating_sub(1), count, u128::MAX] {
+                        let mut remaining = k;
+                        let selected = expected.iter().find_map(|run| {
+                            let length = *run.end() as u128 - *run.start() as u128 + 1;
+                            if remaining < length {
+                                Some((*run.start() as u128 + remaining) as usize)
+                            } else {
+                                remaining -= length;
+                                None
+                            }
+                        });
+                        assert_eq!(selected, sut.select(range.clone(), value, k));
+                    }
+                    let mut queue = expected.into_iter().collect::<collections::VecDeque<_>>();
+                    let mut actual = sut.ranges(range.clone(), value);
+                    while !queue.is_empty() {
+                        if rng.random::<bool>() {
+                            assert_eq!(queue.pop_front(), actual.next());
+                        } else {
+                            assert_eq!(queue.pop_back(), actual.next_back());
+                        }
+                    }
+                    assert_eq!(None, actual.next());
+                    assert_eq!(None, actual.next_back());
+                }
+            }
+            for x in [0, 1, last / 2, last - 1, last] {
+                let value = points.contains(&x);
+                let expected = model_ranges(&points, 0..=last, value)
+                    .into_iter()
+                    .find(|run| run.contains(&x))
+                    .unwrap();
+                assert_eq!(value, sut.get(x));
+                assert_eq!(expected, sut.run_at(x));
             }
         }
     }
