@@ -48,8 +48,17 @@ use std::{cmp, collections, iter, ops};
 /// 論理演算では、入力の区間数を `K, L`、結果の区間数を `R` とすると、
 /// 境界走査は `O(K + L)`、木の構築を含む上限は
 /// `O(K + L + R log(R + 1))` 時間、追加空間は `O(R)` です。
-/// 補集合とシフトは、木の構築を含めて `O((K + 1) log(K + 2))` 時間、
-/// 追加空間は `O(K + 1)` です。代入演算も同じです。
+/// 補集合は、木の構築を含めて `O((K + 1) log(K + 2))` 時間、
+/// 追加空間は `O(K + 1)` です。
+///
+/// 所有値のシフトと `<<=`・`>>=` は、1 の切り捨てがなければ
+/// 時間・追加空間ともに `O(1)` です。切り捨てる範囲に触れる区間数を `A` とすると、
+/// 切り捨てがある場合は `O((A + 1) log(K + 2))` 時間、
+/// 追加空間は `O(log(K + 2))` です。切り捨てはその場で反映し、
+/// 全範囲の [`Self::count`] はシフト直後も `O(1)` で返します。
+/// 借用値のシフトは、残る `R` 区間から独立した列を構築します。
+/// 木の構築を含む上限は `O(log(K + 1) + R log(R + 1))` 時間、
+/// 追加空間は `O(R + 1)` です。内部データを共有せず、後続の更新も互いに独立です。
 /// `N` 個の区間からの構築は `O(N log(N + 1))` 時間、追加空間は `O(N)`、
 /// `extend` は各入力区間への [`Self::set`] と同じ計算量です。
 ///
@@ -87,12 +96,18 @@ use std::{cmp, collections, iter, ops};
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct IntervalBitSet {
-    /// 始点から終点への対応です。閉区間は重ならず、互いに隣接しません。
+    /// 物理座標の始点から終点への対応です。閉区間は重ならず、互いに隣接しません。
     ones: collections::BTreeMap<usize, usize>,
     /// 順序検索と部分範囲の集計に使う、部分木の個数を持つ AVL 木です。
     index: Option<Box<RunIndex>>,
     /// 全範囲の集計で走査しないよう、`true` の総数を保持します。
     count_ones: u128,
+    /// 物理座標から論理座標へ変換する、循環する移動量です。
+    offset: usize,
+    /// 切り捨て不要のシフトを定数時間で判定する、論理座標の最小の 1 です。
+    first: Option<usize>,
+    /// 論理座標の最大の 1 です。
+    last: Option<usize>,
 }
 
 impl IntervalBitSet {
@@ -137,60 +152,21 @@ impl IntervalBitSet {
     /// assert_eq!(0, bits.set(2..4, true));
     /// ```
     pub fn set<R: ops::RangeBounds<usize>>(&mut self, range: R, value: bool) -> u128 {
-        // 閉区間へ正規化するため、最大値を超える排他的終端は不要です。
-        let Some((mut start, mut end)) = normalize(range) else {
+        let Some((start, end)) = normalize(range) else {
             return 0;
         };
-
-        if value {
-            // 左で接する区間も結合し、最大の連続区間という不変条件を守ります。
-            if let Some((&left, &right)) = self.ones.range(..=start).next_back()
-                && right.saturating_add(1) >= start
-            {
-                start = left;
-            }
-
-            // 結合前の個数を差し引けば、既存の 1 を二重に数えません。
-            let mut previous = 0;
-            while let Some((&left, &right)) = self.ones.range(start..).next() {
-                if left > end.saturating_add(1) {
-                    break;
-                }
-                self.remove_run(left);
-                previous += width(left, right);
-                end = end.max(right);
-            }
-            self.insert_run(start, end);
-            let changed = width(start, end) - previous;
-            self.count_ones += changed;
-            changed
+        let start = start.wrapping_sub(self.offset);
+        let end = end.wrapping_sub(self.offset);
+        // 論理区間が物理座標の末尾をまたぐ場合だけ、2 区間に分けます。
+        let changed = if start <= end {
+            self.set_physical(start..=end, value)
         } else {
-            // 始点をまたぐ区間があれば、そこから削除対象を調べます。
-            let mut lower = self
-                .ones
-                .range(..=start)
-                .next_back()
-                .filter(|&(_, &right)| right >= start)
-                .map_or(start, |(&left, _)| left);
-            let mut changed = 0;
-            while let Some((&left, &right)) = self.ones.range(lower..=end).next() {
-                self.remove_run(left);
-                changed += width(left.max(start), right.min(end));
-
-                // 更新範囲の外に残る部分だけを戻し、内側を 0 にします。
-                if left < start {
-                    self.insert_run(left, start - 1);
-                }
-                if right > end {
-                    self.insert_run(end + 1, right);
-                    break;
-                }
-                // 左の残存区間を再び選ばないよう、検索下限を更新します。
-                lower = start;
-            }
-            self.count_ones -= changed;
-            changed
+            self.set_physical(start.., value) + self.set_physical(..=end, value)
+        };
+        if changed != 0 {
+            self.refresh_bounds();
         }
+        changed
     }
 
     /// 指定した位置の値を返します。
@@ -213,11 +189,7 @@ impl IntervalBitSet {
     /// assert!(!bits.get(5));
     /// ```
     pub fn get(&self, x: usize) -> bool {
-        // 直前の始点を持つ区間だけが、この位置を覆う可能性があります。
-        self.ones
-            .range(..=x)
-            .next_back()
-            .is_some_and(|(_, &end)| x <= end)
+        self.get_physical(x.wrapping_sub(self.offset))
     }
 
     /// 指定した位置を含む、同じ値の最大の連続区間を返します。
@@ -241,21 +213,13 @@ impl IntervalBitSet {
     /// assert_eq!(8..=usize::MAX, bits.run_at(9));
     /// ```
     pub fn run_at(&self, x: usize) -> ops::RangeInclusive<usize> {
-        // 1 の区間なら、その両端が求める境界です。
-        let previous = self.ones.range(..=x).next_back();
-        if let Some((&start, &end)) = previous
-            && x <= end
-        {
-            return start..=end;
-        }
-
-        // 0 の区間では、左右の 1 の区間の直後と直前を境界にします。
-        let start = previous.map_or(0, |(_, &end)| end + 1);
-        let end = self
-            .ones
-            .range(x..)
-            .next()
-            .map_or(usize::MAX, |(&start, _)| start - 1);
+        let value = self.get(x);
+        // 異なる値の直後・直前を選び、論理座標の両端で切り取ります。
+        let start = self
+            .ranges(..=x, !value)
+            .next_back()
+            .map_or(0, |run| *run.end() + 1);
+        let end = self.find(x.., !value).map_or(usize::MAX, |next| next - 1);
         start..=end
     }
 
@@ -309,17 +273,19 @@ impl IntervalBitSet {
         let Some((start, end)) = normalize(range) else {
             return 0;
         };
-        // 全体の 1 の総数は更新時に維持しているため、走査を省略できます。
-        let ones = if start == 0 && end == usize::MAX {
-            self.count_ones
+        if start == 0 && end == usize::MAX {
+            return if value {
+                self.count_ones
+            } else {
+                width(start, end) - self.count_ones
+            };
+        }
+        let start = start.wrapping_sub(self.offset);
+        let end = end.wrapping_sub(self.offset);
+        if start <= end {
+            self.count_physical(start..=end, value)
         } else {
-            RunIndex::prefix(&self.index, end as u128 + 1).0
-                - RunIndex::prefix(&self.index, start as u128).0
-        };
-        if value {
-            ones
-        } else {
-            width(start, end) - ones
+            self.count_physical(start.., value) + self.count_physical(..=end, value)
         }
     }
 
@@ -381,12 +347,20 @@ impl IntervalBitSet {
         k: u128,
     ) -> Option<usize> {
         let (start, end) = normalize(range)?;
-        // 先に範囲内の個数を確認し、巨大な k の加算も安全にします。
-        if k >= self.count(start..=end, value) {
-            return None;
-        }
-        let before = self.count(..start, value);
-        Some(RunIndex::select(&self.index, value, before + k))
+        let start = start.wrapping_sub(self.offset);
+        let end = end.wrapping_sub(self.offset);
+        let selected = if start <= end {
+            self.select_physical(start..=end, value, k)
+        } else {
+            // 物理座標の末尾側が、論理座標では先に現れます。
+            let before = self.count_physical(start.., value);
+            if k < before {
+                self.select_physical(start.., value, k)
+            } else {
+                self.select_physical(..=end, value, k - before)
+            }
+        };
+        selected.map(|x| x.wrapping_add(self.offset))
     }
 
     /// 指定範囲で切り取った、指定値の最大連続区間の個数を返します。
@@ -414,16 +388,17 @@ impl IntervalBitSet {
         let Some((start, end)) = normalize(range) else {
             return 0;
         };
-        let first = self.get(start);
-        // 始点が範囲より前でも、左端を覆う 1 の区間は 1 個として数えます。
-        let ones = RunIndex::prefix(&self.index, end as u128 + 1).1
-            - RunIndex::prefix(&self.index, start as u128 + 1).1
-            + usize::from(first);
-        if value {
-            ones
+        let start = start.wrapping_sub(self.offset);
+        let end = end.wrapping_sub(self.offset);
+        if start <= end {
+            self.count_ranges_physical(start..=end, value)
         } else {
-            // 0 と 1 は交互に現れるため、両端の値だけで補集合の数が決まります。
-            ones + 1 - usize::from(first) - usize::from(self.get(end))
+            let runs = self.count_ranges_physical(start.., value)
+                + self.count_ranges_physical(..=end, value);
+            // 物理座標の両端で分かれた区間は、論理座標では 1 区間です。
+            runs - usize::from(
+                self.get_physical(usize::MAX) == value && self.get_physical(0) == value,
+            )
         }
     }
 
@@ -457,6 +432,179 @@ impl IntervalBitSet {
         range: R,
         value: bool,
     ) -> impl DoubleEndedIterator<Item = ops::RangeInclusive<usize>> + '_ {
+        let empty = (ops::Bound::Excluded(usize::MAX), ops::Bound::Unbounded);
+        let (mut first, mut second, wraps) = if let Some((start, end)) = normalize(range) {
+            let start = start.wrapping_sub(self.offset);
+            let end = end.wrapping_sub(self.offset);
+            if start <= end {
+                (
+                    self.ranges_physical(start..=end, value),
+                    self.ranges_physical(empty, value),
+                    false,
+                )
+            } else {
+                (
+                    self.ranges_physical(start.., value),
+                    self.ranges_physical(..=end, value),
+                    true,
+                )
+            }
+        } else {
+            (
+                self.ranges_physical(empty, value),
+                self.ranges_physical(empty, value),
+                false,
+            )
+        };
+        // 物理座標の境界に接する 2 区間だけを先に結合し、双方向の列挙を保ちます。
+        let offset = self.offset;
+        let bridge =
+            if wraps && self.get_physical(usize::MAX) == value && self.get_physical(0) == value {
+                let left = first.next_back().unwrap();
+                let right = second.next().unwrap();
+                Some(left.start().wrapping_add(offset)..=right.end().wrapping_add(offset))
+            } else {
+                None
+            };
+        first
+            .map(move |run| run.start().wrapping_add(offset)..=run.end().wrapping_add(offset))
+            .chain(bridge)
+            .chain(
+                second.map(move |run| {
+                    run.start().wrapping_add(offset)..=run.end().wrapping_add(offset)
+                }),
+            )
+    }
+
+    /// 物理座標の範囲を更新し、変更位置数を返します。
+    ///
+    /// # Args
+    /// - `range`: 物理座標で指定する範囲です。
+    /// - `value`: 設定する値です。
+    ///
+    /// # Returns
+    /// 値が変わった位置の個数を返します。
+    fn set_physical<R: ops::RangeBounds<usize>>(&mut self, range: R, value: bool) -> u128 {
+        // 閉区間へ正規化するため、最大値を超える排他的終端は不要です。
+        let Some((mut start, mut end)) = normalize(range) else {
+            return 0;
+        };
+
+        if value {
+            // 左で接する区間も結合し、最大の連続区間という不変条件を守ります。
+            if let Some((&left, &right)) = self.ones.range(..=start).next_back()
+                && right.saturating_add(1) >= start
+            {
+                start = left;
+            }
+
+            // 結合前の個数を差し引けば、既存の 1 を二重に数えません。
+            let mut previous = 0;
+            while let Some((&left, &right)) = self.ones.range(start..).next() {
+                if left > end.saturating_add(1) {
+                    break;
+                }
+                self.remove_run(left);
+                previous += width(left, right);
+                end = end.max(right);
+            }
+            self.insert_run(start, end);
+            let changed = width(start, end) - previous;
+            self.count_ones += changed;
+            changed
+        } else {
+            // 始点をまたぐ区間があれば、そこから削除対象を調べます。
+            let mut lower = self
+                .ones
+                .range(..=start)
+                .next_back()
+                .filter(|&(_, &right)| right >= start)
+                .map_or(start, |(&left, _)| left);
+            let mut changed = 0;
+            while let Some((&left, &right)) = self.ones.range(lower..=end).next() {
+                self.remove_run(left);
+                changed += width(left.max(start), right.min(end));
+
+                // 更新範囲の外に残る部分だけを戻し、内側を 0 にします。
+                if left < start {
+                    self.insert_run(left, start - 1);
+                }
+                if right > end {
+                    self.insert_run(end + 1, right);
+                    break;
+                }
+                // 左の残存区間を再び選ばないよう、検索下限を更新します。
+                lower = start;
+            }
+            self.count_ones -= changed;
+            changed
+        }
+    }
+
+    /// 物理座標 x に設定された値を返します。
+    fn get_physical(&self, x: usize) -> bool {
+        // 直前の始点を持つ区間だけが、この位置を覆う可能性があります。
+        self.ones
+            .range(..=x)
+            .next_back()
+            .is_some_and(|(_, &end)| x <= end)
+    }
+
+    /// 物理座標の範囲内で指定値を持つ位置の個数を返します。
+    fn count_physical<R: ops::RangeBounds<usize>>(&self, range: R, value: bool) -> u128 {
+        let Some((start, end)) = normalize(range) else {
+            return 0;
+        };
+        // 全体の 1 の総数は更新時に維持しているため、走査を省略できます。
+        let ones = if start == 0 && end == usize::MAX {
+            self.count_ones
+        } else {
+            RunIndex::prefix(&self.index, end as u128 + 1).0
+                - RunIndex::prefix(&self.index, start as u128).0
+        };
+        if value {
+            ones
+        } else {
+            width(start, end) - ones
+        }
+    }
+
+    /// 物理座標の範囲内で指定値を持つ k 番目の位置を返します。
+    fn select_physical<R: ops::RangeBounds<usize>>(
+        &self,
+        range: R,
+        value: bool,
+        k: u128,
+    ) -> Option<usize> {
+        let (start, end) = normalize(range)?;
+        // 先に範囲内の個数を確認し、巨大な k の加算も安全にします。
+        if k >= self.count_physical(start..=end, value) {
+            return None;
+        }
+        let before = self.count_physical(..start, value);
+        Some(RunIndex::select(&self.index, value, before + k))
+    }
+
+    /// 物理座標の範囲内で指定値が連続する区間の個数を返します。
+    fn count_ranges_physical<R: ops::RangeBounds<usize>>(&self, range: R, value: bool) -> usize {
+        let Some((start, end)) = normalize(range) else {
+            return 0;
+        };
+        let first = self.get_physical(start);
+        // 始点が範囲より前でも、左端を覆う 1 の区間は 1 個として数えます。
+        let ones = RunIndex::prefix(&self.index, end as u128 + 1).1
+            - RunIndex::prefix(&self.index, start as u128 + 1).1
+            + usize::from(first);
+        if value {
+            ones
+        } else {
+            // 0 と 1 は交互に現れるため、両端の値だけで補集合の数が決まります。
+            ones + 1 - usize::from(first) - usize::from(self.get_physical(end))
+        }
+    }
+
+    /// 物理座標の指定範囲を、双方向に走査する iterator を作ります。
+    fn ranges_physical<R: ops::RangeBounds<usize>>(&self, range: R, value: bool) -> Ranges<'_> {
         let remaining = normalize(range);
         // 始点をまたぐ 1 の区間も列挙対象に含めます。
         let runs = if let Some((start, end)) = remaining {
@@ -475,6 +623,85 @@ impl IntervalBitSet {
             remaining,
             value,
         }
+    }
+
+    /// 論理座標で最初と最後に 1 が現れる位置を更新します。
+    fn refresh_bounds(&mut self) {
+        if self.count_ones == 0 {
+            self.offset = 0;
+            self.first = None;
+            self.last = None;
+        } else {
+            let first = self.ranges(.., true).next().map(|run| *run.start());
+            let last = self.ranges(.., true).next_back().map(|run| *run.end());
+            self.first = first;
+            self.last = last;
+        }
+    }
+
+    /// 範囲外へ落ちる部分を削除し、残る全区間は offset だけで移動します。
+    ///
+    /// # Args
+    /// - `distance`: 移動する距離です。
+    /// - `left`: 添字を増やすときに true を指定します。
+    fn shift(&mut self, distance: usize, left: bool) {
+        if distance == 0 || self.count_ones == 0 {
+            return;
+        }
+        // 全体が落ちる場合は各区間を個別に削除せず、両方の木をまとめて解放します。
+        if (left && self.first.unwrap() > usize::MAX - distance)
+            || (!left && self.last.unwrap() < distance)
+        {
+            *self = Self::new();
+            return;
+        }
+        if left {
+            if self.last.unwrap() > usize::MAX - distance {
+                self.set(usize::MAX - distance + 1.., false);
+            }
+        } else if self.first.unwrap() < distance {
+            self.set(..distance, false);
+        }
+        if self.count_ones == 0 {
+            return;
+        }
+        // 循環するのは内部の座標だけです。論理的に範囲外へ落ちる 1 は削除済みです。
+        if left {
+            self.offset = self.offset.wrapping_add(distance);
+            self.first = self.first.map(|x| x + distance);
+            self.last = self.last.map(|x| x + distance);
+        } else {
+            self.offset = self.offset.wrapping_sub(distance);
+            self.first = self.first.map(|x| x - distance);
+            self.last = self.last.map(|x| x - distance);
+        }
+    }
+
+    /// 値域内に残る区間だけを複写し、移動後の独立した列を作ります。
+    ///
+    /// # Args
+    /// - `distance`: 移動する距離です。
+    /// - `left`: 添字を増やすときに true を指定します。
+    ///
+    /// # Returns
+    /// 元の列を変更せず、移動後の列を返します。
+    fn shifted(&self, distance: usize, left: bool) -> Self {
+        let range = if left {
+            0..=usize::MAX - distance
+        } else {
+            distance..=usize::MAX
+        };
+        let runs = self
+            .ranges(range, true)
+            .map(|run| {
+                if left {
+                    (*run.start() + distance, *run.end() + distance)
+                } else {
+                    (*run.start() - distance, *run.end() - distance)
+                }
+            })
+            .collect();
+        IntervalBitSet::from_sorted_runs(runs)
     }
 
     /// 2 列の値が変わる境界を同時に走査し、論理演算の結果を構築します。
@@ -497,14 +724,12 @@ impl IntervalBitSet {
     {
         // 終端を u128 に広げ、usize::MAX の直後も通常の境界として扱います。
         let mut left = self
-            .ones
-            .iter()
-            .flat_map(|(&start, &end)| [start as u128, end as u128 + 1])
+            .ranges(.., true)
+            .flat_map(|run| [*run.start() as u128, *run.end() as u128 + 1])
             .peekable();
         let mut right = other
-            .ones
-            .iter()
-            .flat_map(|(&start, &end)| [start as u128, end as u128 + 1])
+            .ranges(.., true)
+            .flat_map(|run| [*run.start() as u128, *run.end() as u128 + 1])
             .peekable();
         let mut left_value = false;
         let mut right_value = false;
@@ -573,6 +798,9 @@ impl IntervalBitSet {
     /// 指定区間だけが 1 の列を返します。
     fn from_sorted_runs(runs: Vec<(usize, usize)>) -> Self {
         Self {
+            offset: 0,
+            first: runs.first().map(|&(start, _)| start),
+            last: runs.last().map(|&(_, end)| end),
             count_ones: runs.iter().map(|&(start, end)| width(start, end)).sum(),
             index: RunIndex::build(&runs),
             ones: runs.into_iter().collect(),
@@ -584,7 +812,11 @@ impl IntervalBitSet {
 impl PartialEq for IntervalBitSet {
     /// 最大の連続区間が一致するか調べます。
     fn eq(&self, other: &Self) -> bool {
-        self.ones == other.ones
+        if self.offset == other.offset {
+            self.ones == other.ones
+        } else {
+            self.ranges(.., true).eq(other.ranges(.., true))
+        }
     }
 }
 
@@ -934,22 +1166,9 @@ macro_rules! impl_shift_operation {
             /// 値域外を切り捨てた移動後の列です。
             type Output = IntervalBitSet;
 
-            /// 全区間を同じ距離だけ移動し、値域内に残る部分を構築します。
+            /// 値域内に残る区間だけを取得し、独立した結果を構築します。
             fn $method(self, distance: usize) -> Self::Output {
-                let runs = self
-                    .ones
-                    .iter()
-                    .filter_map(|(&start, &end)| {
-                        if $left {
-                            // 左端まで桁あふれする区間は、全体が値域外です。
-                            Some((start.checked_add(distance)?, end.saturating_add(distance)))
-                        } else {
-                            // 右端まで負になる区間は、全体が値域外です。
-                            Some((start.saturating_sub(distance), end.checked_sub(distance)?))
-                        }
-                    })
-                    .collect();
-                IntervalBitSet::from_sorted_runs(runs)
+                self.shifted(distance, $left)
             }
         }
 
@@ -958,15 +1177,16 @@ macro_rules! impl_shift_operation {
             type Output = Self;
 
             /// 所有する列を消費してシフトします。
-            fn $method(self, distance: usize) -> Self::Output {
-                ops::$trait::$method(&self, distance)
+            fn $method(mut self, distance: usize) -> Self::Output {
+                self.shift(distance, $left);
+                self
             }
         }
 
         impl ops::$assign_trait<usize> for IntervalBitSet {
             /// シフト後の列で自分自身を置き換えます。
             fn $assign_method(&mut self, distance: usize) {
-                *self = ops::$trait::$method(&*self, distance);
+                self.shift(distance, $left);
             }
         }
     };
