@@ -463,9 +463,7 @@ static NTT: sync::OnceLock<Ntt> = sync::OnceLock::new();
 /// - Space complexity: O(n)
 ///
 /// # Examples
-/// ```rust,ignore
-/// // AVX2 依存の FPS 実装の内部で利用する。
-/// ```
+/// この前計算テーブルは、AVX2 を使う形式的べき級数の実装向けです。
 pub fn ntt_doubling_powers_mont(n: usize) -> &'static [u32] {
     debug_assert!(n.is_power_of_two());
     debug_assert!(n > 0);
@@ -1894,9 +1892,7 @@ pub unsafe fn ntt_mont(a: &mut [u32]) {
 /// - Space complexity: O(1)
 ///
 /// # Examples
-/// ```rust,ignore
-/// // `pub fn ntt_mont` の doctest を参照。
-/// ```
+/// [`ntt_mont`] の使用例に、順変換と逆変換を組み合わせた例があります。
 #[target_feature(enable = "avx2")]
 pub unsafe fn intt_mont(a: &mut [u32]) {
     unsafe {
@@ -1972,9 +1968,7 @@ pub unsafe fn intt_mont(a: &mut [u32]) {
 /// - Space complexity: O(n)
 ///
 /// # Examples
-/// ```rust,ignore
-/// // AVX2 依存のため、直接の使用例は省略する。
-/// ```
+/// Montgomery 表現上で倍長化する場合は [`ntt_doubling_mont`] を参照してください。
 pub unsafe fn ntt_doubling(a_ntt: &mut Vec<u32>) {
     unsafe {
         let n = a_ntt.len();
@@ -2016,9 +2010,7 @@ pub unsafe fn ntt_doubling(a_ntt: &mut Vec<u32>) {
 /// - Space complexity: O(n)
 ///
 /// # Examples
-/// ```rust,ignore
-/// // AVX2 依存のため、直接の使用例は省略する。
-/// ```
+/// 通常表現上で倍長化する場合は [`ntt_doubling`] を参照してください。
 pub unsafe fn ntt_doubling_mont(a_ntt_mont: &mut Vec<u32>) {
     unsafe {
         let n = a_ntt_mont.len();

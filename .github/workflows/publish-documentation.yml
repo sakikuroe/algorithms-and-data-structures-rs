@@ -1,0 +1,82 @@
+# 自動マージの成功後に main の API ドキュメントを生成・公開する。
+# GITHUB_TOKEN による main への push は別の workflow を起動しないため、
+# 自動マージ workflow の完了を公開の契機にする。
+name: Publish API documentation
+
+on:
+  workflow_run:
+    workflows:
+      - Auto merge develop into main
+    types:
+      - completed
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 公開処理の途中で中断せず、後続の実行で最新の main を再取得する。
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # PR や fork の内容は公開せず、手動実行も main に限定する。
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Generate documentation
+        run: cargo doc --lib --no-deps --locked
+      - name: Set documentation entry point
+        run: |
+          test -f target/doc/anmitsu/index.html
+          cat > target/doc/index.html <<'HTML'
+          <!doctype html>
+          <html lang="ja">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=anmitsu/">
+            <title>anmitsu API ドキュメント</title>
+          </head>
+          <body>
+            <p><a href="anmitsu/">API ドキュメントを開く</a></p>
+          </body>
+          </html>
+          HTML
+      # CSS・検索用 JavaScript・ソース表示を含む生成物全体を渡す。
+      - name: Upload documentation
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: target/doc
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4
