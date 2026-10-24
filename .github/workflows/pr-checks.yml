@@ -2,7 +2,7 @@
 #
 # PR の段階でフォーマット乱れやコンパイルエラー、テスト失敗を検出することで、
 # レビュー時は本質的な変更に集中でき、マージ後の手戻りを防ぐことができる。
-# 既存の自動マージワークフローには影響を与えず、4 つのジョブのいずれかが
+# 既存の自動マージワークフローには影響を与えず、各ジョブのいずれかが
 # 失敗した場合は PR のステータスチェック全体を失敗させる。
 name: PR checks
 
@@ -54,3 +54,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --all
+
+  # 使用例の実行に加え、公開する HTML のリンクやコードブロックも検証する。
+  documentation:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc --lib --no-deps --locked

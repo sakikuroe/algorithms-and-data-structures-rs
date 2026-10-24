@@ -345,8 +345,9 @@ const fn build_naive_bit_reverse() -> [[usize; NTT_NAIVE_THRESHOLD]; NTT_NAIVE_L
 /// - Space complexity: O(1)
 ///
 /// # Examples
-/// ```rust,ignore
-/// // 内部関数のため、直接の使用例は省略する。
+/// ```rust
+/// use anmitsu::modulo998244353::convolution;
+/// assert_eq!(0b1011, convolution::bit_reverse(0b1101, 4));
 /// ```
 pub fn bit_reverse(mut x: usize, lg: usize) -> usize {
     let mut res = 0usize;
