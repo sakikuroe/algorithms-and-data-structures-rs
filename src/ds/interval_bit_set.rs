@@ -1422,7 +1422,10 @@ mod tests {
             );
             assert_eq!(usize::MAX as u128 - 10, complement.count(.., true));
             assert_eq!(IntervalBitSet::new(), &sut & &complement);
-            assert_eq!(0, (!IntervalBitSet::from_iter([..])).count(.., true));
+            assert_eq!(
+                0,
+                (!IntervalBitSet::from_iter(iter::once(..))).count(.., true)
+            );
         }
 
         /// Scenario: シフトは最大幅でも剰余を取らず、値域外だけを落とします。
@@ -1459,7 +1462,7 @@ mod tests {
                 shifted_left.ranges(.., true).collect::<Vec<_>>()
             );
             assert_eq!(vec![0..=0], assigned.ranges(.., true).collect::<Vec<_>>());
-            let mut missing = IntervalBitSet::from_iter([1..=1]);
+            let mut missing = IntervalBitSet::from_iter(iter::once(1..=1));
             missing <<= last;
             assert_eq!(IntervalBitSet::new(), missing);
         }
@@ -1488,7 +1491,7 @@ mod tests {
             );
             assert_eq!(
                 usize::MAX as u128 + 1,
-                IntervalBitSet::from_iter([..]).count(.., true)
+                IntervalBitSet::from_iter(iter::once(..)).count(.., true)
             );
         }
 
@@ -2222,7 +2225,7 @@ mod tests {
                                     .map_or(0, |i| i + 1);
                                 let right = (x + 1..size)
                                     .find(|&i| expected[i] != expected[x])
-                                    .map_or(if expected[x] { size } else { usize::MAX }, |i| i);
+                                    .unwrap_or(if expected[x] { size } else { usize::MAX });
                                 let right = if right == usize::MAX {
                                     right
                                 } else {

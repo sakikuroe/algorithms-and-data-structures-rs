@@ -123,7 +123,7 @@ fn shifts_and_extracts_shared_availability() {
 fn computes_large_subset_sums_with_shifts() {
     // Given
     let weight = usize::MAX / 16;
-    let mut sut = interval_bit_set::IntervalBitSet::from_iter([0..=0]);
+    let mut sut = interval_bit_set::IntervalBitSet::from_iter(iter::once(0..=0));
     // When
     for item in [1, weight, weight + 1] {
         sut |= &sut << item;
@@ -329,7 +329,7 @@ fn clips_uniform_domains_and_never_revives_discarded_bits() {
     // Given
     let last = usize::MAX;
     let total = last as u128 + 1;
-    let mut sut = interval_bit_set::IntervalBitSet::from_iter([..]);
+    let mut sut = interval_bit_set::IntervalBitSet::from_iter(iter::once(..));
     // When
     sut <<= 5_usize;
     // Then
