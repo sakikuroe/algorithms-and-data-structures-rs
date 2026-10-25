@@ -1,6 +1,7 @@
 pub mod bin {
     // bin/ 配下の統合テストが共有するヘルパー (run_binary) を定義する。
     pub mod common;
+    pub mod geometry_common;
 
     pub mod codechef {
         pub mod talca;
@@ -11,11 +12,13 @@ pub mod bin {
     }
 
     pub mod atcoder {
+        pub mod abc033_d_triangle_classification;
         pub mod abc035_c_othello;
         pub mod abc035_c_othello_sparse_lazy_offline;
         pub mod abc035_c_othello_sparse_lazy_online;
         pub mod abc075_c_bridge;
         pub mod abc106_d_atcoder_express_2_2d;
+        pub mod abc139_f_engines;
         pub mod abc142_d_disjoint_set_of_common_divisors;
         pub mod abc176_d_wizard_in_maze;
         pub mod abc177_e_coprime;
@@ -23,15 +26,18 @@ pub mod bin {
         pub mod abc193_f_zebraness;
         pub mod abc209_d_collision;
         pub mod abc217_d_cutting_woods;
+        pub mod abc225_e_seven;
         pub mod abc225_g_x;
         pub mod abc234_d_prefix_kth_max;
         pub mod abc241_d_sequence_query;
         pub mod abc241_d_sequence_query_sparse_offline;
         pub mod abc241_d_sequence_query_sparse_online;
+        pub mod abc248_e_k_colinear_line;
         pub mod abc255_h_range_harvest_query;
         pub mod abc256_d_union_of_interval;
         pub mod abc294_e_2xn_grid;
         pub mod abc294_g_distance_queries_on_a_tree;
+        pub mod abc296_g_polygon_and_points;
         pub mod abc326_g_unlock_achievement;
         pub mod abc330_e_mex_and_update;
         pub mod abc405_f_chord_crossing;
@@ -43,6 +49,7 @@ pub mod bin {
         pub mod abc473_f_valid_string;
         pub mod abc477_f_count_cells_in_a_window_2d;
         pub mod abc480_c_self_stopping_shower;
+        pub mod abc481_e_most_brilliant_starry_sky;
         pub mod arc085_e_mul;
         pub mod arc210_b_remove_median_operations_sparse_offline;
         pub mod fps24_a_snack;
@@ -60,6 +67,7 @@ pub mod bin {
         pub mod typical90_an_get_more_money;
         pub mod typical90_aq_maze_challenge_with_lack_of_sleep;
         pub mod typical90_bs_fuzzy_priority;
+        pub mod typical90_i_three_point_angle;
         pub mod typical90_m_passing;
         pub mod typical90_q_crossing_segments;
         pub mod typical90_u_come_back_in_one_piece;
@@ -104,6 +112,7 @@ pub mod bin {
         pub mod exp_of_formal_power_series;
         pub mod exp_of_formal_power_series_sparse;
         pub mod factorize;
+        pub mod furthest_pair;
         pub mod inv_of_formal_power_series;
         pub mod inv_of_formal_power_series_sparse;
         pub mod jump_on_tree;
@@ -125,6 +134,8 @@ pub mod bin {
         pub mod range_kth_smallest;
         pub mod scc;
         pub mod shortest_path;
+        pub mod sort_points_by_argument;
+        pub mod static_convex_hull;
         pub mod tree_diameter;
         pub mod two_sat;
         pub mod vertex_add_path_sum;
