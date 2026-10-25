@@ -434,5 +434,45 @@ path = "src/bin/atcoder/abc256_d_union_of_interval.rs"
 name = "ac-abc294-e-2xn-grid"
 path = "src/bin/atcoder/abc294_e_2xn_grid.rs"
 
+[[bin]]
+name = "ac-abc481-e-most-brilliant-starry-sky"
+path = "src/bin/atcoder/abc481_e_most_brilliant_starry_sky.rs"
+
+[[bin]]
+name = "ac-typical90-i-three-point-angle"
+path = "src/bin/atcoder/typical90_i_three_point_angle.rs"
+
+[[bin]]
+name = "ac-abc139-f-engines"
+path = "src/bin/atcoder/abc139_f_engines.rs"
+
+[[bin]]
+name = "ac-abc033-d-triangle-classification"
+path = "src/bin/atcoder/abc033_d_triangle_classification.rs"
+
+[[bin]]
+name = "ac-abc225-e-seven"
+path = "src/bin/atcoder/abc225_e_seven.rs"
+
+[[bin]]
+name = "ac-abc248-e-k-colinear-line"
+path = "src/bin/atcoder/abc248_e_k_colinear_line.rs"
+
+[[bin]]
+name = "ac-abc296-g-polygon-and-points"
+path = "src/bin/atcoder/abc296_g_polygon_and_points.rs"
+
+[[bin]]
+name = "lc-sort-points-by-argument"
+path = "src/bin/library_checker/sort_points_by_argument.rs"
+
+[[bin]]
+name = "lc-static-convex-hull"
+path = "src/bin/library_checker/static_convex_hull.rs"
+
+[[bin]]
+name = "lc-furthest-pair"
+path = "src/bin/library_checker/furthest_pair.rs"
+
 [dev-dependencies]
 rstest = "0.26.1"
