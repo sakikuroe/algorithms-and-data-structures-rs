@@ -5,7 +5,7 @@ use super::super::{common, geometry_common};
 /// 公開 API を使う解答バイナリーです。
 const BIN: &str = env!("CARGO_BIN_EXE_lc-furthest-pair");
 
-mod furthest_pair {
+mod lc_furthest_pair {
     use super::*;
 
     /// Scenario: 公開 API を組み合わせた解答が公式サンプルを満たします。

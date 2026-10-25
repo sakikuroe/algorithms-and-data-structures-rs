@@ -5,7 +5,7 @@ use super::super::{common, geometry_common};
 /// 公開 API を使う解答バイナリーです。
 const BIN: &str = env!("CARGO_BIN_EXE_lc-static-convex-hull");
 
-mod static_convex_hull {
+mod lc_static_convex_hull {
     use super::*;
 
     /// Scenario: 公開 API を組み合わせた解答が公式サンプルを満たします。

@@ -1,7 +1,7 @@
 //! 競技プログラミング向けのアルゴリズムとデータ構造を提供するライブラリーです。
 //!
 //! 区間集約や順位検索、グラフの探索・最短路・フロー、整数論、
-//! 法 998244353 上の演算を扱います。列の連長圧縮と標準入出力の機能も含みます。
+//! 整数座標の二次元幾何、法 998244353 上の演算を扱います。列の連長圧縮と標準入出力の機能も含みます。
 
 pub mod algebra {
     //! 半群・モノイドを表すトレイトと実装
@@ -116,6 +116,22 @@ pub mod ds {
     pub mod wavelet_matrix;
     mod wavelet_matrix_range;
     pub mod wavelet_matrix_with_sum;
+}
+
+pub mod geometry {
+    //! 整数座標の点・方向、偏角順と凸多角形の操作
+    //!
+    //! [`primitives`] は点とベクトル、[`predicates`] は向きと線分の関係を扱います。
+    //! [`direction`] は非ゼロ方向の比較と集約キーを提供します。
+    //! [`argument`] は元添字を保つ方向列と円周上の検索、
+    //! [`convex_polygon`] は凸包・支持面・内外判定・最遠点対・Minkowski 和を提供します。
+
+    pub mod argument;
+    pub mod convex_polygon;
+    pub mod direction;
+    mod kernel;
+    pub mod predicates;
+    pub mod primitives;
 }
 
 pub mod graph {
