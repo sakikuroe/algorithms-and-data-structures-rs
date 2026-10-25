@@ -347,7 +347,7 @@ fn rejects_self_crossing_boundaries() {
 /// Scenario: 支持面を頂点または辺として取得し、最小側も逆方向で求められます。
 /// - Given: 正方形と、辺または頂点を支える方向があります。
 /// - When: 最大と最小の支持面を問い合わせます。
-/// - Then: 同値な頂点を走査し直さず、支持する面を取得できます。
+/// - Then: 東向きでは右辺、西向きでは左辺、北東向きでは右上の頂点を返します。
 #[test]
 fn exposes_support_edges_and_vertices() {
     // Given
@@ -445,7 +445,8 @@ fn compares_minkowski_sums_with_pairwise_point_sums() {
 /// Scenario: 空・一点・線分でも同じ凸多角形 API を利用できます。
 /// - Given: 退化した凸包があります。
 /// - When: 内外判定、最遠点対、支持面、Minkowski 和を問い合わせます。
-/// - Then: 不要な例外処理を呼び出し側に要求しません。
+/// - Then: 空集合は Outside または None、一点の最遠点対は None になります。
+///   線分上は Boundary となり、一点との和では線分が平行移動されます。
 #[test]
 fn handles_degenerate_convex_polygons_consistently() {
     // Given

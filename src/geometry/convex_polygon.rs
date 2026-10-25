@@ -1,6 +1,7 @@
 //! 元添字を返す凸包と、正規化した凸多角形の問い合わせ・演算
 //!
-//! 頂点列は辞書順最小の頂点から反時計回りで、閉じる頂点の再掲や辺の途中の
+//! 頂点列は辞書順最小の頂点から反時計回りです。辞書順では x が小さい点を先にし、
+//! x が同じなら y が小さい点を先にします。閉じる頂点の再掲や辺の途中の
 //! 共線点を持ちません。空・一点・線分も同じ型で扱います。面積は取得時にだけ
 //! 計算するため、u128 に収まらない図形も内外判定や最遠点の選択に使えます。
 //!
@@ -26,7 +27,11 @@ pub enum CollinearPoints {
     AllBoundary,
 }
 
-/// 指定方向の内積を最大にする頂点、または辺です。添字は vertices 上の位置です。
+/// 図形の指定方向側の端にある、頂点または辺を表します。
+///
+/// [`ConvexPolygon::support`] の戻り値です。例えば東向きを指定すると、
+/// 右端の一頂点、または x 座標が最大となる辺を表します。
+/// 各添字は [`ConvexPolygon::vertices`] の位置であり、元の入力の添字ではありません。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SupportFace {
     /// 一頂点だけが最大です。
@@ -333,15 +338,44 @@ impl ConvexPolygon {
         }
     }
 
-    /// 指定方向との内積を最大にする頂点または辺を返します。
+    /// 図形の指定方向側の端にある頂点、または辺を返します。
+    ///
+    /// 方向を表すベクトルが `(dx, dy)` のとき、
+    /// `dx * vertex.x + dy * vertex.y` が最大になる頂点を探します。
+    /// 東向きなら右端、北向きなら上端です。長さや距離の最大化ではありません。
     ///
     /// # Args
-    /// - `direction`: 最大側を求める方向。最小側は逆方向を指定します。
+    ///
+    /// - `direction`: どちら側の端を探すかを表す方向。
+    ///   同じ式の最小側を探すには `direction.opposite()` を指定します。
+    ///
     /// # Returns
-    /// vertices 上の支持面。空集合だけ None。線分全体が同値なら Edge { 0, 1 }。
-    /// 三頂点以上の Edge は反時計回りに隣接し、末尾から先頭へも折り返します。
+    ///
+    /// 最大になる頂点が一つなら `Vertex(i)`、一辺全体なら `Edge { start, end }`。
+    /// 添字は `vertices()` 上の位置であり、構築前の入力の添字ではありません。
+    /// 空集合は `None`、一点は `Vertex(0)`、線分全体が同値なら `Edge { start: 0, end: 1 }` です。
+    /// 三頂点以上の辺の両端は反時計回りに隣接し、末尾から先頭へ折り返す場合もあります。
+    ///
     /// # Complexity
-    /// O(log n) 時間、O(1) 追加領域。二頂点以下は O(1)。
+    ///
+    /// 頂点数 n に対して O(log n) 時間、O(1) 追加領域。二頂点以下は O(1)。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use anmitsu::geometry::{convex_polygon, direction, primitives};
+    /// let point = |x, y| primitives::Point2 { x, y };
+    /// let ray = |x, y| direction::Direction::from_vector(primitives::Vector2 { x, y }).unwrap();
+    /// let polygon = convex_polygon::ConvexPolygon::from_points(&[
+    ///     point(0, 0), point(3, 0), point(3, 2), point(0, 2),
+    /// ]);
+    /// // 東向きでは右辺の両端、北東向きでは右上の頂点が最大になります。
+    /// assert_eq!(Some(convex_polygon::SupportFace::Edge { start: 1, end: 2 }),
+    ///     polygon.support(ray(1, 0)));
+    /// assert_eq!(point(3, 0), polygon.vertices()[1]);
+    /// assert_eq!(point(3, 2), polygon.vertices()[2]);
+    /// assert_eq!(Some(convex_polygon::SupportFace::Vertex(2)), polygon.support(ray(1, 1)));
+    /// ```
     pub fn support(&self, direction: direction::Direction) -> Option<SupportFace> {
         let size = self.vertices.len();
         let normal = direction.components();
@@ -386,13 +420,18 @@ impl ConvexPolygon {
         )
     }
 
-    /// 正規化した頂点列の異なる二頂点の最遠点対を返します。
+    /// この図形の頂点のうち、距離が最も大きい二頂点の位置を返します。
     ///
     /// # Returns
-    /// vertices 上の二添字を小さい順に返します。二頂点未満は None、同率は任意。
-    /// 距離の二乗が u128 を超えても、対の選択は正確です。
+    ///
+    /// `vertices()` 上の二添字を小さい順で返します。元の入力の添字ではありません。
+    /// 入力の添字が必要な場合は、点群を受け取る自由関数 `furthest_pair(points)` を使います。
+    /// 二頂点未満は `None`、同率の対が複数ある場合の選択は任意です。
+    /// 距離の二乗が `u128` を超えても、対の選択は正確です。
+    ///
     /// # Complexity
-    /// 回転キャリパーによる O(n) 時間、O(1) 追加領域。
+    ///
+    /// 回転キャリパーによる O(n) 時間、O(1) 追加領域。n はこの図形の頂点数です。
     pub fn furthest_pair(&self) -> Option<(usize, usize)> {
         let size = self.vertices.len();
         if size < 2 {
@@ -457,16 +496,45 @@ impl ConvexPolygon {
         sum
     }
 
-    /// 二つの凸図形の Minkowski 和を、辺の偏角順の併合で構築します。
+    /// 二つの図形から点を一つずつ選び、その座標を足してできる図形を返します。
+    ///
+    /// `self` の任意の点 `(ax, ay)` と `other` の任意の点 `(bx, by)` に対して、
+    /// `(ax + bx, ay + by)` となる点をすべて集めた図形が Minkowski 和です。
+    /// 一点 `(tx, ty)` との和は、全体をその座標分だけ平行移動した図形になります。
     ///
     /// # Args
-    /// - `other`: 和を取る凸図形。点・線分も受け付けます。
+    ///
+    /// - `other`: 座標の和を取るもう一つの凸図形。一点や線分も受け付けます。
+    ///
     /// # Returns
-    /// 正規化した凸図形。空集合との和は空集合です。
+    ///
+    /// 座標の和からなる、頂点の順序を揃えた凸図形。空集合との和は空集合です。
+    /// 頂点列の順序と重複・共線点の扱いは、この型のほかの構築方法と同じです。
+    ///
     /// # Panics
-    /// 生成する頂点の座標が i64 に収まらない場合。
+    ///
+    /// 生成する頂点の座標が `i64` に収まらない場合。
+    ///
     /// # Complexity
-    /// 頂点数 n、m に対して O(n + m) 時間・領域。凸包の再構築はしません。
+    ///
+    /// 頂点数 n、m に対して O(n + m) 時間・領域。
+    /// 辺を偏角順に併合して構築するため、凸包を再計算する時間はかかりません。
+    ///
+    /// # Examples
+    ///
+    /// 一点 `(10, -2)` との和を取り、長方形を右へ 10、下へ 2 だけ移動します。
+    ///
+    /// ```
+    /// use anmitsu::geometry::{convex_polygon, primitives};
+    /// let point = |x, y| primitives::Point2 { x, y };
+    /// let rectangle = convex_polygon::ConvexPolygon::from_points(&[
+    ///     point(0, 0), point(3, 0), point(3, 2), point(0, 2),
+    /// ]);
+    /// let offset = convex_polygon::ConvexPolygon::from_points(&[point(10, -2)]);
+    /// let translated = rectangle.minkowski_sum(&offset);
+    /// assert_eq!([point(10, -2), point(13, -2), point(13, 0), point(10, 0)],
+    ///     translated.vertices());
+    /// ```
     pub fn minkowski_sum(&self, other: &Self) -> Self {
         if self.vertices.is_empty() || other.vertices.is_empty() {
             return Self::from_ccw_vertices(Vec::new());

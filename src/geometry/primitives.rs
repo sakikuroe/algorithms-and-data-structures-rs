@@ -2,7 +2,9 @@
 //!
 //! 点の差はベクトル、点の平行移動は点を返します。座標の演算子はすべて
 //! 結果が `i64` に収まることを検査し、範囲外なら debug・release ともパニックします。
-//! 二乗距離の取得は、先に狭い点の差を作らずに計算します。
+//! 二乗距離は、各座標の差が `i64` に収まらない二点にも使えます。
+//! ただし、距離の二乗が `u128` を超えるとパニックします。
+//! 点の引き算 `a - b` は、右辺の点 b から左辺の点 a へ向かうベクトルです。
 //!
 //! ```
 //! use anmitsu::geometry::primitives;
@@ -78,26 +80,41 @@ impl Vector2<i64> {
         kernel::cross(self.components(), other.components()).to_i128()
     }
 
-    /// ゼロベクトルも含め、内積の符号だけを正確に取得します。
+    /// 内積 `self.x * other.x + self.y * other.y` の符号だけを返します。
     ///
     /// # Args
-    /// - `other`: もう一方のベクトル。
+    ///
+    /// - `other`: 内積を取るもう一方のベクトル。ゼロも受け付けます。
+    ///
     /// # Returns
-    /// 負・ゼロ・正に対応する `Less`・`Equal`・`Greater`。
+    ///
+    /// 負なら `Less`、ゼロなら `Equal`、正なら `Greater`。
+    /// どちらかがゼロベクトルでも `Equal` です。90 度の角をなすかの判定には、
+    /// 両方が非ゼロであることも確認してください。
+    /// 非ゼロ同士での角度との対応は [`Direction::dot_sign`](super::direction::Direction::dot_sign) と同じです。
+    ///
     /// # Complexity
+    ///
     /// 時間・追加領域とも O(1)。
     #[inline]
     pub fn dot_sign(self, other: Self) -> cmp::Ordering {
         kernel::dot_sign(self.components(), other.components())
     }
 
-    /// ゼロベクトルも含め、外積の符号だけを正確に取得します。
+    /// 外積 `self.x * other.y - self.y * other.x` の符号だけを返します。
     ///
     /// # Args
-    /// - `other`: もう一方のベクトル。
+    ///
+    /// - `other`: 外積の右側に置くベクトル。ゼロも受け付けます。
+    ///
     /// # Returns
-    /// 負・ゼロ・正に対応する `Less`・`Equal`・`Greater`。
+    ///
+    /// 負なら `Less`、ゼロなら `Equal`、正なら `Greater`。
+    /// `Equal` には、どちらかがゼロの場合、同方向の場合、逆方向の場合がすべて含まれます。
+    /// 非ゼロ同士での回転方向との対応は [`Direction::cross_sign`](super::direction::Direction::cross_sign) を参照してください。
+    ///
     /// # Complexity
+    ///
     /// 時間・追加領域とも O(1)。
     #[inline]
     pub fn cross_sign(self, other: Self) -> cmp::Ordering {
@@ -166,7 +183,7 @@ impl ops::Sub<Vector2<i64>> for Point2<i64> {
 }
 impl ops::Sub for Point2<i64> {
     type Output = Vector2<i64>;
-    /// 二点の差を、i64 に収まるベクトルとして取得します。
+    /// 右辺の点 `rhs` から左辺の点 `self` へ向かうベクトルを返します。
     fn sub(self, rhs: Self) -> Self::Output {
         Vector2 {
             x: self

@@ -124,7 +124,7 @@ impl Wide {
 }
 
 impl cmp::Ord for Wide {
-    /// 符号、絶対値の上位桁、下位桁の順で比較します。
+    /// 符号が同じなら絶対値の上位桁、下位桁の順で比較し、負数では順を反転します。
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.sign().cmp(&other.sign()).then_with(|| {
             let order = (self.high, self.low).cmp(&(other.high, other.low));
