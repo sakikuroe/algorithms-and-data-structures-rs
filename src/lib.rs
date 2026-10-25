@@ -111,6 +111,7 @@ pub mod ds {
         pub mod segment_tree_sparse_online;
     }
     pub mod bit_vector;
+    pub mod interval_bit_set;
     pub mod union_find;
     pub mod wavelet_matrix;
     mod wavelet_matrix_range;
