@@ -1,4 +1,4 @@
-//! 典型90 009 の角度最大化を、逆方向の挿入位置から調べます。
+//! 典型90 009 の角度最大化を、逆方向を挟む二候補から調べます。
 //! 問題: https://atcoder.jp/contests/typical90/tasks/typical90_i
 
 use anmitsu::{
@@ -25,11 +25,13 @@ fn main() {
                 .map(|&p| direction::Direction::between(origin, p)),
         );
         let directions = order.directions();
-        let size = directions.len();
         for &base in directions {
-            let bound = order.lower_bound(base.opposite());
-            // 挿入位置の両側だけが、逆方向の最近傍になりえます。
-            for position in [bound % size, (bound + size - 1) % size] {
+            // 円周の前後候補から選べば、逆方向に最も近い角度を得られます。
+            for position in order
+                .bracketing_positions(base.opposite())
+                .into_iter()
+                .flatten()
+            {
                 let other = directions[position];
                 answer = answer.max(base.angle_to(other));
             }

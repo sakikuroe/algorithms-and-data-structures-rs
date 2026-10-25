@@ -30,7 +30,7 @@ mod typical90_i_three_point_angle {
 
     /// Scenario: 逆方向付近の探索結果が全三点の角度と一致します。
     /// - Given: 同方向や一直線上の三点も現れる点群があります。
-    /// - When: 挿入位置の両側から最大角度を求めます。
+    /// - When: 円周上で逆方向を挟む二候補から最大角度を求めます。
     /// - Then: 全ての角の列挙と一致します。
     #[test]
     fn matches_all_point_triples() {

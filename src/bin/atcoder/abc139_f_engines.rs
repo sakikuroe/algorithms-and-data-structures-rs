@@ -27,8 +27,8 @@ fn main() {
     for first in 0..ids.len() {
         let mut sum = primitives::Vector2 { x: 0_i64, y: 0_i64 };
         // 最大となる部分集合は偏角順の連続部分として列挙できます。
-        for offset in 0..ids.len() {
-            sum += vectors[ids[(first + offset) % ids.len()]];
+        for &index in ids[first..].iter().chain(&ids[..first]) {
+            sum += vectors[index];
             best = best.max(sum.norm_squared());
         }
     }
